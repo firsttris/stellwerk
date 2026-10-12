@@ -53,3 +53,18 @@ test("a new folder appears as a row", async ({ page }) => {
   await page.getByRole("button", { name: "Anlegen" }).click();
   await expect(page.getByRole("link", { name: "Spielstände" })).toBeVisible();
 });
+
+test("folders and devices show what is happening right now", async ({ page }) => {
+  await page.goto("/");
+  const fotos = page.getByRole("row", { name: /Fotos/ });
+  await expect(fotos.getByText("Läuft · 72 %")).toBeVisible();
+  await expect(fotos.getByText("61.004 Dateien · 412 GB")).toBeVisible();
+  await expect(page.getByRole("row", { name: /Dokumente/ }).getByText("Fehler")).toBeVisible();
+  await expect(page.getByText("Fehler in Dokumente auf laptop")).toBeVisible();
+  await expect(page.getByText(/214 Änderungen liegen auf dem Server bereit/)).toBeVisible();
+  await expect(page.getByText("werkbank hat 18 Dateien in Projekte geändert")).toBeVisible();
+
+  await page.getByRole("link", { name: "Geräte" }).click();
+  await expect(page.getByText("Lädt 18 Änderungen · 72 %")).toBeVisible();
+  await expect(page.getByText("214 Änderungen warten auf dem Server")).toBeVisible();
+});

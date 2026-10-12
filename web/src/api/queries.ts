@@ -9,17 +9,24 @@ export const sessionQuery = queryOptions({
   staleTime: 60_000,
 });
 
-/** Polled, so online states and "waiting" cells follow the agents. */
+// The WebSocket (`useLiveUpdates`) keeps these fresh; the intervals are only a fallback.
+
 export const overviewQuery = queryOptions({
   queryKey: ["overview"],
   queryFn: () => api.overview(),
-  refetchInterval: 5_000,
+  refetchInterval: 30_000,
+});
+
+export const statusQuery = queryOptions({
+  queryKey: ["status"],
+  queryFn: () => api.status(),
+  refetchInterval: 30_000,
 });
 
 export const eventsQuery = queryOptions({
   queryKey: ["events"],
   queryFn: () => api.events(8),
-  refetchInterval: 15_000,
+  refetchInterval: 60_000,
 });
 
 export function refresh(queryClient: QueryClient) {

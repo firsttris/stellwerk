@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 pub mod messages;
+pub mod status;
 
 /// A Syncthing device ID in its canonical form (`XXXXXXX-XXXXXXX-…`).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

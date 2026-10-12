@@ -7,6 +7,7 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 
 use crate::error::{Error, Result};
+use crate::monitor::{CompletionReply, Event, FolderSummary};
 use crate::syncthing_config::{Actual, Config, DeviceConfig, FolderConfig};
 
 /// Where a Syncthing listens and the key that opens it.
@@ -128,6 +129,34 @@ impl Client {
         let mut url = self.url(&["rest", "db", "scan"]);
         url.query_pairs_mut().append_pair("folder", folder);
         self.send_to(Method::POST, url, |r| r).await.map(drop)
+    }
+
+    /// `GET /rest/db/status?folder={id}`
+    pub async fn folder_summary(&self, folder: &str) -> Result<FolderSummary> {
+        let mut url = self.url(&["rest", "db", "status"]);
+        url.query_pairs_mut().append_pair("folder", folder);
+        Ok(self.send_to(Method::GET, url, |r| r).await?.json().await?)
+    }
+
+    /// `GET /rest/db/completion?folder={id}&device={id}`: how much of the folder the other
+    /// device has, from its index, also while it is offline.
+    pub async fn completion(&self, folder: &str, device: &str) -> Result<CompletionReply> {
+        let mut url = self.url(&["rest", "db", "completion"]);
+        url.query_pairs_mut()
+            .append_pair("folder", folder)
+            .append_pair("device", device);
+        Ok(self.send_to(Method::GET, url, |r| r).await?.json().await?)
+    }
+
+    /// `GET /rest/events?since=…&events=…&timeout=…`: waits up to `timeout_secs` for events
+    /// after `since`.
+    pub async fn events(&self, since: u64, kinds: &str, timeout_secs: u32) -> Result<Vec<Event>> {
+        let mut url = self.url(&["rest", "events"]);
+        url.query_pairs_mut()
+            .append_pair("since", &since.to_string())
+            .append_pair("events", kinds)
+            .append_pair("timeout", &timeout_secs.to_string());
+        Ok(self.send_to(Method::GET, url, |r| r).await?.json().await?)
     }
 
     /// `POST /rest/system/shutdown`

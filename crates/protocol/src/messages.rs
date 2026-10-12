@@ -5,10 +5,12 @@
 //!    agent's Ed25519 key; on first contact with the one-time enrollment code.
 //! 3. Zentrale → agent: [`ServerMessage::Welcome`], then the full [`DesiredState`] now and
 //!    after every change. A rejected agent gets [`ServerMessage::Rejected`] and the socket closes.
-//! 4. Agent → Zentrale: [`AgentMessage::Applied`] after each desired state.
+//! 4. Agent → Zentrale: [`AgentMessage::Applied`] after each desired state, and
+//!    [`AgentMessage::Status`] whenever its folders change, at most about once per second.
 
 use serde::{Deserialize, Serialize};
 
+use crate::status::FolderStatus;
 use crate::{DesiredState, DeviceId};
 
 /// Path of the agent's WebSocket on the Zentrale.
@@ -28,6 +30,13 @@ pub enum ServerMessage {
 pub enum AgentMessage {
     Hello(Hello),
     Applied(Applied),
+    /// The state of every folder; sent on change, at most about once per second.
+    Status(Status),
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Status {
+    pub folders: Vec<FolderStatus>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

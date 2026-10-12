@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { demoState } from "../demo/fixtures";
-import { ago, deviceStatus, duration, plural, since } from "./format";
+import { ago, describeEvent, deviceStatus, duration, plural, since } from "./format";
 
 describe("format", () => {
   it("says how long ago", () => {
@@ -21,6 +21,23 @@ describe("format", () => {
     expect(duration(30)).toBe("1 Min.");
     expect(since(3 * 86400)).toBe("seit 3 Tagen");
     expect(since(86400)).toBe("seit 1 Tag");
+  });
+
+  it("describes activity", () => {
+    const { devices, folders } = demoState(0);
+    const event = (kind: string, text = "") => ({
+      kind,
+      text,
+      deviceId: "laptop",
+      folderId: "fotos",
+    });
+    expect(describeEvent(event("changes", "18"), devices, folders)).toBe(
+      "laptop hat 18 Dateien in Fotos geändert",
+    );
+    expect(describeEvent(event("changes", "1"), devices, folders)).toBe(
+      "laptop hat 1 Datei in Fotos geändert",
+    );
+    expect(describeEvent(event("offline"), devices, folders)).toBe("laptop ist offline");
     expect(plural(1, "Gerät", "Geräte")).toBe("1 Gerät");
     expect(plural(4, "Gerät", "Geräte")).toBe("4 Geräte");
   });

@@ -3,13 +3,14 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Database, Folder as FolderIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { api } from "../../../api";
-import { overviewQuery, refresh } from "../../../api/queries";
-import type { Folder, FolderPatch, Overview, ShareChange } from "../../../api/types";
+import { overviewQuery, refresh, statusQuery } from "../../../api/queries";
+import type { Device, Folder, FolderPatch, Live, Overview, ShareChange } from "../../../api/types";
 import { StatusDot } from "../../../components/device-icon";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Field, Input, Select } from "../../../components/ui/input";
 import { deviceStatus, nowSeconds, plural } from "../../../lib/format";
+import { completion, folderSize, formatCount } from "../../../lib/live";
 import { type CellMode, isWaiting, matrixDevices, storedMode } from "../../../lib/matrix";
 import { cn } from "../../../lib/utils";
 
@@ -27,6 +28,7 @@ type Tab = "devices" | "settings";
 function FolderPage() {
   const { folderId } = Route.useParams();
   const { data: overview } = useQuery(overviewQuery);
+  const { data: live } = useQuery(statusQuery);
   const [tab, setTab] = useState<Tab>("devices");
   const folder = overview?.folders.find((f) => f.id === folderId);
 
@@ -82,7 +84,7 @@ function FolderPage() {
         ))}
       </div>
       {tab === "devices" ? (
-        <FolderDevices key={overview.revision} overview={overview} folder={folder} />
+        <FolderDevices key={overview.revision} overview={overview} live={live} folder={folder} />
       ) : (
         <FolderSettings folder={folder} />
       )}
@@ -92,7 +94,15 @@ function FolderPage() {
 
 type Row = { mode: CellMode; path: string };
 
-function FolderDevices({ overview, folder }: { overview: Overview; folder: Folder }) {
+function FolderDevices({
+  overview,
+  live,
+  folder,
+}: {
+  overview: Overview;
+  live: Live | undefined;
+  folder: Folder;
+}) {
   const devices = matrixDevices(overview);
   const now = nowSeconds();
   const stored = (deviceId: string): Row => ({
@@ -159,6 +169,7 @@ function FolderDevices({ overview, folder }: { overview: Overview; folder: Folde
           />
           <span className="text-[13px] text-muted-foreground">
             Vollständige Kopie mit Versionen
+            {folderSize(live, folder.id) ? ` · ${folderSize(live, folder.id)}` : ""}
           </span>
         </div>
         {devices.map((device) => {
@@ -196,9 +207,7 @@ function FolderDevices({ overview, folder }: { overview: Overview; folder: Folde
               <span className="text-[13px] text-muted-foreground">
                 {off
                   ? "Nicht auf diesem Gerät"
-                  : isWaiting(device, overview.revision)
-                    ? "Wartet, bis das Gerät online ist"
-                    : "Eingerichtet"}
+                  : shareStatus(device, live, folder.id, overview.revision)}
               </span>
             </div>
           );
@@ -225,6 +234,23 @@ function FolderDevices({ overview, folder }: { overview: Overview; folder: Folde
       </div>
     </Card>
   );
+}
+
+/** One device's progress in this folder, from the hub's view of it. */
+function shareStatus(device: Device, live: Live | undefined, folderId: string, revision: number) {
+  const done = completion(live, folderId, device.id);
+  const missing = done?.needItems ?? 0;
+  const changes = `${formatCount(missing)} ${missing === 1 ? "Änderung" : "Änderungen"}`;
+  if (!device.online) {
+    if (missing > 0) return `Offline · ${changes} warten auf dem Server`;
+    return isWaiting(device, revision)
+      ? "Wartet, bis das Gerät online ist"
+      : "Offline · vollständig";
+  }
+  const error = live?.devices[device.id]?.folders[folderId]?.error;
+  if (error) return `Fehler: ${error}`;
+  if (done && done.percent < 100) return `Lädt ${changes} · ${Math.floor(done.percent)} %`;
+  return "Synchron";
 }
 
 function FolderSettings({ folder }: { folder: Folder }) {

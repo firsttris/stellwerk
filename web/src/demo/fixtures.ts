@@ -1,4 +1,4 @@
-import type { ActivityEvent, Device, Folder, Share } from "../api/types";
+import type { ActivityEvent, Device, Folder, FolderView, Live, Share } from "../api/types";
 
 // Demo data for `vite --mode demo`, the E2E tests and the screenshots. Times are relative to
 // `now`, so "offline for 3 days" stays true.
@@ -114,6 +114,23 @@ export function demoState(now: number): DemoState {
   ];
   const events: ActivityEvent[] = [
     {
+      id: 6,
+      at: now - 2 * 60,
+      deviceId: "werkbank",
+      folderId: "projekte",
+      kind: "changes",
+      text: "18",
+    },
+    {
+      id: 5,
+      at: now - 9 * 60,
+      deviceId: "macbook",
+      folderId: "fotos",
+      kind: "changes",
+      text: "46",
+    },
+    { id: 4, at: now - 18 * 60, deviceId: "macbook", folderId: null, kind: "online", text: "" },
+    {
       id: 3,
       at: now - 2 * 60 * 60,
       deviceId: "laptop",
@@ -125,4 +142,78 @@ export function demoState(now: number): DemoState {
     { id: 1, at: now - 30 * DAY, deviceId: "werkbank", folderId: null, kind: "paired", text: "" },
   ];
   return { revision: 12, devices, folders, shares, events };
+}
+
+const folderView = (globalFiles: number, globalBytes: number, extra: Partial<FolderView> = {}) =>
+  ({
+    state: "idle",
+    globalFiles,
+    globalBytes,
+    needFiles: 0,
+    needBytes: 0,
+    errors: 0,
+    ...extra,
+  }) satisfies FolderView;
+
+/** Live state to go with [`demoState`]: Fotos is arriving on werkbank, büro-pc is behind. */
+export function demoLive(now: number): Live {
+  const done = { percent: 100, needBytes: 0, needItems: 0 };
+  return {
+    devices: {
+      werkbank: {
+        at: now,
+        folders: {
+          projekte: folderView(48_210, 18_400_000_000),
+          dokumente: folderView(3_912, 2_100_000_000),
+          fotos: folderView(61_004, 412_000_000_000, {
+            state: "syncing",
+            needFiles: 18,
+            needBytes: 115_000_000_000,
+          }),
+          musik: folderView(9_880, 96_000_000_000),
+        },
+      },
+      laptop: {
+        at: now,
+        folders: {
+          projekte: folderView(48_210, 18_400_000_000),
+          dokumente: folderView(3_912, 2_100_000_000, { errors: 2 }),
+          musik: folderView(9_880, 96_000_000_000),
+        },
+      },
+      macbook: {
+        at: now,
+        folders: {
+          dokumente: folderView(3_912, 2_100_000_000),
+          fotos: folderView(61_004, 412_000_000_000),
+        },
+      },
+    },
+    hub: {
+      folders: {
+        projekte: folderView(48_210, 18_400_000_000),
+        dokumente: folderView(3_912, 2_100_000_000),
+        fotos: folderView(61_004, 412_000_000_000),
+        musik: folderView(9_880, 96_000_000_000),
+      },
+      completion: {
+        projekte: {
+          werkbank: done,
+          laptop: done,
+          buero: { percent: 96.2, needBytes: 690_000_000, needItems: 202 },
+        },
+        dokumente: {
+          werkbank: done,
+          laptop: done,
+          buero: { percent: 99.1, needBytes: 18_000_000, needItems: 12 },
+          macbook: done,
+        },
+        fotos: {
+          werkbank: { percent: 72.4, needBytes: 115_000_000_000, needItems: 18 },
+          macbook: done,
+        },
+        musik: { werkbank: done, laptop: done },
+      },
+    },
+  };
 }

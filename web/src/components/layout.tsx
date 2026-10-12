@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Folder, LayoutGrid, LogOut, Monitor, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 import { api } from "../api";
+import { useLiveUpdates } from "../api/live";
 import { overviewQuery, sessionQuery } from "../api/queries";
 import { Button } from "./ui/button";
 
@@ -18,6 +19,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const { data: overview } = useQuery(overviewQuery);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  useLiveUpdates();
 
   const logout = async () => {
     await api.logout();

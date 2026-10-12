@@ -7,7 +7,7 @@ import {
   type Overview,
   type Share,
 } from "../api/types";
-import { type DemoState, demoState } from "./fixtures";
+import { type DemoState, demoLive, demoState } from "./fixtures";
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
@@ -151,5 +151,6 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
       return { device };
     },
     events: async (limit = 20) => state.events.slice(0, limit),
+    status: async () => demoLive(nowSeconds()),
   };
 }

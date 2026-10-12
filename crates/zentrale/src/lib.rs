@@ -7,6 +7,7 @@ pub mod app;
 pub mod auth;
 pub mod desired;
 pub mod hub;
+pub mod live;
 pub mod model;
 pub mod pairing;
 pub mod server;

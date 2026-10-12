@@ -7,6 +7,7 @@ import {
   enrollmentStatusSchema,
   eventSchema,
   folderSchema,
+  liveSchema,
   overviewSchema,
   type Session,
   sessionSchema,
@@ -76,6 +77,7 @@ export function httpApi(): Api {
     createEnrollment: () => request("POST", "/api/enrollments").then(parsed(enrollmentSchema)),
     enrollmentStatus: (code) =>
       request("POST", "/api/enrollments/status", { code }).then(parsed(enrollmentStatusSchema)),
+    status: () => request("GET", "/api/status").then(parsed(liveSchema)),
     events: (limit = 20) =>
       request("GET", `/api/events?limit=${limit}`).then(parsed(eventSchema.array())),
   };

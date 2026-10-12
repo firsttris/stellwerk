@@ -27,6 +27,7 @@ field (`crates/protocol/src/messages.rs`).
 | Zentrale → agent | `welcome` | the device's ID at the Zentrale |
 | Zentrale → agent | `desiredState` | revision, peers (device IDs and addresses), folders with ID, label, mode, path, versioning, ignore patterns, peers |
 | agent → Zentrale | `applied` | revision, errors per folder |
+| agent → Zentrale | `status` | per folder: state, files and bytes in total and still needed, errors; on change, at most about once per second |
 | Zentrale → agent | `rejected` | why; the socket closes |
 
 The desired state is always complete, never a diff: an agent that was offline for three days just
@@ -108,10 +109,30 @@ of the Zentrale embeds `web/dist`; paths outside `/api` fall back to `index.html
 - **Ordner**: mode and local path per device, rename, ignore patterns (one per line, on every
   device and the hub), remove.
 
-The overview is polled every five seconds. `src/api/types.ts` checks every answer with Zod.
+Live updates come through `/api/ws` (see above); polling every 30 seconds is only the fallback.
+`src/api/types.ts` checks every answer with Zod.
 `pnpm dev:demo` runs the UI on fixtures (`src/demo/`) without a Zentrale. The Playwright tests in
 `e2e/` and the screenshots (`pnpm screenshots`, or **Actions → Update screenshots**) use the same
 demo mode, so they need neither Rust nor Syncthing.
+
+## Live status and activity
+
+The engine's monitor (`crates/engine/src/monitor.rs`) long-polls Syncthing's `/rest/events` and
+reads `/rest/db/status` for every folder whenever something happened, at most once per second.
+
+- Each agent sends the result as `status` over its WebSocket.
+- The Zentrale watches the hub the same way and also reads `/rest/db/completion` for every
+  folder and device: how much of a folder a device has, known from its index even while it is
+  offline ("214 changes wait on the server").
+- Changes that arrive at the hub (`RemoteChangeDetected`, with the short ID of the device that
+  made them) are counted per device and folder over 30 seconds and written to the activity feed
+  ("laptop changed 18 files in Projekte"), as are pairings, connects and disconnects.
+- The UI gets everything through `/api/ws`: one `update` with revision, online devices and the
+  live state per change (throttled to 300 ms). The status goes straight into the query cache; a
+  new revision or online state reloads the overview.
+
+Syncthing keeps events for a mask only from its first request on (lib/api/api.go,
+`getEventSub`), so the monitor starts together with Syncthing.
 
 ## Engine
 
@@ -123,6 +144,7 @@ demo mode, so they need neither Rust nor Syncthing.
 | `client` | Syncthing REST API: `/rest/config`, `/rest/config/{devices,folders}/{id}`, `/rest/db/scan`, … |
 | `reconcile` | pure function: actual config + desired state → list of API calls |
 | `apply` | runs those calls; the only side effects of reconciling |
+| `monitor` | event stream, folder status, completion of other devices, changes that arrived |
 
 ### Reconciler
 

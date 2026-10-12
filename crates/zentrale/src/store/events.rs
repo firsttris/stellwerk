@@ -21,16 +21,20 @@ impl Store {
         &self,
         at: i64,
         device_id: Option<&str>,
+        folder_id: Option<&str>,
         kind: &str,
         text: &str,
     ) -> Result<()> {
-        sqlx::query("INSERT INTO events (at, device_id, kind, text) VALUES (?, ?, ?, ?)")
-            .bind(at)
-            .bind(device_id)
-            .bind(kind)
-            .bind(text)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query(
+            "INSERT INTO events (at, device_id, folder_id, kind, text) VALUES (?, ?, ?, ?, ?)",
+        )
+        .bind(at)
+        .bind(device_id)
+        .bind(folder_id)
+        .bind(kind)
+        .bind(text)
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 

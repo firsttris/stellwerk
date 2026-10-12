@@ -4,8 +4,9 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Check, Clock, Database } from "lucide-
 import { useState } from "react";
 import { api } from "../api";
 import { refresh } from "../api/queries";
-import type { Overview } from "../api/types";
+import type { Live, Overview } from "../api/types";
 import { deviceStatus, nowSeconds, plural } from "../lib/format";
+import { completion, folderBadge, folderSize } from "../lib/live";
 import {
   type CellMode,
   cellKey,
@@ -22,7 +23,7 @@ import {
 import { cn } from "../lib/utils";
 import { DeviceIcon, StatusDot } from "./device-icon";
 import { Button } from "./ui/button";
-import { Card } from "./ui/card";
+import { Badge, Card } from "./ui/card";
 
 const MODE_ICON = { sendReceive: ArrowUpDown, sendOnly: ArrowUp, receiveOnly: ArrowDown };
 
@@ -64,7 +65,7 @@ export function Legend() {
 }
 
 /** Folders × devices. Clicks collect in a draft; "Anwenden" sends it as one revision. */
-export function Matrix({ overview }: { overview: Overview }) {
+export function Matrix({ overview, live }: { overview: Overview; live: Live | undefined }) {
   const [draft, setDraft] = useState<Draft>(new Map());
   const [toast, setToast] = useState("");
   const queryClient = useQueryClient();
@@ -196,19 +197,24 @@ export function Matrix({ overview }: { overview: Overview }) {
             <tbody>
               {overview.folders.map((folder) => {
                 const holders = overview.shares.filter((s) => s.folderId === folder.id).length;
+                const badge = folderBadge(overview, live, folder.id);
                 return (
                   <tr key={folder.id} className="border-b border-muted hover:bg-subtle">
                     <th scope="row" className="px-5 py-3 font-normal">
                       <div className="flex flex-col gap-0.5">
-                        <Link
-                          to="/folders/$folderId"
-                          params={{ folderId: folder.id }}
-                          className="font-medium hover:underline"
-                        >
-                          {folder.label}
-                        </Link>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            to="/folders/$folderId"
+                            params={{ folderId: folder.id }}
+                            className="font-medium hover:underline"
+                          >
+                            {folder.label}
+                          </Link>
+                          <Badge tone={badge.tone}>{badge.text}</Badge>
+                        </div>
                         <span className="text-xs text-muted-foreground">
-                          auf {plural(holders, "Gerät", "Geräten")} und dem Server
+                          {folderSize(live, folder.id) ??
+                            `auf ${plural(holders, "Gerät", "Geräten")} und dem Server`}
                         </span>
                       </div>
                     </th>
@@ -226,6 +232,11 @@ export function Matrix({ overview }: { overview: Overview }) {
                       const changed = draft.has(cellKey(folder.id, device.id));
                       const waiting =
                         !changed && mode !== "off" && isWaiting(device, overview.revision);
+                      const percent = completion(live, folder.id, device.id)?.percent ?? 100;
+                      const progress =
+                        !changed && !waiting && mode !== "off" && device.online && percent < 100
+                          ? Math.floor(percent)
+                          : undefined;
                       const label = `${folder.label} auf ${device.name}: ${MODE_LONG[mode]}. Klicken zum Ändern.`;
                       return (
                         <td key={device.id} className="border-l border-muted p-2">
@@ -246,6 +257,11 @@ export function Matrix({ overview }: { overview: Overview }) {
                           >
                             <ModeIcon mode={mode} />
                             <span>{MODE_LABEL[mode]}</span>
+                            {progress !== undefined && (
+                              <span className="absolute -top-2 -right-1.5 rounded-full border border-info-border bg-background px-1.5 text-[10px] font-medium text-info-foreground tabular-nums dark:text-info-accent">
+                                {progress} %
+                              </span>
+                            )}
                             {waiting && (
                               <span className="absolute -top-2 -right-1.5 inline-flex items-center gap-0.5 rounded-full border border-info-border bg-background px-1.5 text-[10px] font-medium text-info-foreground dark:text-info-accent">
                                 <Clock className="size-2.5" strokeWidth={2.6} aria-hidden="true" />

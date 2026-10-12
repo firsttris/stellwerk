@@ -11,14 +11,15 @@ import { Database, Ellipsis, Search } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useMemo, useState } from "react";
 import { api } from "../../api";
-import { overviewQuery, refresh } from "../../api/queries";
-import type { Device, Overview } from "../../api/types";
+import { overviewQuery, refresh, statusQuery } from "../../api/queries";
+import type { Device, Live, Overview } from "../../api/types";
 import { DeviceIcon, StatusDot } from "../../components/device-icon";
 import { PageHeader } from "../../components/layout";
 import { PairDialog } from "../../components/pair-dialog";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
-import { ago, nowSeconds, osLabel, since } from "../../lib/format";
+import { ago, nowSeconds, osLabel } from "../../lib/format";
+import { deviceSummary, waitingChanges } from "../../lib/live";
 import { isWaiting } from "../../lib/matrix";
 import { cn } from "../../lib/utils";
 
@@ -28,6 +29,7 @@ type Filter = "all" | "online" | "offline";
 
 function Devices() {
   const { data: overview } = useQuery(overviewQuery);
+  const { data: live } = useQuery(statusQuery);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const devices = useMemo(
@@ -85,7 +87,9 @@ function Devices() {
           ))}
         </fieldset>
       </div>
-      {overview && <DeviceTable overview={overview} devices={devices} search={search} />}
+      {overview && (
+        <DeviceTable overview={overview} live={live} devices={devices} search={search} />
+      )}
     </>
   );
 }
@@ -96,10 +100,12 @@ function folderCount(overview: Overview, device: Device) {
 
 function DeviceTable({
   overview,
+  live,
   devices,
   search,
 }: {
   overview: Overview;
+  live: Live | undefined;
   devices: Device[];
   search: string;
 }) {
@@ -132,11 +138,9 @@ function DeviceTable({
               {!d.approved ? "Gesperrt" : d.online ? "Online" : "Offline"}
             </span>
             <span className="text-xs text-muted-foreground">
-              {isWaiting(d, overview.revision)
+              {isWaiting(d, overview.revision) && waitingChanges(overview, live, d.id) === 0
                 ? "Neue Konfiguration wartet"
-                : d.online && d.onlineSince !== null
-                  ? since(now - d.onlineSince)
-                  : "Auf dem neuesten Stand"}
+                : deviceSummary(overview, live, d)}
             </span>
           </div>
         ),
@@ -165,7 +169,7 @@ function DeviceTable({
         cell: ({ row: { original: d } }) => <DeviceActions device={d} />,
       },
     ],
-    [overview, now],
+    [overview, live, now],
   );
   const table = useReactTable({
     data: devices,

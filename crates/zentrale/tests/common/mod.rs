@@ -32,6 +32,7 @@ pub async fn start_zentrale(dir: &Path) -> Running {
         syncthing_binary: Some(syncthing_binary().await),
         hub_listen: hub.clone(),
         hub_address: hub,
+        activity_window: Duration::from_secs(1),
     };
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     start(&options, listener).await.unwrap()

@@ -58,13 +58,23 @@ export const plural = (count: number, one: string, many: string) =>
 
 /** An activity entry in the UI's language; the stored text is the fallback. */
 export function describeEvent(
-  event: { kind: string; text: string; deviceId: string | null },
+  event: { kind: string; text: string; deviceId: string | null; folderId: string | null },
   devices: readonly Device[],
+  folders: readonly { id: string; label: string }[],
 ): string {
   const name = devices.find((d) => d.id === event.deviceId)?.name ?? "Ein Gerät";
+  const folder = folders.find((f) => f.id === event.folderId)?.label ?? "einem Ordner";
   switch (event.kind) {
     case "paired":
       return `${name} wurde gekoppelt`;
+    case "online":
+      return `${name} ist online`;
+    case "offline":
+      return `${name} ist offline`;
+    case "changes": {
+      const count = Number(event.text);
+      return `${name} hat ${count === 1 ? "1 Datei" : `${count} Dateien`} in ${folder} geändert`;
+    }
     case "error":
       return `Fehler auf ${name}: ${event.text}`;
     default:

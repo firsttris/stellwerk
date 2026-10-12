@@ -5,6 +5,7 @@ mod common;
 use common::{pair_agent, start_zentrale, wait_for, wait_for_file};
 use stellwerk_protocol::FolderMode;
 use stellwerk_zentrale::desired::hub_path;
+use stellwerk_zentrale::live::view;
 use stellwerk_zentrale::store::{ShareChange, now};
 
 #[tokio::test(flavor = "multi_thread")]
@@ -54,6 +55,30 @@ async fn a_paired_device_syncs_its_folder_with_the_hub() {
     let on_hub =
         std::path::PathBuf::from(hub_path(zentrale.app.hub(), &folder.syncthing_folder_id));
     wait_for_file(&on_hub.join("hello.txt"), "from the laptop\n").await;
+
+    // Live state: the agent reports the folder in sync, the hub sees the device complete, and
+    // the activity feed says who changed what.
+    let app = &zentrale.app;
+    wait_for("the agent's folder status", || async {
+        let view = view(&store.config().await.ok()?, &app.live());
+        let docs = view.devices.get(&device.id)?.folders.get(&folder.id)?;
+        (docs.global_files == 1 && docs.need_files == 0).then_some(())
+    })
+    .await;
+    wait_for("the hub's completion for the device", || async {
+        let view = view(&store.config().await.ok()?, &app.live());
+        let done = view.hub.completion.get(&folder.id)?.get(&device.id)?;
+        (done.percent >= 100.0).then_some(())
+    })
+    .await;
+    let change = wait_for("an activity entry for the change", || async {
+        let events = store.events(20).await.ok()?;
+        events.into_iter().find(|e| e.kind == "changes")
+    })
+    .await;
+    assert_eq!(change.device_id.as_deref(), Some(device.id.as_str()));
+    assert_eq!(change.folder_id.as_deref(), Some(folder.id.as_str()));
+    assert_eq!(change.text, "1");
 
     agent.stop().await;
     zentrale.stop().await.unwrap();

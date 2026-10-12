@@ -80,6 +80,55 @@ export const eventSchema = z.object({
 });
 export type ActivityEvent = z.infer<typeof eventSchema>;
 
+export const syncStateSchema = z.enum([
+  "idle",
+  "scanning",
+  "syncing",
+  "waiting",
+  "error",
+  "unknown",
+]);
+export type SyncState = z.infer<typeof syncStateSchema>;
+
+export const folderViewSchema = z.object({
+  state: syncStateSchema,
+  globalFiles: z.number(),
+  globalBytes: z.number(),
+  needFiles: z.number(),
+  needBytes: z.number(),
+  errors: z.number(),
+  error: z.string().optional(),
+});
+export type FolderView = z.infer<typeof folderViewSchema>;
+
+export const completionSchema = z.object({
+  percent: z.number(),
+  needBytes: z.number(),
+  needItems: z.number(),
+});
+export type Completion = z.infer<typeof completionSchema>;
+
+/** What is happening right now (crates/zentrale/src/live.rs), by the Zentrale's IDs. */
+export const liveSchema = z.object({
+  devices: z.record(
+    z.string(),
+    z.object({ at: z.number(), folders: z.record(z.string(), folderViewSchema) }),
+  ),
+  hub: z.object({
+    folders: z.record(z.string(), folderViewSchema),
+    completion: z.record(z.string(), z.record(z.string(), completionSchema)),
+  }),
+});
+export type Live = z.infer<typeof liveSchema>;
+
+export const uiMessageSchema = z.object({
+  type: z.literal("update"),
+  revision: z.number(),
+  online: z.array(z.string()),
+  status: liveSchema,
+});
+export type UiMessage = z.infer<typeof uiMessageSchema>;
+
 /** One cell of the matrix as the API takes it; `mode: null` is "off". */
 export type ShareChange = {
   folderId: string;
@@ -106,6 +155,7 @@ export type Api = {
   createEnrollment(): Promise<Enrollment>;
   enrollmentStatus(code: string): Promise<{ device: Device | null }>;
   events(limit?: number): Promise<ActivityEvent[]>;
+  status(): Promise<Live>;
 };
 
 export class ApiError extends Error {

@@ -1,6 +1,7 @@
 //! The HTTP API the web UI uses. Everything but the session endpoints needs the admin.
 
 mod error;
+mod live;
 mod routes;
 mod session;
 
@@ -30,4 +31,6 @@ pub fn router() -> Router<App> {
         .route("/api/enrollments", post(routes::create_enrollment))
         .route("/api/enrollments/status", post(routes::enrollment_status))
         .route("/api/events", get(routes::events))
+        .route("/api/status", get(live::status))
+        .route("/api/ws", get(live::ws))
 }

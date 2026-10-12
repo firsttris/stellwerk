@@ -5,7 +5,10 @@ use std::future::Future;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use tokio::sync::watch;
+
 use stellwerk_engine::download::ensure_syncthing;
+use stellwerk_engine::monitor::{self, Snapshot};
 use stellwerk_engine::pin::SYNCTHING_VERSION;
 use stellwerk_engine::process::{SpawnOptions, free_port, start};
 
@@ -62,6 +65,14 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
     };
     tracing::info!(id = %report.syncthing_id, "Syncthing running");
 
+    let (snapshots, mut status) = watch::channel(Snapshot::default());
+    let monitor = tokio::spawn(monitor::run(
+        syncthing.client().clone(),
+        monitor::Options::default(),
+        snapshots,
+        None,
+    ));
+
     let connect = async {
         let mut last_applied = None;
         let mut pause = MIN_PAUSE;
@@ -72,6 +83,7 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
                 syncthing.client(),
                 &report,
                 &mut last_applied,
+                &mut status,
             )
             .await;
             let wait = match result {
@@ -96,6 +108,7 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
         () = connect => {}
         () = shutdown => {}
     }
+    monitor.abort();
     syncthing.stop().await?;
     Ok(())
 }

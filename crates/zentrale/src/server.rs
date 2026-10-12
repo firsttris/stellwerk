@@ -2,6 +2,7 @@
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use anyhow::Context;
 use axum::Router;
@@ -28,6 +29,8 @@ pub struct Options {
     pub hub_listen: String,
     /// Where devices reach the hub, e.g. `tcp://sync.example.org:22001`.
     pub hub_address: String,
+    /// How long changes are collected into one activity entry ([`hub::ACTIVITY_WINDOW`]).
+    pub activity_window: Duration,
 }
 
 /// A running Zentrale.
@@ -35,7 +38,7 @@ pub struct Running {
     pub app: App,
     pub addr: SocketAddr,
     hub: Instance,
-    hub_task: JoinHandle<()>,
+    hub_tasks: [JoinHandle<()>; 2],
     server: JoinHandle<std::io::Result<()>>,
     shutdown: oneshot::Sender<()>,
 }
@@ -74,7 +77,12 @@ pub async fn start(options: &Options, listener: TcpListener) -> anyhow::Result<R
     tracing::info!(id = %hub_info.syncthing_id, address = %hub_info.address, "hub Syncthing running");
 
     let app = App::new(store, hub_info).await?;
-    let hub_task = tokio::spawn(hub::run(app.clone(), hub.client().clone()));
+    let hub_reconcile = tokio::spawn(hub::run(app.clone(), hub.client().clone()));
+    let hub_watch = tokio::spawn(hub::watch(
+        app.clone(),
+        hub.client().clone(),
+        options.activity_window,
+    ));
 
     let addr = listener.local_addr()?;
     let (shutdown, stopped) = oneshot::channel();
@@ -90,7 +98,7 @@ pub async fn start(options: &Options, listener: TcpListener) -> anyhow::Result<R
         app,
         addr,
         hub,
-        hub_task,
+        hub_tasks: [hub_reconcile, hub_watch],
         server,
         shutdown,
     })
@@ -101,7 +109,7 @@ impl Running {
     pub async fn stop(self) -> anyhow::Result<()> {
         let _ = self.shutdown.send(());
         self.server.abort();
-        self.hub_task.abort();
+        self.hub_tasks.iter().for_each(JoinHandle::abort);
         self.hub.stop().await?;
         Ok(())
     }

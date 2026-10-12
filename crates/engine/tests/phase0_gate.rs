@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use stellwerk_engine::download::ensure_syncthing;
+use stellwerk_engine::monitor::{Options, Snapshot, remote_changes, snapshot};
 use stellwerk_engine::process::{Instance, SpawnOptions, start};
 use stellwerk_engine::syncthing_config::FolderType;
 use stellwerk_engine::{Client, reconcile};
@@ -59,6 +60,22 @@ async fn calls_made(client: &Client, desired: &DesiredState) -> usize {
     let outcome = reconcile(client, desired).await.unwrap();
     assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
     outcome.calls.len()
+}
+
+async fn wait_for_snapshot(
+    client: &Client,
+    options: Options,
+    done: impl Fn(&Snapshot) -> bool,
+) -> Snapshot {
+    let deadline = tokio::time::Instant::now() + SYNC_TIMEOUT;
+    loop {
+        let found = snapshot(client, options).await.unwrap();
+        if done(&found) {
+            return found;
+        }
+        assert!(tokio::time::Instant::now() < deadline, "{found:?}");
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
 }
 
 async fn folder_type(client: &Client) -> FolderType {
@@ -131,6 +148,13 @@ async fn file_from_a_arrives_in_b_and_reapplying_changes_nothing() {
     );
     assert_eq!(before, after);
 
+    // Syncthing buffers events per mask only from the first request on (lib/api/api.go,
+    // getEventSub), so subscribe before anything happens.
+    b.client()
+        .events(0, "RemoteChangeDetected", 0)
+        .await
+        .unwrap();
+
     // A file written on A arrives on B.
     std::fs::create_dir_all(&a_data).unwrap();
     let contents = "Stellwerk phase 0\n";
@@ -141,6 +165,35 @@ async fn file_from_a_arrives_in_b_and_reapplying_changes_nothing() {
     assert!(
         !b_data.join("scratch.tmp").exists(),
         "ignored files stay where they are"
+    );
+
+    // The monitor sees the result: B has the file, A knows B is complete, and B saw the
+    // change arrive from A.
+    let b_snapshot = wait_for_snapshot(b.client(), Options::default(), |s| {
+        s.folders
+            .iter()
+            .any(|f| f.folder == FOLDER && f.global_files == 1 && f.need_files == 0)
+    })
+    .await;
+    assert_eq!(b_snapshot.completion, []);
+    let a_snapshot = wait_for_snapshot(a.client(), Options { completion: true }, |s| {
+        s.completion
+            .iter()
+            .any(|c| c.device == b_id.as_str() && c.percent >= 100.0)
+    })
+    .await;
+    assert_eq!(a_snapshot.completion.len(), 1);
+    let events = b
+        .client()
+        .events(0, "RemoteChangeDetected", 0)
+        .await
+        .unwrap();
+    let changes = remote_changes(&events);
+    assert!(
+        changes
+            .iter()
+            .any(|c| c.path == "hello.txt" && a_id.as_str().starts_with(&c.modified_by)),
+        "{changes:?}"
     );
 
     a.stop().await.unwrap();

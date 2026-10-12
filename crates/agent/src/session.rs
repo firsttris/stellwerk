@@ -4,10 +4,15 @@
 use std::path::Path;
 
 use anyhow::Context;
+use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use stellwerk_engine::Client;
-use stellwerk_protocol::messages::{AgentMessage, Applied, ApplyError, Hello, ServerMessage};
+use stellwerk_engine::monitor::Snapshot;
+use stellwerk_protocol::messages::{
+    AgentMessage, Applied, ApplyError, Hello, ServerMessage, Status,
+};
 use stellwerk_protocol::{DesiredState, DeviceId};
+use tokio::sync::watch;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::config::{self, AgentConfig};
@@ -30,20 +35,22 @@ pub enum End {
 }
 
 /// Runs one connection until it closes. `last_applied` carries the applied revision across
-/// reconnects.
+/// reconnects; `status` is the monitor's latest snapshot, sent on connecting and on change.
 pub async fn run(
     data_dir: &Path,
     config: &mut AgentConfig,
     syncthing: &Client,
     report: &Report,
     last_applied: &mut Option<u64>,
+    status: &mut watch::Receiver<Snapshot>,
 ) -> anyhow::Result<End> {
     let url = config::ws_url(&config.server)?;
-    let (mut socket, _) = tokio_tungstenite::connect_async(url.as_str())
+    let (socket, _) = tokio_tungstenite::connect_async(url.as_str())
         .await
         .with_context(|| format!("connecting to {url}"))?;
+    let (mut sink, mut stream) = socket.split();
 
-    let nonce = match receive(&mut socket).await? {
+    let nonce = match receive(&mut stream).await? {
         Some(ServerMessage::Challenge { nonce }) => nonce,
         Some(ServerMessage::Rejected { reason }) => return Ok(End::Rejected(reason)),
         _ => anyhow::bail!("the Zentrale did not send a challenge"),
@@ -60,25 +67,37 @@ pub async fn run(
         syncthing_id: DeviceId::new(&report.syncthing_id),
         applied_revision: *last_applied,
     };
-    send(&mut socket, &AgentMessage::Hello(hello)).await?;
+    send(&mut sink, &AgentMessage::Hello(hello)).await?;
 
+    let mut welcomed = false;
     loop {
-        match receive(&mut socket).await? {
-            Some(ServerMessage::Welcome { device }) => {
-                tracing::info!(%device, "connected to the Zentrale");
-                if config.enrollment_code.take().is_some() {
-                    config::save(data_dir, config)?;
-                    tracing::info!("paired");
+        tokio::select! {
+            message = receive(&mut stream) => match message? {
+                Some(ServerMessage::Welcome { device }) => {
+                    tracing::info!(%device, "connected to the Zentrale");
+                    if config.enrollment_code.take().is_some() {
+                        config::save(data_dir, config)?;
+                        tracing::info!("paired");
+                    }
+                    welcomed = true;
+                    status.mark_changed();
                 }
+                Some(ServerMessage::DesiredState(state)) => {
+                    let applied = apply(syncthing, &state).await;
+                    *last_applied = Some(applied.revision);
+                    send(&mut sink, &AgentMessage::Applied(applied)).await?;
+                }
+                Some(ServerMessage::Rejected { reason }) => return Ok(End::Rejected(reason)),
+                Some(ServerMessage::Challenge { .. }) => {}
+                None => return Ok(End::Closed),
+            },
+            changed = status.changed(), if welcomed => {
+                if changed.is_err() {
+                    return Ok(End::Closed);
+                }
+                let folders = status.borrow_and_update().folders.clone();
+                send(&mut sink, &AgentMessage::Status(Status { folders })).await?;
             }
-            Some(ServerMessage::DesiredState(state)) => {
-                let applied = apply(syncthing, &state).await;
-                *last_applied = Some(applied.revision);
-                send(&mut socket, &AgentMessage::Applied(applied)).await?;
-            }
-            Some(ServerMessage::Rejected { reason }) => return Ok(End::Rejected(reason)),
-            Some(ServerMessage::Challenge { .. }) => {}
-            None => return Ok(End::Closed),
         }
     }
 }
@@ -112,17 +131,19 @@ async fn apply(syncthing: &Client, state: &DesiredState) -> Applied {
 
 type Socket =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+type Sink = SplitSink<Socket, Message>;
+type Stream = SplitStream<Socket>;
 
-async fn send(socket: &mut Socket, message: &AgentMessage) -> anyhow::Result<()> {
+async fn send(sink: &mut Sink, message: &AgentMessage) -> anyhow::Result<()> {
     let text = serde_json::to_string(message)?;
-    socket.send(Message::text(text)).await?;
+    sink.send(Message::text(text)).await?;
     Ok(())
 }
 
 /// The next message from the Zentrale; `None` when the connection closed. Unreadable
 /// messages are skipped, so a newer Zentrale does not break an older agent.
-async fn receive(socket: &mut Socket) -> anyhow::Result<Option<ServerMessage>> {
-    while let Some(message) = socket.next().await {
+async fn receive(stream: &mut Stream) -> anyhow::Result<Option<ServerMessage>> {
+    while let Some(message) = stream.next().await {
         match message? {
             Message::Text(text) => match serde_json::from_str(&text) {
                 Ok(message) => return Ok(Some(message)),

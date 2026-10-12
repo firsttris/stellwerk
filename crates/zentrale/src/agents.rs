@@ -44,6 +44,10 @@ async fn session(app: App, mut socket: WebSocket) {
 
     let connection = app.set_online(&device.id, now());
     tracing::info!(device = %device.name, "agent connected");
+    let _ = app
+        .store()
+        .add_event(now(), Some(&device.id), None, "online", "")
+        .await;
     let welcome = ServerMessage::Welcome {
         device: device.id.clone(),
     };
@@ -52,6 +56,10 @@ async fn session(app: App, mut socket: WebSocket) {
     }
     app.set_offline(&device.id, connection);
     let _ = app.store().touch_device(&device.id, now()).await;
+    let _ = app
+        .store()
+        .add_event(now(), Some(&device.id), None, "offline", "")
+        .await;
     tracing::info!(device = %device.name, "agent disconnected");
 }
 
@@ -78,6 +86,7 @@ async fn serve(app: &App, device_id: &str, socket: &mut WebSocket) {
             }
             message = receive(socket) => match message {
                 Some(AgentMessage::Applied(applied)) => record_applied(app, device_id, applied).await,
+                Some(AgentMessage::Status(status)) => app.set_device_status(device_id, status.folders, now()),
                 Some(AgentMessage::Hello(_)) => {}
                 None => return,
             },
@@ -101,7 +110,7 @@ async fn record_applied(app: &App, device_id: &str, applied: Applied) {
         };
         let _ = app
             .store()
-            .add_event(at, Some(device_id), "error", &text)
+            .add_event(at, Some(device_id), None, "error", &text)
             .await;
     }
 }
@@ -123,7 +132,9 @@ async fn authenticate(app: &App, nonce: &str, hello: &Hello) -> Result<Device, S
     let device = match enrolled {
         Some(device) => {
             let text = format!("{} was paired", device.name);
-            let _ = store.add_event(at, Some(&device.id), "paired", &text).await;
+            let _ = store
+                .add_event(at, Some(&device.id), None, "paired", &text)
+                .await;
             device
         }
         // An agent that was paired but lost the answer still has its key: let it in.

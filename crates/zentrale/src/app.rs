@@ -7,6 +7,10 @@ use std::sync::{Arc, Mutex};
 
 use tokio::sync::watch;
 
+use stellwerk_engine::monitor::Snapshot;
+use stellwerk_protocol::status::FolderStatus;
+
+use crate::live::{DeviceLive, Live};
 use crate::model::Hub;
 use crate::store::{Result, Store};
 
@@ -23,6 +27,9 @@ struct Inner {
     /// Connected agents: device ID → (connection, connected since).
     online: Mutex<BTreeMap<String, (u64, i64)>>,
     connections: AtomicU64,
+    live: Mutex<Live>,
+    /// Raised on anything the UI shows live: revision, online states, folder states.
+    ticks: watch::Sender<u64>,
 }
 
 impl App {
@@ -35,6 +42,8 @@ impl App {
                 revision: watch::Sender::new(revision),
                 online: Mutex::default(),
                 connections: AtomicU64::new(0),
+                live: Mutex::default(),
+                ticks: watch::Sender::new(0),
             }),
         })
     }
@@ -55,7 +64,36 @@ impl App {
             *current = revision;
             modified
         });
+        self.tick();
         Ok(())
+    }
+
+    /// Something the UI shows changed.
+    pub fn tick(&self) {
+        self.inner
+            .ticks
+            .send_modify(|tick| *tick = tick.wrapping_add(1));
+    }
+
+    /// Wakes up whenever the UI should refresh.
+    pub fn ticks(&self) -> watch::Receiver<u64> {
+        self.inner.ticks.subscribe()
+    }
+
+    pub fn set_device_status(&self, device_id: &str, folders: Vec<FolderStatus>, at: i64) {
+        lock(&self.inner.live)
+            .devices
+            .insert(device_id.to_string(), DeviceLive { at, folders });
+        self.tick();
+    }
+
+    pub fn set_hub_snapshot(&self, snapshot: Snapshot) {
+        lock(&self.inner.live).hub = snapshot;
+        self.tick();
+    }
+
+    pub fn live(&self) -> Live {
+        lock(&self.inner.live).clone()
     }
 
     /// Wakes up on every new revision.
@@ -68,6 +106,7 @@ impl App {
         let connection = self.inner.connections.fetch_add(1, Ordering::Relaxed);
         self.online()
             .insert(device_id.to_string(), (connection, since));
+        self.tick();
         connection
     }
 
@@ -76,6 +115,8 @@ impl App {
         let mut online = self.online();
         if online.get(device_id).is_some_and(|(c, _)| *c == connection) {
             online.remove(device_id);
+            drop(online);
+            self.tick();
         }
     }
 
@@ -88,10 +129,13 @@ impl App {
     }
 
     fn online(&self) -> std::sync::MutexGuard<'_, BTreeMap<String, (u64, i64)>> {
-        // A panic while holding the lock leaves a plain map behind; keep using it.
-        self.inner
-            .online
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        lock(&self.inner.online)
     }
+}
+
+/// A panic while holding a lock leaves plain data behind; keep using it.
+fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }

@@ -73,6 +73,7 @@ async fn serve(data_dir: PathBuf, serve: Serve) -> anyhow::Result<()> {
         syncthing_binary: serve.syncthing,
         hub_listen: serve.hub_listen,
         hub_address,
+        activity_window: stellwerk_zentrale::hub::ACTIVITY_WINDOW,
     };
     let listener = tokio::net::TcpListener::bind(serve.listen).await?;
     let running = start(&options, listener).await?;
