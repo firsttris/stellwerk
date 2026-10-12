@@ -41,11 +41,13 @@ enum UiMessage {
     },
 }
 
-pub async fn ws(State(app): State<App>, _: Admin, upgrade: WebSocketUpgrade) -> Response {
-    upgrade.on_upgrade(move |socket| session(app, socket))
+pub async fn ws(State(app): State<App>, admin: Admin, upgrade: WebSocketUpgrade) -> Response {
+    upgrade.on_upgrade(move |socket| session(app, admin, socket))
 }
 
-async fn session(app: App, mut socket: WebSocket) {
+/// Streams updates while the login lasts: after a logout, expiry or new password the next
+/// update closes the socket instead.
+async fn session(app: App, admin: Admin, mut socket: WebSocket) {
     let mut ticks = app.ticks();
     ticks.mark_changed();
     loop {
@@ -56,6 +58,10 @@ async fn session(app: App, mut socket: WebSocket) {
                 }
                 tokio::time::sleep(THROTTLE).await;
                 ticks.borrow_and_update();
+                if !admin.still_logged_in(&app).await {
+                    let _ = socket.send(Message::Close(None)).await;
+                    return;
+                }
                 let Ok(message) = update(&app).await else { return };
                 if socket.send(Message::Text(message.into())).await.is_err() {
                     return;

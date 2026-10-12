@@ -252,6 +252,46 @@ async fn unknown_api_paths_are_404_and_everything_else_goes_to_the_ui() {
 }
 
 #[tokio::test]
+async fn the_live_socket_closes_once_the_session_is_gone() {
+    use futures_util::StreamExt;
+    use tokio_tungstenite::tungstenite::{Message, client::IntoClientRequest};
+
+    let (router, app, _dir) = app().await;
+    app.store()
+        .set_admin_password_hash(&hash_password(PASSWORD).unwrap())
+        .await
+        .unwrap();
+    let mut browser = Browser::default();
+    let login = json!({ "password": PASSWORD });
+    browser
+        .send(&router, "POST", "/api/login", Some(login))
+        .await;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(axum::serve(listener, router.clone()).into_future());
+
+    let mut request = format!("ws://{addr}/api/ws").into_client_request().unwrap();
+    let cookie = browser.cookie.clone().unwrap();
+    request
+        .headers_mut()
+        .insert(header::COOKIE, cookie.parse().unwrap());
+    let (mut socket, _) = tokio_tungstenite::connect_async(request).await.unwrap();
+    let first = socket.next().await.unwrap().unwrap();
+    assert!(matches!(first, Message::Text(_)), "{first:?}");
+
+    let (status, _) = browser.send(&router, "POST", "/api/logout", None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    app.tick();
+    let next = tokio::time::timeout(std::time::Duration::from_secs(5), socket.next())
+        .await
+        .expect("the socket closes");
+    assert!(
+        matches!(next, None | Some(Ok(Message::Close(_)) | Err(_))),
+        "{next:?}"
+    );
+}
+
+#[tokio::test]
 async fn parallel_wrong_logins_are_checked_one_after_another() {
     let (router, app, _dir) = app().await;
     app.store()

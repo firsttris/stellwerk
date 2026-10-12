@@ -31,7 +31,20 @@ fn failed_login_delay(failures: u32) -> Duration {
 
 /// A request from the logged-in admin; changes also carry the right CSRF token.
 #[derive(Debug, Clone)]
-pub struct Admin;
+pub struct Admin {
+    /// The session's token hash, for checking later that it still exists.
+    pub token_hash: String,
+}
+
+impl Admin {
+    /// Whether the session still exists: not logged out, expired or ended by a new password.
+    pub async fn still_logged_in(&self, app: &App) -> bool {
+        matches!(
+            app.store().session(&self.token_hash, now()).await,
+            Ok(Some(_))
+        )
+    }
+}
 
 impl FromRequestParts<App> for Admin {
     type Rejection = ApiError;
@@ -52,7 +65,9 @@ impl FromRequestParts<App> for Admin {
                 "missing or wrong CSRF token",
             ));
         }
-        Ok(Admin)
+        Ok(Admin {
+            token_hash: session.token_hash,
+        })
     }
 }
 
