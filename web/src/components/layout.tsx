@@ -36,10 +36,15 @@ export function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   useLiveUpdates();
 
+  // Out in any case: a failed logout (session already gone, server down) must not keep the
+  // admin on a page that no longer works.
   const logout = async () => {
-    await api.logout();
-    queryClient.removeQueries({ queryKey: sessionQuery.queryKey });
-    await navigate({ to: "/login" });
+    try {
+      await api.logout();
+    } finally {
+      queryClient.removeQueries({ queryKey: sessionQuery.queryKey });
+      await navigate({ to: "/login" });
+    }
   };
 
   return (

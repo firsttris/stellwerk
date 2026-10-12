@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { RefreshCw } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { api } from "../api";
+import { UNAUTHORIZED_IS_ANSWER } from "../api/client";
 import { sessionQuery } from "../api/queries";
 import { Button } from "../components/ui/button";
 import { Field, Input } from "../components/ui/input";
@@ -17,6 +18,7 @@ function Login() {
   const navigate = useNavigate();
   const login = useMutation({
     mutationFn: () => api.login(password),
+    meta: UNAUTHORIZED_IS_ANSWER,
     onSuccess: async (next) => {
       queryClient.setQueryData(sessionQuery.queryKey, next);
       await navigate({ to: "/" });
