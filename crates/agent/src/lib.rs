@@ -21,7 +21,7 @@ pub fn default_data_dir() -> anyhow::Result<std::path::PathBuf> {
 
 /// Runs until Ctrl-C, SIGTERM or the stop file of `service uninstall`.
 pub async fn run_until_stopped(options: Options) -> anyhow::Result<()> {
-    let stop = service::stop_requested(options.data_dir.clone());
+    let stop = service::stop_requested(options.data_dir.clone(), std::time::SystemTime::now());
     run(options, async {
         tokio::select! {
             () = stellwerk_engine::process::shutdown_signal() => {}

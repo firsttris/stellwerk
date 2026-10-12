@@ -6,7 +6,7 @@
 //! modules.
 
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 pub mod definitions;
 #[cfg(target_os = "linux")]
@@ -48,16 +48,20 @@ pub const STOP_FILE: &str = "stop";
 /// How often a running agent looks for [`STOP_FILE`].
 const STOP_POLL: Duration = Duration::from_secs(1);
 
-/// Completes when [`STOP_FILE`] appears in `data_dir`, and removes it.
-pub async fn stop_requested(data_dir: PathBuf) {
+/// Completes when a [`STOP_FILE`] written at or after `since` (the agent's start) appears in
+/// `data_dir`, and removes it. An older one is left over from an uninstaller that did not
+/// finish: it is removed without stopping. Comparing times instead of clearing the file on
+/// start keeps a request that comes while the agent is still starting.
+pub async fn stop_requested(data_dir: PathBuf, since: SystemTime) {
     let file = data_dir.join(STOP_FILE);
-    let _ = std::fs::remove_file(&file);
     loop {
-        tokio::time::sleep(STOP_POLL).await;
-        if file.exists() {
+        if let Ok(modified) = std::fs::metadata(&file).and_then(|m| m.modified()) {
             let _ = std::fs::remove_file(&file);
-            return;
+            if modified >= since {
+                return;
+            }
         }
+        tokio::time::sleep(STOP_POLL).await;
     }
 }
 
@@ -103,7 +107,7 @@ mod tests {
     async fn the_stop_file_stops_a_running_agent() {
         let dir = tempfile::tempdir().unwrap();
         let data_dir = dir.path().to_path_buf();
-        let agent = tokio::spawn(stop_requested(data_dir.clone()));
+        let agent = tokio::spawn(stop_requested(data_dir.clone(), SystemTime::now()));
         tokio::time::sleep(Duration::from_millis(100)).await;
         let requester = tokio::task::spawn_blocking(move || {
             request_stop(&data_dir, Duration::from_secs(10)).unwrap();
@@ -120,9 +124,23 @@ mod tests {
     async fn an_old_stop_file_does_not_stop_a_new_agent() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join(STOP_FILE), "").unwrap();
-        let agent = tokio::spawn(stop_requested(dir.path().to_path_buf()));
+        let started = SystemTime::now() + Duration::from_secs(5);
+        let agent = tokio::spawn(stop_requested(dir.path().to_path_buf(), started));
         tokio::time::sleep(STOP_POLL * 2).await;
         assert!(!agent.is_finished());
+        assert!(!dir.path().join(STOP_FILE).exists());
         agent.abort();
+    }
+
+    #[tokio::test]
+    async fn a_request_while_the_agent_starts_is_kept() {
+        let dir = tempfile::tempdir().unwrap();
+        let started = SystemTime::now() - Duration::from_secs(5);
+        std::fs::write(dir.path().join(STOP_FILE), "").unwrap();
+        let agent = tokio::spawn(stop_requested(dir.path().to_path_buf(), started));
+        tokio::time::timeout(Duration::from_secs(5), agent)
+            .await
+            .unwrap()
+            .unwrap();
     }
 }

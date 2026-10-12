@@ -68,8 +68,9 @@ pub fn uninstall(data_dir: &Path) -> anyhow::Result<()> {
 }
 
 /// Whether the background agent still runs; by process name, as task states are localized.
+/// CSV, because the table format cuts image names at 25 characters.
 fn agent_running() -> bool {
     let filter = format!("IMAGENAME eq {BACKGROUND_EXE}");
-    command("tasklist", &["/FI", &filter, "/NH"])
+    command("tasklist", &["/FI", &filter, "/FO", "CSV", "/NH"])
         .is_ok_and(|list| list.to_lowercase().contains(BACKGROUND_EXE))
 }
