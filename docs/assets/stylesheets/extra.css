@@ -1,0 +1,19 @@
+/* Colours of the web UI (web/src/index.css): near-black with the blue of its info accent */
+:root {
+  --md-primary-fg-color: #18181b;
+  --md-primary-fg-color--light: #3f3f46;
+  --md-primary-fg-color--dark: #09090b;
+  --md-accent-fg-color: #2563eb;
+  --md-typeset-a-color: #2563eb;
+}
+[data-md-color-scheme="slate"] {
+  --md-accent-fg-color: #60a5fa;
+  --md-typeset-a-color: #60a5fa;
+}
+/* Screenshots: rounded corners and a shadow, never wider than the text */
+.md-typeset img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}

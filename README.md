@@ -11,7 +11,11 @@ Open source, no cloud, no clicking "accept" on every machine.
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 ![Rust](https://img.shields.io/badge/built_with-Rust-b7410e?logo=rust)
 
-[Status](#-status) •
+```bash
+docker compose up -d && docker compose exec -T stellwerk stellwerk set-password <<< 'a long password'
+```
+
+[Install](#-install) •
 [Why](#-why-stellwerk) •
 [Features](#-features) •
 [Screenshots](#-screenshots) •
@@ -22,17 +26,6 @@ Open source, no cloud, no clicking "accept" on every machine.
 <img src="docs/screenshot.png" alt="Stellwerk overview: a folder by device matrix showing which device sends, receives or does not hold each Syncthing folder, with a draft of two changes waiting to be applied" width="900">
 
 </div>
-
-## 🚧 Status
-
-Early development. Phases 1 and 2 work: Zentrale with web UI and hub Syncthing, agent, pairing with a
-one-time code and the folder × device matrix, tested with three real Syncthing instances and a
-device that is offline while things change; live status, conflicts, versions and ignore patterns
-on top. The Zentrale runs as a container (Docker Compose or Podman Quadlet); until v1.0 the image
-and the agent are built from source
-([installation](https://firsttris.github.io/stellwerk/installation.html)). Next: a week of daily
-use, then installers and self-update. The
-[roadmap](https://firsttris.github.io/stellwerk/architecture.html#roadmap) has the details.
 
 ## 💡 Why Stellwerk?
 
@@ -47,7 +40,48 @@ commercially and closed source.
 - **A clear overview**: folders × devices as one matrix, sync status at a glance.
 - **Syncthing does the syncing**: proven, encrypted transfer; Stellwerk only steers it.
 
-Server: Linux with Docker or Podman. Devices: Linux, Windows and macOS.
+Server: Linux with Docker or Podman (amd64 and arm64: a NAS, a mini PC, a Raspberry Pi 4/5, a
+VPS). Devices: Linux, Windows and macOS.
+
+## 🚀 Install
+
+On the server, a `compose.yaml` (the hub address is where your devices reach the server):
+
+```yaml
+services:
+  stellwerk:
+    image: tristanteu/stellwerk:latest
+    restart: unless-stopped
+    ports: ["8080:8080", "22001:22001"]   # web UI and agents; sync port of the hub
+    environment:
+      STELLWERK_HUB_ADDRESS: tcp://nas.local:22001
+    volumes: ["stellwerk:/data"]
+volumes:
+  stellwerk:
+```
+
+```bash
+docker compose up -d
+docker compose exec -T stellwerk stellwerk set-password <<< 'a long password'
+```
+
+Open `http://nas.local:8080`, click **Pair device** and run the command it shows on each device,
+as the normal user:
+
+```bash
+stellwerk-agent join --server http://nas.local:8080 K7Q2-MX9P-41TZ && stellwerk-agent service install
+```
+
+On Windows there is also an installer that asks for the address and the code. Podman Quadlet, a
+reverse proxy with HTTPS, backups and updates are in the
+[installation guide](https://firsttris.github.io/stellwerk/installation.html); a step-by-step
+first run is in [Getting started](https://firsttris.github.io/stellwerk/getting-started.html).
+
+> **Before v1.0** there is no published image or agent yet: build them from source with
+> `docker build -f docker/Dockerfile -t tristanteu/stellwerk .` and
+> `cargo build --release -p stellwerk-agent`. Everything works and is tested on Linux, Windows
+> and macOS; the self-update of the agents is the last piece before the first release
+> ([roadmap](https://firsttris.github.io/stellwerk/architecture.html#roadmap)).
 
 ## ✨ Features
 
@@ -57,14 +91,14 @@ Server: Linux with Docker or Podman. Devices: Linux, Windows and macOS.
   only and off.
 - **Drafts**: changes collect until you apply them, then go out as one numbered revision.
 - **Offline devices catch up**: a device that is off gets the new configuration and the files as
-  soon as it is back; the cell says "wartet" until then.
+  soon as it is back; the cell says "waiting" until then.
 
 ### 🔗 Pairing without clicking on every PC
 
-- **One-time code**: "Gerät koppeln" shows a command with a code valid for 15 minutes; the device
+- **One-time code**: "Pair device" shows a command with a code valid for 15 minutes; the device
   appears in the UI by itself.
 - **In the LAN without a code**: `stellwerk-agent join` finds the Zentrale over mDNS; the device
-  waits under "Wartende Geräte" until you approve it, after comparing its fingerprint.
+  waits under "Waiting devices" until you approve it, after comparing its fingerprint.
 - **Runs in the background**: `stellwerk-agent service install` (or the Windows installer) starts
   the agent at login as the current user, without admin rights, on Linux, macOS and Windows.
 - **Signed sign-in**: after pairing, the agent signs in with its own Ed25519 key; a device can be
@@ -74,7 +108,7 @@ Server: Linux with Docker or Podman. Devices: Linux, Windows and macOS.
 
 - **Hub in every folder**: the server keeps a full copy of each folder, with versions for a year.
 - **Live status**: progress per folder and device, what an offline device will get, and an
-  activity feed ("laptop changed 18 files in Projekte").
+  activity feed ("laptop changed 18 files in Projects").
 - **Conflicts solved in one place**: both versions side by side with a diff; keep one or both,
   the other stays in the versions. Any older version of a file can be restored.
 - **German and English**, following the browser or switched in the sidebar.
@@ -113,21 +147,51 @@ Stellwerk is made for one admin who wants all their own devices synced through t
 ## ❓ FAQ
 
 ### Is there a central management UI for Syncthing?
-That is what Stellwerk is for. There is no release yet, but it can be built from source; see
-[Status](#-status).
+Yes, that is what Stellwerk is for: one web UI on your server that configures Syncthing on all
+your devices. There is no release yet, but it can be built from source; see [Install](#-install).
 
 ### Does it change my existing Syncthing?
 No. The agent brings its own Syncthing with its own configuration and ports and leaves a
 Syncthing you already run alone.
 
+### Can I add devices that run plain Syncthing, like a phone?
+Not yet. Every device needs the agent, which runs on Linux, Windows and macOS. Android and iOS
+are not supported.
+
+### Does it run on a Synology, Unraid or Raspberry Pi?
+Anywhere Docker or Podman runs on Linux with amd64 or arm64: a Raspberry Pi 4 or 5 with a 64-bit
+OS, Unraid, a Synology with Container Manager. The server needs disk space for a full copy of
+every folder.
+
+### Do the devices need admin rights or open ports?
+No. The agent runs as the normal user and starts at login; devices only connect out to the
+server. Only the server needs two ports open: the web port (behind HTTPS) and the hub's sync
+port.
+
+### Is my data encrypted?
+In transit, yes: Syncthing encrypts every transfer with TLS and accepts only known devices; the
+web UI and the agents' connection go through your HTTPS proxy. On the server, the hub keeps a
+normal copy of every folder, so protect the server like the devices. Details in
+[Security](https://firsttris.github.io/stellwerk/security.html).
+
+### What happens if the server is down?
+The devices keep their files and their last configuration. Changes wait on each device and sync
+as soon as the server is back.
+
 ## 📚 Documentation
 
-The documentation is at **[firsttris.github.io/stellwerk](https://firsttris.github.io/stellwerk/)**.
+The full documentation, with search, is at **[firsttris.github.io/stellwerk](https://firsttris.github.io/stellwerk/)**.
 
 | | |
 |---|---|
-| [Installation](https://firsttris.github.io/stellwerk/installation.html) | building, running the Zentrale, pairing a device |
+| [Getting started](https://firsttris.github.io/stellwerk/getting-started.html) | from nothing to a first synced folder |
+| [User guide](https://firsttris.github.io/stellwerk/user-guide.html) | every page of the web UI: matrix, devices, pairing, folders, conflicts, versions |
+| [Installation](https://firsttris.github.io/stellwerk/installation.html) | Docker Compose, Podman Quadlet, binary; reverse proxy and TLS; the agent on each OS; updates and backups |
+| [Reference](https://firsttris.github.io/stellwerk/reference.html) | every option, port, file and limit |
+| [Security](https://firsttris.github.io/stellwerk/security.html) | trust model, encryption, login, pairing |
+| [Troubleshooting](https://firsttris.github.io/stellwerk/troubleshooting.html) | logs and the common problems |
 | [Architecture](https://firsttris.github.io/stellwerk/architecture.html) | Zentrale, hub, agent and engine; protocol; reconciler; roadmap |
+| [Development](https://firsttris.github.io/stellwerk/development.html) | building, tests, CI, releases |
 
 ## 🛠️ Development
 
@@ -142,6 +206,8 @@ pnpm e2e                        # Playwright against the UI in demo mode
 
 Rust workspace: `protocol` (messages, desired state), `engine` (Syncthing control and
 reconciler), `agent`, `zentrale` (axum, SQLite); React UI in `web/`, embedded into the Zentrale.
+Running a real Zentrale and agent locally, the tests and releases:
+[Development](https://firsttris.github.io/stellwerk/development.html).
 
 ## 🤝 Contributing
 

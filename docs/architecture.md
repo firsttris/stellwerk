@@ -1,5 +1,26 @@
 # Architecture
 
+How Stellwerk is built: its parts, how they talk, how a change travels from a click to the
+files on a device, and where the data lives. For using and running Stellwerk, start with the
+[user guide](user-guide.md) and [installation](installation.md).
+
+```mermaid
+flowchart LR
+    subgraph Server
+        Z["Zentrale<br/>axum · SQLite · web UI"]
+        H["hub Syncthing<br/>data/hub, data/folders"]
+        Z -- "engine: REST on 127.0.0.1" --> H
+    end
+    subgraph "Device (×n)"
+        A["agent"]
+        S["Syncthing"]
+        A -- "engine: REST on 127.0.0.1" --> S
+    end
+    B["browser"] -- "/api, /api/ws" --> Z
+    A -- "/api/agent/ws<br/>challenge · hello · desiredState · applied · status" --> Z
+    S -- "sync port 22001, TLS" --> H
+```
+
 ## Parts
 
 - **Zentrale** (`crates/zentrale`): one Rust binary with login, SQLite, the desired state of
@@ -14,6 +35,41 @@
 
 The Zentrale never sends commands like "create folder X", always "this is how it should look,
 revision 42". Applying is idempotent, so a device that was offline simply gets the current state.
+
+## From a click to the files
+
+What happens when you switch the cell *Photos × laptop* to **Both** and click **Apply**:
+
+```mermaid
+sequenceDiagram
+    participant UI as Web UI
+    participant Z as Zentrale
+    participant H as hub Syncthing
+    participant A as agent (laptop)
+    participant S as Syncthing (laptop)
+    UI->>Z: POST /api/shares (draft)
+    Z->>Z: one transaction: write shares, revision 42 → 43
+    Z->>Z: desired states for hub and devices (pure functions)
+    Z->>H: reconcile: share Photos with laptop
+    Z->>A: desiredState, revision 43
+    A->>S: reconcile: add folder Photos at ~/Stellwerk/Photos, peer hub
+    A->>Z: applied 43
+    S->>H: connect, exchange index, transfer files
+    Z-->>UI: update over /api/ws (revision, live status)
+```
+
+1. The UI sends the whole draft in one request. The Zentrale writes it and raises the revision
+   in the same SQLite transaction, so a revision is always a complete configuration.
+2. From the stored configuration it derives one desired state per device and one for the hub
+   (`desired.rs`). Nothing is diffed against the previous revision.
+3. The hub is reconciled directly; every connected agent gets its new desired state. An agent
+   that is offline gets the newest one when it connects, whatever happened in between.
+4. Each agent's reconciler compares its Syncthing's configuration with the desired state and
+   makes only the API calls needed, then reports `applied` with the revision and any errors per
+   folder. The overview shows **waiting** for devices that have not applied the current
+   revision.
+5. Syncthing on the device and on the hub do the rest: connect, exchange indexes, move files.
+   The monitors on both sides report progress, which reaches the UI as live status.
 
 ## Protocol
 
@@ -87,11 +143,16 @@ codes are stored.
 |---|---|
 | `GET /api/session`, `POST /api/login`, `POST /api/logout` | login state, log in, log out |
 | `GET /api/overview` | revision, hub, devices (with online state), folders, shares |
-| `POST /api/folders`, `PATCH`/`DELETE /api/folders/{id}` | create, rename, remove a folder |
-| `POST /api/shares` | apply a matrix draft as one revision |
-| `PATCH`/`DELETE /api/devices/{id}` | rename, block, remove a device |
+| `POST /api/folders`, `PATCH`/`DELETE /api/folders/{id}` | create; rename or set ignore patterns; remove a folder |
+| `POST /api/shares` | apply a draft of modes and paths as one revision |
+| `PATCH`/`DELETE /api/devices/{id}` | rename, block, unblock, remove a device |
 | `POST /api/enrollments`, `POST /api/enrollments/status` | new pairing code, has a device used it yet |
+| `POST /api/waiting/{fingerprint}/approve`, `…/reject` | decide about a device waiting in the LAN |
+| `GET /api/folders/{id}/conflicts/content`, `POST …/conflicts/resolve` | both sides of a conflict, resolve it |
+| `GET /api/folders/{id}/versions`, `POST …/versions/restore` | versions on the hub, restore one |
 | `GET /api/events` | activity feed |
+| `GET /api/status` | live status of devices and hub |
+| `GET /api/ws` | WebSocket with an `update` per change: revision, online devices, live status |
 
 Every change raises the revision and sends connected agents and the hub their new desired state.
 
@@ -112,16 +173,18 @@ device and one for the hub, as pure functions. The topology is a star:
 tokens for light and dark, components in shadcn style on Radix, lucide icons. The release build
 of the Zentrale embeds `web/dist`; paths outside `/api` fall back to `index.html`.
 
-- **Übersicht**: devices online, folders, revision; the folder × device matrix. Clicks collect in
-  a draft ("3 ungespeicherte Änderungen") and "Anwenden" sends it as one revision. The server
-  column is fixed: the hub holds every folder. Cells of an offline device that has not applied the
-  current revision show "wartet".
-- **Geräte**: list with search and filter, rename, block, remove; "Gerät koppeln" creates a code,
-  shows the command per OS and waits until the device shows up, then asks for its name and
-  folders.
-- **Ordner**: mode and local path per device; versions per file with restore; conflicts side by
+- **Overview**: devices online, folders, revision; the folder × device matrix. Clicks collect in
+  a draft ("3 unsaved changes") and **Apply** sends it as one revision. The server column is
+  fixed: the hub holds every folder. Cells of an offline device that has not applied the current
+  revision show **waiting**.
+- **Devices**: list with search and filter, rename, block, remove; waiting devices from the LAN;
+  **Pair device** creates a code, shows the command per OS and waits until the device shows up,
+  then asks for its folders.
+- **Folders**: mode and local path per device; versions per file with restore; conflicts side by
   side; rename, ignore patterns (one per line, on every device and the hub), remove.
-- **Konflikte**: every conflict of every folder in one list.
+- **Conflicts**: every conflict of every folder in one list.
+
+The [user guide](user-guide.md) describes each page in detail.
 
 German and English with Paraglide: messages in `web/messages/{de,en}.json`, compiled to typed
 functions; the language follows the browser and can be switched in the sidebar (kept in local
@@ -174,6 +237,33 @@ to every device (`crates/engine/src/files.rs`, `crates/zentrale/src/files.rs`).
   `GET /rest/folder/versions` and restores one with `POST /rest/folder/versions`, which archives
   the current file first.
 
+## Agent
+
+`stellwerk-agent run` loads `agent.json`, starts its Syncthing (downloading the pinned release on
+first start), starts the monitor and connects to the Zentrale. A lost connection is retried after
+1 second, doubling up to 30 seconds; after `rejected` it waits a minute. Syncthing keeps running
+while the Zentrale is unreachable, so syncing with the hub goes on with the last applied state.
+
+Its Syncthing listens on a random port on all interfaces, with discovery, relays and NAT
+traversal off: the device dials the hub at the address from the desired state, and the hub,
+which has no address for devices (`dynamic`), only accepts their connections.
+
+**Service** (`crates/agent/src/service`): `service install` writes a definition for the binary
+it runs from and its data directory and starts it. The definitions are pure functions with unit
+tests (`definitions.rs`); `linux.rs`, `macos.rs` and `windows.rs` install them:
+
+| System | Definition | Started with |
+|---|---|---|
+| Linux | systemd user unit, `Restart=on-failure` | `systemctl --user enable --now` |
+| macOS | launchd agent with `RunAtLoad`, `KeepAlive` | `launchctl bootstrap gui/<uid>` |
+| Windows | Task Scheduler task at logon, restart on failure, running `stellwerk-agent-background.exe` | `schtasks /Create /XML`, `/Run` |
+
+Systemd and launchd stop the agent with `SIGTERM`, on which it shuts its Syncthing down cleanly.
+A Windows task cannot be ended with a signal, so `service uninstall` writes a `stop` file into
+the data directory, which the running agent looks for every second, and waits until the agent
+has exited before removing the task. A stop file older than the agent's start is ignored, so a
+leftover from an interrupted uninstall cannot stop a new agent.
+
 ## Engine
 
 | Module | Does |
@@ -215,4 +305,4 @@ configuration; removing a folder leaves its files alone.
 | 0 · Spike ✅ | engine starts Syncthing, reconciler applies a fixed desired state | integration test "file from A arrives on B" is green |
 | 1 · MVP ✅ | Zentrale with SQLite, agent over WebSocket, pairing with a one-time code, hub Syncthing, matrix and device list in the UI | 3-node test with an offline device green (`crates/zentrale/tests/phase1_gate.rs`), own devices one week in daily use (open) |
 | 2 · Comfort ✅ | live status, activity, conflicts on the hub, versions, ignore patterns, German and English | E2E green, conflict and restore in the integration test (`crates/zentrale/tests/phase2_gate.rs`) |
-| 3 · Distribution | installers, LAN discovery, self-update with signature, Docker image and Quadlet | v1.0 published through `release.yml` |
+| 3 · Distribution | Docker image and Quadlet ✅, LAN discovery ✅, agent as a service and Windows installer ✅, CI on Linux, Windows and macOS ✅; self-update with signature (open) | v1.0 published through `release.yml` |
