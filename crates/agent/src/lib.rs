@@ -41,6 +41,9 @@ pub fn join(
     server: &str,
     code: Option<&str>,
 ) -> anyhow::Result<String> {
+    let server = server.trim().trim_end_matches('/');
+    // An empty code would be refused as a wrong one; without one the device waits for approval.
+    let code = code.map(str::trim).filter(|code| !code.is_empty());
     config::ws_url(server)?;
     // A key only for a device without one: an unreadable agent.json must not silently turn the
     // device into a new one.
@@ -61,9 +64,9 @@ pub fn join(
     config::save(
         data_dir,
         &AgentConfig {
-            server: server.trim_end_matches('/').to_string(),
+            server: server.to_string(),
             secret_key,
-            enrollment_code: code.map(|code| code.trim().to_string()),
+            enrollment_code: code.map(str::to_string),
         },
     )?;
     Ok(stellwerk_protocol::messages::fingerprint(&public_key))
@@ -84,6 +87,18 @@ mod tests {
         let config = config::load(dir.path()).unwrap();
         assert_eq!(config.server, "https://other.example.org");
         assert_eq!(config.enrollment_code, None);
+    }
+
+    #[test]
+    fn server_and_code_are_trimmed() {
+        let dir = tempfile::tempdir().unwrap();
+        join(dir.path(), " https://sync.example.org/ ", Some(" ")).unwrap();
+        let config = config::load(dir.path()).unwrap();
+        assert_eq!(config.server, SERVER);
+        assert_eq!(config.enrollment_code, None);
+        join(dir.path(), SERVER, Some(" K7Q2-MX9P-41TZ\n")).unwrap();
+        let config = config::load(dir.path()).unwrap();
+        assert_eq!(config.enrollment_code.as_deref(), Some("K7Q2-MX9P-41TZ"));
     }
 
     #[test]
