@@ -1,23 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TriangleAlert } from "lucide-react";
+import { useMemo } from "react";
 import { api } from "../api";
 import { eventsQuery, statusQuery } from "../api/queries";
 import type { Conflict, Device, FileContent, Keep } from "../api/types";
-import { type DiffLine, diffLines } from "../lib/diff";
-import { ago, nowSeconds } from "../lib/format";
+import { conflictLines, type DiffLine } from "../lib/diff";
+import { errorMessage } from "../lib/errors";
+import { ago, bothName, nowSeconds } from "../lib/format";
 import { formatBytes } from "../lib/live";
 import { cn } from "../lib/utils";
 import { m } from "../paraglide/messages.js";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
-
-/** `dir/config.ts` + `workbench` → `config.workbench.ts`, as "keep both" names the copy. */
-export function bothName(original: string, device: string): string {
-  const file = original.split("/").pop() ?? original;
-  const dot = file.lastIndexOf(".");
-  const label = device.replace(/[^\p{L}\p{N}_-]/gu, "-");
-  return dot > 0 ? `${file.slice(0, dot)}.${label}${file.slice(dot)}` : `${file}.${label}`;
-}
 
 function Side({
   title,
@@ -43,8 +37,13 @@ function Side({
           {file ? `${ago(file.modified, now)} · ${formatBytes(file.size)}` : m.conflict_deleted()}
         </span>
       </div>
-      {lines ? (
-        <pre className="max-h-72 overflow-auto rounded-md bg-subtle p-2 font-mono text-xs leading-5">
+      {!file ? null : lines ? (
+        <pre
+          // A scrollable region must be focusable to scroll it with the keyboard (WCAG 2.1.1).
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: see above
+          tabIndex={0}
+          className="max-h-72 overflow-auto rounded-md bg-subtle p-2 font-mono text-xs leading-5"
+        >
           {lines.map((line, index) => (
             <span
               // Lines can repeat; their position is their identity here.
@@ -99,8 +98,8 @@ export function ConflictCard({
   const device = devices.find((d) => d.id === conflict.deviceId)?.name ?? m.conflict_other_device();
   const original = content.data?.original;
   const copy = content.data?.copy;
-  const text = original?.text != null && copy?.text != null;
-  const lines = text ? diffLines(original?.text ?? "", copy?.text ?? "") : undefined;
+  // The diff is the expensive part of the page; every live update re-renders the route.
+  const lines = useMemo(() => conflictLines(original, copy), [original, copy]);
 
   return (
     <Card
@@ -116,7 +115,7 @@ export function ConflictCard({
           <span className="text-[13px] text-muted-foreground">{m.conflict_explained()}</span>
         </div>
       </div>
-      {content.error && <p className="text-sm text-danger">{content.error.message}</p>}
+      {content.error && <p className="text-sm text-danger">{errorMessage(content.error)}</p>}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-3">
         <Side
           title={m.conflict_current()}
@@ -145,7 +144,7 @@ export function ConflictCard({
           {m.conflict_keep_both()}
         </Button>
       </div>
-      {resolve.error && <p className="text-sm text-danger">{resolve.error.message}</p>}
+      {resolve.error && <p className="text-sm text-danger">{errorMessage(resolve.error)}</p>}
     </Card>
   );
 }

@@ -58,6 +58,9 @@ export const overviewSchema = z.object({
 });
 export type Overview = z.infer<typeof overviewSchema>;
 
+/** The answer to a change of shares: the revision it became. */
+export const revisionSchema = z.object({ revision: z.number() });
+
 export const sessionSchema = z.object({
   loggedIn: z.boolean(),
   passwordSet: z.boolean(),

@@ -4,11 +4,13 @@ test("pairing shows a command, waits for the device and sets it up", async ({ pa
   await page.goto("/devices");
   await page.getByRole("button", { name: "Gerät koppeln" }).click();
   const dialog = page.getByRole("dialog", { name: "Gerät koppeln" });
+  const origin = new URL(page.url()).origin;
   await expect(dialog.getByTestId("pair-command")).toContainText(
-    "stellwerk-agent join --server http://127.0.0.1:4173 K7Q2-MX9P-41TZ && stellwerk-agent service install",
+    `stellwerk-agent join --server ${origin} K7Q2-MX9P-41TZ && stellwerk-agent service install`,
   );
   await dialog.getByRole("tab", { name: "Windows" }).click();
   await expect(dialog.getByTestId("pair-command")).toContainText("stellwerk-agent.exe join");
+  await expect(dialog.getByText("In PowerShell ausführen", { exact: false })).toBeVisible();
 
   await expect(dialog.getByText("Neues Gerät verbunden")).toBeVisible({ timeout: 10_000 });
   await dialog.getByLabel("Name").fill("workshop");
@@ -53,4 +55,21 @@ test("a device waiting in the LAN is approved with its fingerprint", async ({ pa
   await waiting.getByRole("button", { name: "living-room-pc freigeben" }).click();
   await expect(waiting).toBeHidden();
   await expect(page.getByRole("cell", { name: "living-room-pc Windows" })).toBeVisible();
+});
+
+test("a device waiting in the LAN can be rejected", async ({ page }) => {
+  await page.goto("/devices");
+  const waiting = page.getByRole("region", { name: "Wartende Geräte" });
+  await waiting.getByRole("button", { name: "living-room-pc ablehnen" }).click();
+  await expect(waiting).toBeHidden();
+  await expect(page.getByRole("cell", { name: "living-room-pc Windows" })).toHaveCount(0);
+});
+
+test("a device can be removed", async ({ page }) => {
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.goto("/devices");
+  await page.getByRole("button", { name: "Aktionen für macbook" }).click();
+  await page.getByRole("menuitem", { name: "Entfernen …" }).click();
+  await expect(page.getByRole("cell", { name: "macbook macOS" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Alle 3" })).toBeVisible();
 });

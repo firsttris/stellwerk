@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleCheck, Copy, Link2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { overviewQuery, refresh } from "../api/queries";
 import type { Device } from "../api/types";
+import { errorMessage } from "../lib/errors";
 import { osLabel } from "../lib/format";
 import { byCount } from "../lib/i18n";
 import { cn } from "../lib/utils";
@@ -13,13 +14,12 @@ import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { Field, Input } from "./ui/input";
 
 type Os = "linux" | "windows" | "macos";
-const OS_TABS: { id: Os; label: string }[] = [
-  { id: "linux", label: "Linux" },
-  { id: "windows", label: "Windows" },
-  { id: "macos", label: "macOS" },
-];
+const OS_TABS: readonly Os[] = ["linux", "windows", "macos"];
 
-/** The command shown for a code; the agent binary comes from the release page for now. */
+/**
+ * The command shown for a code; the agent binary comes from the release page for now. On Windows
+ * `;` chains the commands in every PowerShell (`&&` needs 7+), so the dialog says PowerShell.
+ */
 export function pairCommand(os: Os, origin: string, code: string): string {
   const agent = os === "windows" ? "stellwerk-agent.exe" : "stellwerk-agent";
   const join = `${agent} join --server ${origin} ${code}`;
@@ -52,11 +52,12 @@ function PairDialogContent({ onDone }: { onDone: () => void }) {
     retry: false,
   });
   const code = enrollment.data?.code;
+  const expired = useExpired(enrollment.data?.expiresAt);
 
   const status = useQuery({
     queryKey: ["enrollment", code],
     queryFn: () => api.enrollmentStatus(code ?? ""),
-    enabled: code !== undefined,
+    enabled: code !== undefined && !expired,
     refetchInterval: (query) => (query.state.data?.device ? false : 2_000),
   });
   const device = status.data?.device;
@@ -66,29 +67,63 @@ function PairDialogContent({ onDone }: { onDone: () => void }) {
       {device ? (
         <NewDevice device={device} onDone={onDone} />
       ) : (
-        <Waiting code={code} error={enrollment.error?.message} onCancel={onDone} />
+        <Waiting
+          code={code}
+          expired={expired}
+          onNewCode={() => void enrollment.refetch()}
+          error={enrollment.error ? errorMessage(enrollment.error) : undefined}
+          onCancel={onDone}
+        />
       )}
     </DialogContent>
   );
 }
 
+/** Whether the text reached the clipboard; `navigator.clipboard` needs a secure origin. */
+async function copyToClipboard(text: string): Promise<boolean> {
+  if (!navigator.clipboard) return false;
+  return navigator.clipboard.writeText(text).then(
+    () => true,
+    () => false,
+  );
+}
+
+/** True once `expiresAt` (seconds) has passed; the server keeps answering for a dead code. */
+function useExpired(expiresAt: number | undefined): boolean {
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    setExpired(false);
+    if (expiresAt === undefined) return;
+    const timer = setTimeout(() => setExpired(true), Math.max(0, expiresAt * 1000 - Date.now()));
+    return () => clearTimeout(timer);
+  }, [expiresAt]);
+  return expired;
+}
+
 function Waiting({
   code,
+  expired,
+  onNewCode,
   error,
   onCancel,
 }: {
   code: string | undefined;
+  expired: boolean;
+  onNewCode: () => void;
   error: string | undefined;
   onCancel: () => void;
 }) {
   const [os, setOs] = useState<Os>("linux");
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"copied" | "selected" | undefined>();
+  const commandRef = useRef<HTMLElement>(null);
   const command = code ? pairCommand(os, window.location.origin, code) : m.pair_code_pending();
 
   const copy = async () => {
-    await navigator.clipboard?.writeText(command).catch(() => undefined);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+    // No clipboard API on plain HTTP (a LAN address): select the command for a manual copy.
+    const done = await copyToClipboard(command);
+    if (!done && commandRef.current) window.getSelection()?.selectAllChildren(commandRef.current);
+    setCopied(done ? "copied" : "selected");
+    setTimeout(() => setCopied(undefined), 1800);
   };
 
   return (
@@ -97,19 +132,19 @@ function Waiting({
         <div role="tablist" aria-label={m.pair_os()} className="flex gap-1 rounded-lg bg-muted p-1">
           {OS_TABS.map((tab) => (
             <button
-              key={tab.id}
+              key={tab}
               type="button"
               role="tab"
-              aria-selected={tab.id === os}
-              onClick={() => setOs(tab.id)}
+              aria-selected={tab === os}
+              onClick={() => setOs(tab)}
               className={cn(
                 "h-9 flex-1 cursor-pointer rounded-md text-sm",
-                tab.id === os
+                tab === os
                   ? "bg-background font-medium shadow-sm"
                   : "text-zinc-700 dark:text-zinc-300",
               )}
             >
-              {tab.label}
+              {osLabel(tab)}
             </button>
           ))}
         </div>
@@ -119,6 +154,7 @@ function Waiting({
             <code
               className="min-w-0 flex-1 self-center font-mono text-[13px] break-all"
               data-testid="pair-command"
+              ref={commandRef}
             >
               {command}
             </code>
@@ -126,24 +162,43 @@ function Waiting({
               variant="outline"
               size="sm"
               onClick={copy}
-              disabled={!code}
+              disabled={!code || expired}
               aria-label={m.pair_copy_command()}
             >
               <Copy aria-hidden="true" />
-              {copied ? m.pair_copied() : m.pair_copy()}
+              {copied === "copied"
+                ? m.pair_copied()
+                : copied === "selected"
+                  ? m.pair_selected()
+                  : m.pair_copy()}
             </Button>
           </div>
+          {os === "windows" && (
+            <span className="text-xs text-muted-foreground">{m.pair_windows_shell()}</span>
+          )}
           <span className="text-xs text-muted-foreground">{m.pair_code_valid()}</span>
           <span className="text-xs text-muted-foreground">{m.pair_lan_hint()}</span>
           {error && <span className="text-sm text-danger">{error}</span>}
         </div>
-        <div className="flex items-center gap-3 rounded-lg border border-dashed border-border-strong p-3">
-          <span className="size-2.5 animate-pulse rounded-full bg-info-accent" />
-          <div className="flex flex-col">
-            <span className="font-medium">{m.pair_step_wait()}</span>
-            <span className="text-[13px] text-muted-foreground">{m.pair_wait_hint()}</span>
+        {expired ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-border-strong p-3">
+            <div className="flex flex-col">
+              <span className="font-medium">{m.pair_expired()}</span>
+              <span className="text-[13px] text-muted-foreground">{m.pair_expired_hint()}</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={onNewCode}>
+              {m.pair_new_code()}
+            </Button>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-3 rounded-lg border border-dashed border-border-strong p-3">
+            <span className="size-2.5 animate-pulse rounded-full bg-info-accent" />
+            <div className="flex flex-col">
+              <span className="font-medium">{m.pair_step_wait()}</span>
+              <span className="text-[13px] text-muted-foreground">{m.pair_wait_hint()}</span>
+            </div>
+          </div>
+        )}
       </div>
       <div className="flex justify-end">
         <Button variant="outline" onClick={onCancel}>
@@ -218,7 +273,7 @@ function NewDevice({ device, onDone }: { device: Device; onDone: () => void }) {
           ))}
           <span className="text-xs text-muted-foreground">{m.pair_default_mode()}</span>
         </fieldset>
-        {save.error && <p className="text-sm text-danger">{save.error.message}</p>}
+        {save.error && <p className="text-sm text-danger">{errorMessage(save.error)}</p>}
       </div>
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onDone}>

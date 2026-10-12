@@ -71,7 +71,7 @@ Two agents on one machine need two data directories. Never start a test Syncthin
 |---|---|
 | `cargo test` | unit tests of every crate, and the integration tests in `crates/*/tests` against real Syncthing instances (the pinned version is downloaded once into `.syncthing-cache/`) |
 | `pnpm --filter web check` | Biome, `tsc --noEmit`, Vitest, `vite build` |
-| `pnpm e2e` | Playwright against the demo build; `PW_CHROMIUM=/path/to/chrome` outside the Playwright image |
+| `pnpm e2e` | Playwright against the demo build; `PW_CHROMIUM=/path/to/chrome` outside the Playwright image, `PW_PORT` when 4173 is taken |
 | `mkdocs build --strict` | the docs, with broken links as errors |
 
 The integration tests are the gates of the roadmap:

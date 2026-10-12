@@ -3,6 +3,7 @@ import { History, Search } from "lucide-react";
 import { useState } from "react";
 import { api } from "../api";
 import { eventsQuery } from "../api/queries";
+import { errorMessage } from "../lib/errors";
 import { intlLocale } from "../lib/i18n";
 import { formatBytes } from "../lib/live";
 import { m } from "../paraglide/messages.js";
@@ -60,8 +61,8 @@ export function VersionsList({ folderId }: { folderId: string }) {
           {m.versions_restored({ path: restored })}
         </p>
       )}
-      {restore.error && <p className="text-sm text-danger">{restore.error.message}</p>}
-      {versions.error && <p className="text-sm text-danger">{versions.error.message}</p>}
+      {restore.error && <p className="text-sm text-danger">{errorMessage(restore.error)}</p>}
+      {versions.error && <p className="text-sm text-danger">{errorMessage(versions.error)}</p>}
       {versions.data && files.length === 0 && (
         <p className="text-muted-foreground">
           {search ? m.versions_none_search() : m.versions_none()}

@@ -18,16 +18,10 @@ test("a conflict is shown side by side and resolved", async ({ page }) => {
   await expect(page.getByRole("link", { name: /^Konflikte/ })).toHaveText("Konflikte");
 });
 
-test("versions are listed per file and can be restored", async ({ page }) => {
-  page.on("dialog", (dialog) => dialog.accept());
-  await page.goto("/folders");
-  await page.getByRole("link", { name: /Projects/ }).click();
-  await page.getByRole("tab", { name: "Versionen" }).click();
-  await expect(page.getByText("haul/src/config.ts")).toBeVisible();
-  await expect(page.getByText("README.md")).toBeVisible();
-
-  await page.getByPlaceholder("Datei suchen").fill("readme");
-  await expect(page.getByText("haul/src/config.ts")).toBeHidden();
-  await page.getByRole("button", { name: /README.md vom .* wiederherstellen/ }).click();
-  await expect(page.getByText("README.md wiederhergestellt.")).toBeVisible();
+test("keeping one side clears the conflict page", async ({ page }) => {
+  await page.goto("/conflicts");
+  const card = page.getByRole("region", { name: "Konflikt in haul/src/config.ts" });
+  await card.getByRole("button", { name: "Diese Fassung behalten" }).first().click();
+  await expect(card).toBeHidden();
+  await expect(page.getByText("Keine Konflikte. Alles ist eindeutig.")).toBeVisible();
 });

@@ -3,9 +3,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { RefreshCw } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { api } from "../api";
+import { UNAUTHORIZED_IS_ANSWER } from "../api/client";
 import { sessionQuery } from "../api/queries";
 import { Button } from "../components/ui/button";
 import { Field, Input } from "../components/ui/input";
+import { loginErrorMessage } from "../lib/errors";
 import { m } from "../paraglide/messages.js";
 
 export const Route = createFileRoute("/login")({ component: Login });
@@ -17,6 +19,7 @@ function Login() {
   const navigate = useNavigate();
   const login = useMutation({
     mutationFn: () => api.login(password),
+    meta: UNAUTHORIZED_IS_ANSWER,
     onSuccess: async (next) => {
       queryClient.setQueryData(sessionQuery.queryKey, next);
       await navigate({ to: "/" });
@@ -59,7 +62,7 @@ function Login() {
             )}
           </Field>
         )}
-        {login.error && <p className="text-sm text-danger">{login.error.message}</p>}
+        {login.error && <p className="text-sm text-danger">{loginErrorMessage(login.error)}</p>}
         <Button type="submit" disabled={!password || login.isPending}>
           {m.login_submit()}
         </Button>
