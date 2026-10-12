@@ -5,7 +5,7 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use ed25519_dalek::{Signature, VerifyingKey};
 use rand::Rng;
 use sha2::{Digest, Sha256};
-use stellwerk_protocol::messages::challenge_payload;
+use stellwerk_protocol::messages::{Hello, hello_payload};
 
 /// How long a code from "Pair device" can be used.
 pub const CODE_LIFETIME_SECS: i64 = 15 * 60;
@@ -50,21 +50,22 @@ pub enum SignatureError {
     BadSignature,
 }
 
-/// Checks that the hello was signed by the key it names, for this connection's nonce.
-pub fn verify_hello(public_key: &str, signature: &str, nonce: &str) -> Result<(), SignatureError> {
+/// Checks that the hello was signed by the key it names, for this connection's nonce and with
+/// exactly the fields it carries ([`hello_payload`]).
+pub fn verify_hello(hello: &Hello, nonce: &str) -> Result<(), SignatureError> {
     let key: [u8; 32] = BASE64
-        .decode(public_key)
+        .decode(&hello.public_key)
         .ok()
         .and_then(|bytes| bytes.try_into().ok())
         .ok_or(SignatureError::BadKey)?;
     let key = VerifyingKey::from_bytes(&key).map_err(|_| SignatureError::BadKey)?;
     let signature: [u8; 64] = BASE64
-        .decode(signature)
+        .decode(&hello.signature)
         .ok()
         .and_then(|bytes| bytes.try_into().ok())
         .ok_or(SignatureError::BadSignature)?;
     key.verify_strict(
-        &challenge_payload(nonce),
+        &hello_payload(nonce, hello),
         &Signature::from_bytes(&signature),
     )
     .map_err(|_| SignatureError::BadSignature)
@@ -80,6 +81,7 @@ fn hex_sha256(data: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use ed25519_dalek::{Signer, SigningKey};
+    use stellwerk_protocol::DeviceId;
 
     use super::*;
 
@@ -93,25 +95,87 @@ mod tests {
         assert_ne!(code_hash("K7Q2-MX9P-41TZ"), code_hash("K7Q2-MX9P-41TA"));
     }
 
+    fn signed_hello(key: &SigningKey, nonce: &str) -> Hello {
+        let hello = Hello {
+            public_key: BASE64.encode(key.verifying_key().as_bytes()),
+            signature: String::new(),
+            enrollment_code: Some("K7Q2-MX9P-41TZ".into()),
+            name: "laptop".into(),
+            os: "linux".into(),
+            agent_version: "0.1.1".into(),
+            syncthing_version: "v2.1.6".into(),
+            syncthing_id: DeviceId::new("AAAA"),
+        };
+        let signature = BASE64.encode(key.sign(&hello_payload(nonce, &hello)).to_bytes());
+        Hello { signature, ..hello }
+    }
+
     #[test]
     fn only_the_right_key_and_nonce_verify() {
         let key = SigningKey::from_bytes(&[7; 32]);
-        let public = BASE64.encode(key.verifying_key().as_bytes());
-        let signed = BASE64.encode(key.sign(&challenge_payload("nonce")).to_bytes());
+        let hello = signed_hello(&key, "nonce");
 
-        assert_eq!(verify_hello(&public, &signed, "nonce"), Ok(()));
+        assert_eq!(verify_hello(&hello, "nonce"), Ok(()));
         assert_eq!(
-            verify_hello(&public, &signed, "other"),
+            verify_hello(&hello, "other"),
             Err(SignatureError::BadSignature)
         );
-        let other = BASE64.encode(SigningKey::from_bytes(&[8; 32]).verifying_key().as_bytes());
+        let other = Hello {
+            public_key: BASE64.encode(SigningKey::from_bytes(&[8; 32]).verifying_key().as_bytes()),
+            ..hello.clone()
+        };
         assert_eq!(
-            verify_hello(&other, &signed, "nonce"),
+            verify_hello(&other, "nonce"),
             Err(SignatureError::BadSignature)
         );
+        let garbled = Hello {
+            public_key: "not base64".into(),
+            ..hello
+        };
+        assert_eq!(verify_hello(&garbled, "nonce"), Err(SignatureError::BadKey));
+    }
+
+    #[test]
+    fn a_changed_syncthing_id_or_code_breaks_the_signature() {
+        let hello = signed_hello(&SigningKey::from_bytes(&[7; 32]), "nonce");
+        let relayed = Hello {
+            syncthing_id: DeviceId::new("ATTACKER"),
+            ..hello.clone()
+        };
         assert_eq!(
-            verify_hello("not base64", &signed, "nonce"),
-            Err(SignatureError::BadKey)
+            verify_hello(&relayed, "nonce"),
+            Err(SignatureError::BadSignature)
+        );
+        let other_code = Hello {
+            enrollment_code: Some("AAAA-BBBB-CCCC".into()),
+            ..hello.clone()
+        };
+        assert_eq!(
+            verify_hello(&other_code, "nonce"),
+            Err(SignatureError::BadSignature)
+        );
+        let renamed = Hello {
+            name: "phone".into(),
+            ..hello
+        };
+        assert_eq!(
+            verify_hello(&renamed, "nonce"),
+            Err(SignatureError::BadSignature)
+        );
+    }
+
+    #[test]
+    fn a_signature_over_the_nonce_alone_is_refused() {
+        // How agents up to v0.1.1 signed: `stellwerk-agent-auth:<nonce>`.
+        let key = SigningKey::from_bytes(&[7; 32]);
+        let old = key.sign(b"stellwerk-agent-auth:nonce");
+        let hello = Hello {
+            signature: BASE64.encode(old.to_bytes()),
+            ..signed_hello(&key, "nonce")
+        };
+        assert_eq!(
+            verify_hello(&hello, "nonce"),
+            Err(SignatureError::BadSignature)
         );
     }
 }

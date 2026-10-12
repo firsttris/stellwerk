@@ -79,7 +79,7 @@ field (`crates/protocol/src/messages.rs`).
 | Direction | Message | Content |
 |---|---|---|
 | Zentrale → agent | `challenge` | a fresh nonce |
-| agent → Zentrale | `hello` | public key, signature over the nonce, on first contact the one-time code; host name, OS, agent and Syncthing version, Syncthing device ID, last applied revision |
+| agent → Zentrale | `hello` | public key, on first contact the one-time code; host name, OS, agent and Syncthing version, Syncthing device ID; a signature over the nonce and all these fields (`hello_payload`) |
 | Zentrale → agent | `welcome` | the device's ID at the Zentrale |
 | Zentrale → agent | `desiredState` | revision, peers (device IDs and addresses), folders with ID, label, mode, path, versioning, ignore patterns, peers |
 | agent → Zentrale | `applied` | revision, errors per folder |
@@ -251,7 +251,9 @@ to every device (`crates/engine/src/files.rs`, `crates/zentrale/src/files.rs`).
 ## Agent
 
 `stellwerk-agent run` loads `agent.json`, starts its Syncthing (downloading the pinned release on
-first start), starts the monitor and connects to the Zentrale. A lost connection is retried after
+first start), starts the monitor and connects to the Zentrale. It pings the Zentrale every 30
+seconds and counts the connection as lost when nothing at all came back for 90 seconds, so a
+link that died silently (suspend, NAT timeout) is noticed. A lost connection is retried after
 1 second, doubling up to 30 seconds; after `rejected` it waits a minute. Syncthing keeps running
 while the Zentrale is unreachable, so syncing with the hub goes on with the last applied state.
 
@@ -260,19 +262,20 @@ traversal off: the device dials the hub at the address from the desired state, a
 which has no address for devices (`dynamic`), only accepts their connections.
 
 **Service** (`crates/agent/src/service`): `service install` writes a definition for the binary
-it runs from and its data directory and starts it. The definitions are pure functions with unit
+it runs from and its data directory and starts it, or restarts an agent that already runs, so a
+replaced binary takes over. The definitions are pure functions with unit
 tests (`definitions.rs`); `linux.rs`, `macos.rs` and `windows.rs` install them:
 
 | System | Definition | Started with |
 |---|---|---|
-| Linux | systemd user unit, `Restart=on-failure` | `systemctl --user enable --now` |
-| macOS | launchd agent with `RunAtLoad`, `KeepAlive` | `launchctl bootstrap gui/<uid>` |
-| Windows | Task Scheduler task at logon, restart on failure, running `stellwerk-agent-background.exe` | `schtasks /Create /XML`, `/Run` |
+| Linux | systemd user unit, `Restart=on-failure` | `systemctl --user enable`, `restart` |
+| macOS | launchd agent with `RunAtLoad`, `KeepAlive` | `launchctl bootout`, `bootstrap gui/<uid>` |
+| Windows | Task Scheduler task at logon, restart on failure, running `stellwerk-agent-background.exe` | stop file (below), `schtasks /Create /XML`, `/Run` |
 
 Systemd and launchd stop the agent with `SIGTERM`, on which it shuts its Syncthing down cleanly.
-A Windows task cannot be ended with a signal, so `service uninstall` writes a `stop` file into
-the data directory, which the running agent looks for every second, and waits until the agent
-has exited before removing the task. A stop file older than the agent's start is ignored, so a
+A Windows task cannot be ended with a signal, so `service uninstall`, and `service install` when
+an agent runs, writes a `stop` file into the data directory, which the running agent looks for
+every second, and waits until the agent has exited before removing or replacing the task. A stop file older than the agent's start is ignored, so a
 leftover from an interrupted uninstall cannot stop a new agent.
 
 ## Engine

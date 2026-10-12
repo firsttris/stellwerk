@@ -39,22 +39,21 @@ pub fn save(data_dir: &Path, config: &AgentConfig) -> anyhow::Result<()> {
         .with_context(|| format!("creating {}", data_dir.display()))?;
     let path = path(data_dir);
     let tmp = path.with_extension("json.tmp");
-    std::fs::write(&tmp, serde_json::to_string_pretty(config)?)
+    write_private(&tmp, serde_json::to_string_pretty(config)?.as_bytes())
         .with_context(|| format!("writing {}", tmp.display()))?;
-    restrict(&tmp)?;
     std::fs::rename(&tmp, &path).with_context(|| format!("writing {}", path.display()))
 }
 
-#[cfg(unix)]
-fn restrict(path: &Path) -> anyhow::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
-        .with_context(|| format!("restricting {}", path.display()))
-}
-
-#[cfg(not(unix))]
-fn restrict(_: &Path) -> anyhow::Result<()> {
-    Ok(())
+/// Writes a file only its owner can read; on Unix it is created with mode 600, so the key is
+/// never readable by others, not even for a moment. Left over from a crash, it is replaced.
+fn write_private(path: &Path, contents: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    let _ = std::fs::remove_file(path);
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    options.open(path)?.write_all(contents)
 }
 
 /// The WebSocket URL for a Zentrale base URL: `https://x` → `wss://x/api/agent/ws`.
@@ -87,6 +86,27 @@ mod tests {
         };
         save(dir.path(), &config).unwrap();
         assert_eq!(load(dir.path()).unwrap(), config);
+        save(dir.path(), &config).unwrap();
+        assert_eq!(load(dir.path()).unwrap(), config);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn only_the_owner_can_read_the_config() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let config = AgentConfig {
+            server: "https://sync.example.org".into(),
+            secret_key: "secret".into(),
+            enrollment_code: None,
+        };
+        std::fs::write(path(dir.path()).with_extension("json.tmp"), "left over").unwrap();
+        save(dir.path(), &config).unwrap();
+        let mode = std::fs::metadata(path(dir.path()))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o600);
     }
 
     #[test]

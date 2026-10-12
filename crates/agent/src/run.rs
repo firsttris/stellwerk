@@ -74,33 +74,37 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
     ));
 
     let connect = async {
-        let mut last_applied = None;
         let mut pause = MIN_PAUSE;
+        let mut last_problem: Option<String> = None;
         loop {
             let result = session::run(
                 data_dir,
                 &mut config,
                 syncthing.client(),
                 &report,
-                &mut last_applied,
                 &mut status,
+                session::HEARTBEAT,
             )
             .await;
-            let wait = match result {
-                Ok(End::Closed) => {
-                    pause = MIN_PAUSE;
-                    MIN_PAUSE
-                }
+            let problem = match &result {
+                Ok(End::Closed) => None,
                 Ok(End::Rejected(reason)) => {
-                    tracing::warn!(%reason, "the Zentrale turned the agent away");
-                    REJECTED_PAUSE
+                    Some(format!("the Zentrale turned the agent away: {reason}"))
                 }
-                Err(err) => {
-                    tracing::warn!(%err, "connection to the Zentrale failed");
-                    pause = (pause * 2).min(MAX_PAUSE);
-                    pause
-                }
+                Err(err) => Some(format!("connection to the Zentrale failed: {err:#}")),
             };
+            // A warning once per problem: retrying an unreachable Zentrale for weeks must not
+            // fill agent.log (it is not rotated) or the journal.
+            if let Some(problem) = &problem {
+                if last_problem.as_ref() == Some(problem) {
+                    tracing::debug!("{problem}");
+                } else {
+                    tracing::warn!("{problem}");
+                }
+            }
+            last_problem = problem;
+            let (wait, next) = backoff(result.as_ref().ok(), pause);
+            pause = next;
             tokio::time::sleep(wait).await;
         }
     };
@@ -113,8 +117,53 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
     Ok(())
 }
 
+/// How long to wait before connecting again after a session that `ended` (`None`: failed), and
+/// the pause for the failure after that: 1 s, doubling up to 30 s while connecting fails; a
+/// minute after being turned away. A session that ended without an error starts over at 1 s.
+fn backoff(ended: Option<&End>, pause: Duration) -> (Duration, Duration) {
+    match ended {
+        Some(End::Closed) => (MIN_PAUSE, MIN_PAUSE),
+        Some(End::Rejected(_)) => (REJECTED_PAUSE, MIN_PAUSE),
+        None => (pause, (pause * 2).min(MAX_PAUSE)),
+    }
+}
+
 fn host_name() -> String {
     hostname::get()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_else(|_| "device".into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn waits_after_failures(count: usize) -> Vec<u64> {
+        let mut pause = MIN_PAUSE;
+        (0..count)
+            .map(|_| {
+                let (wait, next) = backoff(None, pause);
+                pause = next;
+                wait.as_secs()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn failures_wait_one_second_then_double_up_to_thirty() {
+        assert_eq!(waits_after_failures(7), [1, 2, 4, 8, 16, 30, 30]);
+    }
+
+    #[test]
+    fn a_rejection_or_a_closed_session_starts_over() {
+        let rejected = End::Rejected("no".into());
+        assert_eq!(
+            backoff(Some(&rejected), MAX_PAUSE),
+            (REJECTED_PAUSE, MIN_PAUSE)
+        );
+        assert_eq!(
+            backoff(Some(&End::Closed), MAX_PAUSE),
+            (MIN_PAUSE, MIN_PAUSE)
+        );
+    }
 }

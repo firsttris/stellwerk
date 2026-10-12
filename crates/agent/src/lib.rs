@@ -8,6 +8,8 @@ pub mod run;
 pub mod service;
 pub mod session;
 
+use anyhow::Context;
+
 pub use config::AgentConfig;
 pub use run::{Network, Options, run};
 
@@ -39,19 +41,73 @@ pub fn join(
     server: &str,
     code: Option<&str>,
 ) -> anyhow::Result<String> {
+    let server = server.trim().trim_end_matches('/');
+    // An empty code would be refused as a wrong one; without one the device waits for approval.
+    let code = code.map(str::trim).filter(|code| !code.is_empty());
     config::ws_url(server)?;
-    let secret_key = match config::load(data_dir) {
-        Ok(existing) => existing.secret_key,
-        Err(_) => identity::new_secret(),
+    // A key only for a device without one: an unreadable agent.json must not silently turn the
+    // device into a new one.
+    let path = config::path(data_dir);
+    let secret_key = if path.exists() {
+        config::load(data_dir)
+            .with_context(|| {
+                format!(
+                    "keeping the device's key; to pair it as a new device, delete {}",
+                    path.display()
+                )
+            })?
+            .secret_key
+    } else {
+        identity::new_secret()
     };
     let public_key = identity::public_key(&identity::signing_key(&secret_key)?);
     config::save(
         data_dir,
         &AgentConfig {
-            server: server.trim_end_matches('/').to_string(),
+            server: server.to_string(),
             secret_key,
-            enrollment_code: code.map(|code| code.trim().to_string()),
+            enrollment_code: code.map(str::to_string),
         },
     )?;
     Ok(stellwerk_protocol::messages::fingerprint(&public_key))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SERVER: &str = "https://sync.example.org";
+
+    #[test]
+    fn joining_again_keeps_the_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let first = join(dir.path(), SERVER, Some("K7Q2-MX9P-41TZ")).unwrap();
+        let again = join(dir.path(), "https://other.example.org", None).unwrap();
+        assert_eq!(first, again);
+        let config = config::load(dir.path()).unwrap();
+        assert_eq!(config.server, "https://other.example.org");
+        assert_eq!(config.enrollment_code, None);
+    }
+
+    #[test]
+    fn server_and_code_are_trimmed() {
+        let dir = tempfile::tempdir().unwrap();
+        join(dir.path(), " https://sync.example.org/ ", Some(" ")).unwrap();
+        let config = config::load(dir.path()).unwrap();
+        assert_eq!(config.server, SERVER);
+        assert_eq!(config.enrollment_code, None);
+        join(dir.path(), SERVER, Some(" K7Q2-MX9P-41TZ\n")).unwrap();
+        let config = config::load(dir.path()).unwrap();
+        assert_eq!(config.enrollment_code.as_deref(), Some("K7Q2-MX9P-41TZ"));
+    }
+
+    #[test]
+    fn an_unreadable_config_is_not_replaced() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(config::path(dir.path()), "{ truncated").unwrap();
+        let err = join(dir.path(), SERVER, None).unwrap_err();
+        assert!(format!("{err:#}").contains("delete"), "{err:#}");
+        let left = std::fs::read_to_string(config::path(dir.path())).unwrap();
+        assert_eq!(left, "{ truncated");
+    }
 }

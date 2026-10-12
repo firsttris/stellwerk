@@ -35,7 +35,9 @@ enum Command {
         /// Use this Syncthing binary instead of downloading the pinned version.
         #[arg(long, env = "STELLWERK_SYNCTHING")]
         syncthing: Option<PathBuf>,
-        /// The device name shown in the Zentrale; the host name by default.
+        /// The device name suggested to the Zentrale when it pairs the device; the host name by
+        /// default. A service-installed agent always suggests the host name; rename the device
+        /// in the UI instead.
         #[arg(long)]
         name: Option<String>,
     },
