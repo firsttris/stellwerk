@@ -13,7 +13,7 @@ struct Assets;
 
 pub async fn serve(uri: Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
-    if path.starts_with("api/") {
+    if path == "api" || path.starts_with("api/") {
         return StatusCode::NOT_FOUND.into_response();
     }
     match file(path).or_else(|| file("index.html")) {

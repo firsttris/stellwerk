@@ -10,7 +10,7 @@ use stellwerk_protocol::status::{FolderStatus, RemoteChange, SyncState};
 
 use stellwerk_engine::files::Conflict;
 
-use crate::files::{ConflictView, conflict_view};
+use crate::files::{ConflictView, conflict_view, device_by_short_id};
 use crate::model::Config;
 use crate::waiting::WaitingView;
 
@@ -181,9 +181,7 @@ pub fn summarize_changes(
         let Some(folder) = folders.get(change.folder.as_str()) else {
             continue;
         };
-        let Some(device) = config.devices.iter().find(|d| {
-            !change.modified_by.is_empty() && d.syncthing_id.starts_with(&change.modified_by)
-        }) else {
+        let Some(device) = device_by_short_id(config, &change.modified_by) else {
             continue;
         };
         *counts
