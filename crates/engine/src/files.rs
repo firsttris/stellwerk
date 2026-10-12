@@ -16,6 +16,9 @@ const CONFLICT_MARK: &str = ".sync-conflict-";
 pub const VERSIONS_DIR: &str = ".stversions";
 /// Syncthing's own marker and temporary files, never conflicts.
 const SKIP: [&str; 2] = [VERSIONS_DIR, ".stfolder"];
+/// Prefixes of the files Syncthing writes while pulling, on Unix and on Windows
+/// (lib/fs/tempname.go, `IsTemporary`).
+const TEMP_PREFIXES: [&str; 2] = [".syncthing.", "~syncthing~"];
 
 /// A conflict copy found in a folder; paths relative to the folder, with `/`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,8 +47,12 @@ pub enum Keep {
     Both,
 }
 
-/// The parts of a conflict copy's name: (original name, time, short ID).
+/// The parts of a conflict copy's name: (original name, time, short ID). `None` also for a
+/// copy that Syncthing is still pulling into a temporary file.
 pub fn parse_conflict_name(name: &str) -> Option<(String, i64, String)> {
+    if TEMP_PREFIXES.iter().any(|prefix| name.starts_with(prefix)) {
+        return None;
+    }
     let start = name.find(CONFLICT_MARK)?;
     let (stem, rest) = (&name[..start], &name[start + CONFLICT_MARK.len()..]);
     let (date, rest) = rest.split_at_checked(8)?;
@@ -249,6 +256,15 @@ mod tests {
             parse_conflict_name("archive.tar.sync-conflict-20261012-103112-ABCDEFG.gz").unwrap();
         assert_eq!(original, "archive.tar.gz");
         assert_eq!(parse_conflict_name("config.ts"), None);
+        assert_eq!(
+            parse_conflict_name(".syncthing.config.sync-conflict-20261012-103112-ABCDEFG.ts.tmp"),
+            None,
+            "still being pulled"
+        );
+        assert_eq!(
+            parse_conflict_name("~syncthing~config.sync-conflict-20261012-103112-ABCDEFG.ts.tmp"),
+            None
+        );
         assert_eq!(
             parse_conflict_name("x.sync-conflict-2026101-103112-A.ts"),
             None
