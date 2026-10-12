@@ -32,6 +32,20 @@ field (`crates/protocol/src/messages.rs`).
 The desired state is always complete, never a diff: an agent that was offline for three days just
 gets the current state when it connects.
 
+## Pairing
+
+1. "Pair device" in the UI: the Zentrale creates a one-time code (valid for 15 minutes) and
+   stores only its hash.
+2. On the device: `stellwerk-agent join --server https://… <code>` creates an Ed25519 key and
+   stores server, key and code; `stellwerk-agent run` starts the agent.
+3. The agent answers the Zentrale's challenge with a hello signed by its key and carrying the
+   code. The Zentrale uses the code up and creates the device; the agent drops the code.
+4. From then on the agent signs in with its key only. A blocked device is turned away.
+
+The hub Syncthing listens on its own port (22001 by default, `--hub-listen`), so a Syncthing
+already running on the server keeps 22000. Devices dial the hub at `--hub-address`; the hub
+never needs to reach the devices.
+
 ## Zentrale
 
 ### Data model
