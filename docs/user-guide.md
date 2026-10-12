@@ -42,7 +42,8 @@ nothing is replayed step by step.
 There is one admin account. Its password is set on the server with `stellwerk set-password`
 (see [Installation](installation.md)); the login page reminds you if none is set yet. A login
 lasts 30 days. **Log out** is at the bottom of the sidebar. Setting a new password logs out every
-session.
+session; a page whose session has ended takes you back to the login. The box above the language
+switch says whether the live link to the server is up (**Server online**) or being re-established.
 
 ## Overview
 
