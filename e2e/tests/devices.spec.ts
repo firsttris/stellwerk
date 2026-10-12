@@ -56,3 +56,20 @@ test("a device waiting in the LAN is approved with its fingerprint", async ({ pa
   await expect(waiting).toBeHidden();
   await expect(page.getByRole("cell", { name: "living-room-pc Windows" })).toBeVisible();
 });
+
+test("a device waiting in the LAN can be rejected", async ({ page }) => {
+  await page.goto("/devices");
+  const waiting = page.getByRole("region", { name: "Wartende Geräte" });
+  await waiting.getByRole("button", { name: "living-room-pc ablehnen" }).click();
+  await expect(waiting).toBeHidden();
+  await expect(page.getByRole("cell", { name: "living-room-pc Windows" })).toHaveCount(0);
+});
+
+test("a device can be removed", async ({ page }) => {
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.goto("/devices");
+  await page.getByRole("button", { name: "Aktionen für macbook" }).click();
+  await page.getByRole("menuitem", { name: "Entfernen …" }).click();
+  await expect(page.getByRole("cell", { name: "macbook macOS" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Alle 3" })).toBeVisible();
+});
