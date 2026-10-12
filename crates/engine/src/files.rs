@@ -185,11 +185,17 @@ fn slashes(path: &Path) -> String {
         .join("/")
 }
 
-/// Moves a file into `.stversions` under Syncthing's name for a version made now.
+/// Moves a file into `.stversions` under Syncthing's name for a version made now. When a
+/// version with that second exists (two resolves in one second), the next free second is
+/// taken: `rename` would replace it.
 pub fn archive(root: &Path, path: &str, now: i64) -> Result<String> {
     let source = root.join(safe_relative(path)?);
-    let tagged = tag_filename(path, &format_tag(now));
-    let target = root.join(VERSIONS_DIR).join(&tagged);
+    let versions = root.join(VERSIONS_DIR);
+    let tagged = (now..)
+        .map(|at| tag_filename(path, &format_tag(at)))
+        .find(|tagged| !versions.join(tagged).exists())
+        .expect("some second is free");
+    let target = versions.join(&tagged);
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent).map_err(io_at(parent))?;
     }
@@ -382,6 +388,14 @@ mod tests {
         );
         let archived = dir.path().join(".stversions/src/config~19700101-000000.ts");
         assert_eq!(std::fs::read_to_string(archived).unwrap(), "mine");
+
+        let second = "src/config.sync-conflict-20261012-103113-HIJKLMN.ts";
+        std::fs::write(dir.path().join(second), "third").unwrap();
+        resolve(dir.path(), second, Keep::Copy, "laptop", 0).unwrap();
+        let versions = dir.path().join(".stversions/src");
+        let read = |name: &str| std::fs::read_to_string(versions.join(name)).unwrap();
+        assert_eq!(read("config~19700101-000000.ts"), "mine", "not overwritten");
+        assert_eq!(read("config~19700101-000001.ts"), "theirs");
     }
 
     #[test]
