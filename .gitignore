@@ -6,3 +6,4 @@ dist-demo/
 test-results/
 playwright-report/
 web/src/paraglide/
+site/
