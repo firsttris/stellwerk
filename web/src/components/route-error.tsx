@@ -1,6 +1,7 @@
 import { type ErrorComponentProps, Link } from "@tanstack/react-router";
 import { TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
+import { errorMessage } from "../lib/errors";
 import { m } from "../paraglide/messages.js";
 import { Button } from "./ui/button";
 
@@ -23,7 +24,7 @@ export function RouteError({ error }: ErrorComponentProps) {
   return (
     <Notice title={m.error_page_title()}>
       <p className="text-sm text-danger">
-        {error instanceof Error ? error.message : String(error)}
+        {error instanceof Error ? errorMessage(error) : String(error)}
       </p>
       <Button className="self-start" onClick={() => window.location.reload()}>
         {m.error_page_reload()}

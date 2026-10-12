@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "../api";
 import { overviewQuery, refresh } from "../api/queries";
 import type { Device } from "../api/types";
+import { errorMessage } from "../lib/errors";
 import { osLabel } from "../lib/format";
 import { byCount } from "../lib/i18n";
 import { cn } from "../lib/utils";
@@ -66,7 +67,11 @@ function PairDialogContent({ onDone }: { onDone: () => void }) {
       {device ? (
         <NewDevice device={device} onDone={onDone} />
       ) : (
-        <Waiting code={code} error={enrollment.error?.message} onCancel={onDone} />
+        <Waiting
+          code={code}
+          error={enrollment.error ? errorMessage(enrollment.error) : undefined}
+          onCancel={onDone}
+        />
       )}
     </DialogContent>
   );
@@ -218,7 +223,7 @@ function NewDevice({ device, onDone }: { device: Device; onDone: () => void }) {
           ))}
           <span className="text-xs text-muted-foreground">{m.pair_default_mode()}</span>
         </fieldset>
-        {save.error && <p className="text-sm text-danger">{save.error.message}</p>}
+        {save.error && <p className="text-sm text-danger">{errorMessage(save.error)}</p>}
       </div>
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onDone}>

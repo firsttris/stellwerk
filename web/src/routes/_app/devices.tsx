@@ -19,6 +19,7 @@ import { PairDialog } from "../../components/pair-dialog";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { WaitingDevices } from "../../components/waiting-devices";
+import { errorMessage } from "../../lib/errors";
 import { ago, nowSeconds, osLabel } from "../../lib/format";
 import { deviceFolderCount, deviceSummary, waitingChanges } from "../../lib/live";
 import { isWaiting } from "../../lib/matrix";
@@ -266,34 +267,46 @@ function DeviceActions({ device }: { device: Device }) {
     }
   };
 
+  const error = update.error ?? remove.error;
   const item =
     "flex h-9 cursor-pointer items-center rounded px-2.5 text-sm outline-none data-[highlighted]:bg-muted";
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <Button variant="ghost" size="icon" aria-label={m.devices_actions({ device: device.name })}>
-          <Ellipsis aria-hidden="true" />
-        </Button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="end"
-          className="z-50 min-w-44 rounded-md border border-border bg-background p-1 shadow-lg"
-        >
-          <DropdownMenu.Item className={item} onSelect={rename}>
-            {m.devices_rename()}
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            className={item}
-            onSelect={() => update.mutate({ approved: !device.approved })}
+    <div className="flex flex-col items-end gap-1">
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={m.devices_actions({ device: device.name })}
           >
-            {device.approved ? m.devices_block() : m.devices_unblock()}
-          </DropdownMenu.Item>
-          <DropdownMenu.Item className={cn(item, "text-danger")} onSelect={confirmRemove}>
-            {m.remove()}
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+            <Ellipsis aria-hidden="true" />
+          </Button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content
+            align="end"
+            className="z-50 min-w-44 rounded-md border border-border bg-background p-1 shadow-lg"
+          >
+            <DropdownMenu.Item className={item} onSelect={rename}>
+              {m.devices_rename()}
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              className={item}
+              onSelect={() => update.mutate({ approved: !device.approved })}
+            >
+              {device.approved ? m.devices_block() : m.devices_unblock()}
+            </DropdownMenu.Item>
+            <DropdownMenu.Item className={cn(item, "text-danger")} onSelect={confirmRemove}>
+              {m.remove()}
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
+      {error && (
+        <span role="alert" className="max-w-48 text-right text-xs text-danger">
+          {errorMessage(error)}
+        </span>
+      )}
+    </div>
   );
 }

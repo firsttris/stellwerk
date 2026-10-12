@@ -11,6 +11,7 @@ import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Field, Input, Select } from "../../../components/ui/input";
 import { VersionsList } from "../../../components/versions-list";
+import { errorMessage } from "../../../lib/errors";
 import { deviceStatus, nowSeconds } from "../../../lib/format";
 import { byCount } from "../../../lib/i18n";
 import { completion, folderSize, formatCount, holders } from "../../../lib/live";
@@ -271,7 +272,7 @@ function FolderDevices({
       <div className="flex flex-wrap items-center justify-between gap-3 bg-subtle px-5 py-3 text-xs text-muted-foreground">
         <span>{m.folder_new_path_hint()}</span>
         <div className="flex items-center gap-3">
-          {save.error && <span className="text-danger">{save.error.message}</span>}
+          {save.error && <span className="text-danger">{errorMessage(save.error)}</span>}
           <Button
             size="sm"
             disabled={changes.length === 0 || save.isPending}
@@ -393,7 +394,7 @@ function FolderSettings({ folder }: { folder: Folder }) {
             {m.settings_ignore_save()}
           </Button>
         </div>
-        {update.error && <p className="text-sm text-danger">{update.error.message}</p>}
+        {update.error && <p className="text-sm text-danger">{errorMessage(update.error)}</p>}
       </Card>
       <Card className="flex flex-wrap items-center justify-between gap-4 border-danger/30 p-5">
         <div className="flex flex-col gap-0.5">

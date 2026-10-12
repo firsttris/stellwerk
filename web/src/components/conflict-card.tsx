@@ -5,6 +5,7 @@ import { api } from "../api";
 import { eventsQuery, statusQuery } from "../api/queries";
 import type { Conflict, Device, FileContent, Keep } from "../api/types";
 import { conflictLines, type DiffLine } from "../lib/diff";
+import { errorMessage } from "../lib/errors";
 import { ago, nowSeconds } from "../lib/format";
 import { formatBytes } from "../lib/live";
 import { cn } from "../lib/utils";
@@ -117,7 +118,7 @@ export function ConflictCard({
           <span className="text-[13px] text-muted-foreground">{m.conflict_explained()}</span>
         </div>
       </div>
-      {content.error && <p className="text-sm text-danger">{content.error.message}</p>}
+      {content.error && <p className="text-sm text-danger">{errorMessage(content.error)}</p>}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-3">
         <Side
           title={m.conflict_current()}
@@ -146,7 +147,7 @@ export function ConflictCard({
           {m.conflict_keep_both()}
         </Button>
       </div>
-      {resolve.error && <p className="text-sm text-danger">{resolve.error.message}</p>}
+      {resolve.error && <p className="text-sm text-danger">{errorMessage(resolve.error)}</p>}
     </Card>
   );
 }

@@ -3,6 +3,7 @@ import { Radar } from "lucide-react";
 import { api } from "../api";
 import { refresh, statusQuery } from "../api/queries";
 import type { WaitingDevice } from "../api/types";
+import { errorMessage } from "../lib/errors";
 import { nowSeconds, osLabel, since } from "../lib/format";
 import { m } from "../paraglide/messages.js";
 import { Button } from "./ui/button";
@@ -62,7 +63,7 @@ function WaitingRow({ device }: { device: WaitingDevice }) {
           {m.waiting_fingerprint()}{" "}
           <span className="font-mono tracking-wide">{device.fingerprint}</span>
         </span>
-        {error && <span className="text-[13px] text-danger">{error.message}</span>}
+        {error && <span className="text-[13px] text-danger">{errorMessage(error)}</span>}
       </div>
       <div className="flex gap-2">
         <Button

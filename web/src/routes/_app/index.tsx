@@ -9,6 +9,7 @@ import { NewFolderDialog } from "../../components/new-folder-dialog";
 import { PairDialog } from "../../components/pair-dialog";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
+import { errorMessage } from "../../lib/errors";
 import { ago, describeEvent, nowSeconds, since } from "../../lib/format";
 import { byCount } from "../../lib/i18n";
 import {
@@ -38,7 +39,7 @@ function Overview() {
           </>
         }
       />
-      {error && <p className="text-danger">{error.message}</p>}
+      {error && <p className="text-danger">{errorMessage(error)}</p>}
       {overview && (
         <>
           <Stats overview={overview} live={live} />

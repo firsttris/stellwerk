@@ -5,6 +5,7 @@ import { useState } from "react";
 import { api } from "../api";
 import { refresh } from "../api/queries";
 import type { Live, Overview } from "../api/types";
+import { errorMessage } from "../lib/errors";
 import { deviceStatus, nowSeconds } from "../lib/format";
 import { byCount } from "../lib/i18n";
 import { completion, folderBadge, folderSize, holders } from "../lib/live";
@@ -135,7 +136,7 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
       )}
       {apply.error && (
         <p className="border-b border-border bg-danger-surface px-5 py-3 text-danger">
-          {apply.error.message}
+          {errorMessage(apply.error)}
         </p>
       )}
       {toast && changes.length === 0 && (

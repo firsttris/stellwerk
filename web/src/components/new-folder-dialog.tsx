@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { api } from "../api";
 import { refresh } from "../api/queries";
+import { errorMessage } from "../lib/errors";
 import { m } from "../paraglide/messages.js";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
@@ -47,7 +48,7 @@ export function NewFolderDialog() {
               />
             )}
           </Field>
-          {create.error && <p className="text-sm text-danger">{create.error.message}</p>}
+          {create.error && <p className="text-sm text-danger">{errorMessage(create.error)}</p>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               {m.cancel()}
