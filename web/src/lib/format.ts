@@ -93,3 +93,15 @@ export function describeEvent(
       return event.text;
   }
 }
+
+/**
+ * `dir/config.ts` + `workbench` → `config.workbench.ts`, as "keep both" names the copy. Mirrors
+ * `free_name` and `split_ext` in crates/engine/src/files.rs (without the numbered fallback the
+ * engine adds when that name is taken).
+ */
+export function bothName(original: string, device: string): string {
+  const file = original.split("/").pop() ?? original;
+  const dot = file.lastIndexOf(".");
+  const label = device.replace(/[^\p{L}\p{N}_-]/gu, "-");
+  return dot > 0 ? `${file.slice(0, dot)}.${label}${file.slice(dot)}` : `${file}.${label}`;
+}

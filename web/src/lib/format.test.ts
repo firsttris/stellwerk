@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { demoState } from "../demo/fixtures";
-import { ago, describeEvent, deviceStatus, duration, since } from "./format";
+import { ago, bothName, describeEvent, deviceStatus, duration, since } from "./format";
 
 describe("format", () => {
   it("says how long ago", () => {
@@ -38,5 +38,14 @@ describe("format", () => {
       "laptop hat 1 Datei in Photos geändert",
     );
     expect(describeEvent(event("offline"), devices, folders)).toBe("laptop ist offline");
+  });
+
+  it("names the copy kept next to the file like the engine does", () => {
+    expect(bothName("haul/src/config.ts", "workbench")).toBe("config.workbench.ts");
+    expect(bothName("archive.tar.gz", "laptop")).toBe("archive.tar.laptop.gz");
+    expect(bothName("Makefile", "laptop")).toBe("Makefile.laptop");
+    expect(bothName("dir/.bashrc", "laptop")).toBe(".bashrc.laptop");
+    expect(bothName("a.txt", "Tristan's Mac")).toBe("a.Tristan-s-Mac.txt");
+    expect(bothName("a.txt", "büro_pc-2")).toBe("a.büro_pc-2.txt");
   });
 });

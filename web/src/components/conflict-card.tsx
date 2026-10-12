@@ -6,20 +6,12 @@ import { eventsQuery, statusQuery } from "../api/queries";
 import type { Conflict, Device, FileContent, Keep } from "../api/types";
 import { conflictLines, type DiffLine } from "../lib/diff";
 import { errorMessage } from "../lib/errors";
-import { ago, nowSeconds } from "../lib/format";
+import { ago, bothName, nowSeconds } from "../lib/format";
 import { formatBytes } from "../lib/live";
 import { cn } from "../lib/utils";
 import { m } from "../paraglide/messages.js";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
-
-/** `dir/config.ts` + `workbench` → `config.workbench.ts`, as "keep both" names the copy. */
-export function bothName(original: string, device: string): string {
-  const file = original.split("/").pop() ?? original;
-  const dot = file.lastIndexOf(".");
-  const label = device.replace(/[^\p{L}\p{N}_-]/gu, "-");
-  return dot > 0 ? `${file.slice(0, dot)}.${label}${file.slice(dot)}` : `${file}.${label}`;
-}
 
 function Side({
   title,
