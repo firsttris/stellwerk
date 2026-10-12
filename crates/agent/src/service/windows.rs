@@ -55,6 +55,18 @@ pub fn install(service: &Service) -> anyhow::Result<String> {
 /// Ending the task would kill the agent without a signal and leave Syncthing running, so the
 /// agent is asked to stop through the stop file first.
 pub fn uninstall(data_dir: &Path) -> anyhow::Result<()> {
+    stop_agent(data_dir)?;
+    let _ = command("schtasks", &["/End", "/TN", TASK_NAME]);
+    let _ = command("schtasks", &["/Delete", "/F", "/TN", TASK_NAME]);
+    Ok(())
+}
+
+/// Stops a running agent through the stop file and waits until it has exited; returns at once
+/// when none runs, as nobody would remove the stop file then.
+fn stop_agent(data_dir: &Path) -> anyhow::Result<()> {
+    if !agent_running() {
+        return Ok(());
+    }
     request_stop(data_dir, STOP_TIMEOUT)?;
     // The agent removes the stop file first, then stops Syncthing and exits; wait for that,
     // so its files are free to be deleted.
@@ -62,8 +74,6 @@ pub fn uninstall(data_dir: &Path) -> anyhow::Result<()> {
     while agent_running() && std::time::Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(500));
     }
-    let _ = command("schtasks", &["/End", "/TN", TASK_NAME]);
-    let _ = command("schtasks", &["/Delete", "/F", "/TN", TASK_NAME]);
     Ok(())
 }
 
