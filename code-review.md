@@ -22,6 +22,41 @@ All project checks pass on `main`:
 | `cargo test` (incl. integration tests against the pinned Syncthing) | 85 tests, all green |
 | `pnpm --filter web check` (Biome, tsc, Vitest, vite build) | ok |
 
+## Resolution
+
+Every finding was checked again against the code (and, where it depends on Syncthing, against
+the v2.1.6 source) and fixed only when the fix is worth its code at this project's scale. The
+fixes are on branch `claude/wizardly-dijkstra-02yg6z`, one commit per finding or tight group,
+each naming its IDs. All checks are green on the merged result: `cargo fmt`, `cargo clippy
+-D warnings`, `cargo test` (incl. the Syncthing integration tests), `pnpm --filter web check`,
+`pnpm e2e` (21 tests) and `mkdocs build --strict`.
+
+**Breaking:** A2 signs the whole hello with a new prefix, so agents and Zentrale must be
+updated together (agents up to v0.1.1 are turned away by the new Zentrale, and vice versa).
+The minimum Rust version is now 1.94 (A4: the locked sqlx 0.9 needs it, not only let chains).
+
+| Area | Fixed | Skipped (not worth it / not needed) | Wrong in the review |
+|---|---|---|---|
+| Zentrale | Z1–Z8 (Z7 via the engine), A3 server side; clean code: `device_by_short_id` reuse, `From<FilesError>` in `api/error.rs`, `"conflict"` label, `GET /api` → 404, tests for `default_hub_address` and the UI update JSON; docs on `X-Forwarded-Proto` | Z9 (UI ignores status of offline devices; bounded), Z10 (`SameSite=Strict` covers it; read-only data), Z11 (an authenticated agent can only mislabel itself), Z12 (one idempotent extra reconcile), Z13, Z15, Z16, Z17 (no measurable effect), Z14 (see E25); `hex_sha256` duplicate, `NewDevice` helper, `lan_pairing` argument, `store/folders.rs` split (with the next feature), unbounded `events`/`enrollments` (negligible growth), `encrypted_on_hub` (planned feature) | — |
+| Agent / protocol | A1, A2, A3, A4, A5, A6, A7, A8, A10 (in `docs.yml`, since `ci.yml` skips docs-only PRs), A11, A16, A17 (warn once per problem instead of rotating), A21, A29, A30; A15 as docs; tests for the backoff and mode 600 | A13, A18, A19, A20, A23, A24, A25, A26, A27 (cosmetic or far-fetched); Windows BOM and `errors_of` tests | A9 (`absolute` resolves against the same working directory), A28's "IPv4-only" (Go listens dual-stack on `0.0.0.0`) |
+| Engine | E2, E3, E4 (`STGUIAPIKEY`/`STGUIADDRESS`, no key in `Debug`), E5, E6, E8 (`Instance::exited`; agent and Zentrale now exit when their Syncthing exits and leave the restart to the service manager), E11 (scan gets an hour, `postDBScan` blocks until done), E12, E14, E15, E16, E20, E21, E22, E23 (previous log kept as `.log.1`); E7, E9, E28 as docs | E10 (next snapshot follows within ~1 s), E13, E17, E18, E19, E24, E25, E26, E27 (no measurable effect, or a redesign out of proportion) | E1 (Syncthing deletes a conflict copy instead of copying it again, `moveForConflict` in `lib/model/folder_sendrecv.go`) |
+| Web | W1–W12, W14–W22, W24, W25, W27, W32, W35, W37 (plain table, devices chunk 110 → 62 kB), W41, W42; partly W26, W28, W29, W30; W31 resolved with the first component tests | W13 (UI ships with the server), W33, W36, W38, W39, W40 (no measurable effect); rest of W26 (full tab pattern), W28 (`Attention`), W29/W30 (trivial helpers) | — |
+
+**Open — decisions or follow-ups for you:**
+
+- **A12** — should a revision whose apply had folder errors count as applied (today), only a
+  clean one, or both carried separately?
+- **A14** — settle one naming convention on the wire (breaking) before an external consumer
+  exists.
+- **A22** — the Zentrale should always announce its `url` over mDNS (`discovery.rs`), so `join`
+  does not pick an arbitrary IPv4 address; needs a sensible default without `--public-url`.
+- **W27** — machine-readable error codes in the Zentrale's JSON errors (`api/error.rs`), so 400/404
+  texts can be translated too.
+- **W23** — warn before leaving the matrix with unsaved changes (product decision).
+- **W34** — raw palette classes → design tokens (changes the look; needs a token decision).
+- **Screenshots** — the UI changed in places (error/not-found pages, expired pairing code,
+  PowerShell hint, device action errors); run **Actions → Update screenshots**.
+
 ## Top findings (fix first)
 
 1. A paired device that runs `join` again with a new code is rejected forever — Z1.
