@@ -79,7 +79,6 @@ By default:
 | `syncthing/` | home of the agent's Syncthing: identity, configuration, index database |
 | `syncthing-bin/` | the downloaded and checked Syncthing release |
 | `agent.log` | the log on macOS and Windows (on Linux it goes to the journal) |
-| `task.xml` | on Windows: the task definition `service install` registered |
 | `stop` | written by `service uninstall` to ask a running agent to stop; removed by it |
 
 The synced folders are not in the data directory; they are wherever their paths point
