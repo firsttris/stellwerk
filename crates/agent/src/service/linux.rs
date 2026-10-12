@@ -15,9 +15,11 @@ pub fn install(service: &Service) -> anyhow::Result<String> {
     std::fs::create_dir_all(path.parent().expect("the unit path has a parent"))?;
     std::fs::write(&path, systemd_unit(service))?;
     command("systemctl", &["--user", "daemon-reload"])?;
-    command("systemctl", &["--user", "enable", "--now", SYSTEMD_UNIT])?;
+    command("systemctl", &["--user", "enable", SYSTEMD_UNIT])?;
+    // `restart` also starts a stopped unit; `enable --now` would keep an old binary running.
+    command("systemctl", &["--user", "restart", SYSTEMD_UNIT])?;
     Ok(format!(
-        "Installed {} and started it.\n\
+        "Installed {} and (re)started it.\n\
          To keep it running while you are logged out: loginctl enable-linger $USER",
         path.display()
     ))

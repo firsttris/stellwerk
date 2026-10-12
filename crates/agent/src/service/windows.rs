@@ -27,6 +27,8 @@ pub fn install(service: &Service) -> anyhow::Result<String> {
         service.exe.display()
     );
     std::fs::create_dir_all(&service.data_dir)?;
+    // `/Run` is ignored while an older agent runs (`MultipleInstancesPolicy`); stop it first.
+    stop_agent(&service.data_dir)?;
     // Task Scheduler reads task XML as UTF-16 with a byte order mark.
     let xml = task_xml(&background, &service.data_dir, &user()?);
     let utf16: Vec<u8> = std::iter::once(0xFEFF_u16)

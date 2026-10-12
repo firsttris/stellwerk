@@ -251,19 +251,20 @@ traversal off: the device dials the hub at the address from the desired state, a
 which has no address for devices (`dynamic`), only accepts their connections.
 
 **Service** (`crates/agent/src/service`): `service install` writes a definition for the binary
-it runs from and its data directory and starts it. The definitions are pure functions with unit
+it runs from and its data directory and starts it, or restarts an agent that already runs, so a
+replaced binary takes over. The definitions are pure functions with unit
 tests (`definitions.rs`); `linux.rs`, `macos.rs` and `windows.rs` install them:
 
 | System | Definition | Started with |
 |---|---|---|
-| Linux | systemd user unit, `Restart=on-failure` | `systemctl --user enable --now` |
-| macOS | launchd agent with `RunAtLoad`, `KeepAlive` | `launchctl bootstrap gui/<uid>` |
-| Windows | Task Scheduler task at logon, restart on failure, running `stellwerk-agent-background.exe` | `schtasks /Create /XML`, `/Run` |
+| Linux | systemd user unit, `Restart=on-failure` | `systemctl --user enable`, `restart` |
+| macOS | launchd agent with `RunAtLoad`, `KeepAlive` | `launchctl bootout`, `bootstrap gui/<uid>` |
+| Windows | Task Scheduler task at logon, restart on failure, running `stellwerk-agent-background.exe` | stop file (below), `schtasks /Create /XML`, `/Run` |
 
 Systemd and launchd stop the agent with `SIGTERM`, on which it shuts its Syncthing down cleanly.
-A Windows task cannot be ended with a signal, so `service uninstall` writes a `stop` file into
-the data directory, which the running agent looks for every second, and waits until the agent
-has exited before removing the task. A stop file older than the agent's start is ignored, so a
+A Windows task cannot be ended with a signal, so `service uninstall`, and `service install` when
+an agent runs, writes a `stop` file into the data directory, which the running agent looks for
+every second, and waits until the agent has exited before removing or replacing the task. A stop file older than the agent's start is ignored, so a
 leftover from an interrupted uninstall cannot stop a new agent.
 
 ## Engine
