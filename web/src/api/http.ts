@@ -2,10 +2,12 @@ import type { z } from "zod";
 import {
   type Api,
   ApiError,
+  conflictContentSchema,
   deviceSchema,
   enrollmentSchema,
   enrollmentStatusSchema,
   eventSchema,
+  fileVersionsSchema,
   folderSchema,
   liveSchema,
   overviewSchema,
@@ -78,6 +80,27 @@ export function httpApi(): Api {
     enrollmentStatus: (code) =>
       request("POST", "/api/enrollments/status", { code }).then(parsed(enrollmentStatusSchema)),
     status: () => request("GET", "/api/status").then(parsed(liveSchema)),
+    conflictContent: (folderId, path) =>
+      request(
+        "GET",
+        `/api/folders/${encodeURIComponent(folderId)}/conflicts/content?path=${encodeURIComponent(path)}`,
+      ).then(parsed(conflictContentSchema)),
+    resolveConflict: async (folderId, path, keep) => {
+      await request("POST", `/api/folders/${encodeURIComponent(folderId)}/conflicts/resolve`, {
+        path,
+        keep,
+      });
+    },
+    versions: (folderId) =>
+      request("GET", `/api/folders/${encodeURIComponent(folderId)}/versions`).then(
+        parsed(fileVersionsSchema.array()),
+      ),
+    restoreVersion: async (folderId, path, versionTime) => {
+      await request("POST", `/api/folders/${encodeURIComponent(folderId)}/versions/restore`, {
+        path,
+        versionTime,
+      });
+    },
     events: (limit = 20) =>
       request("GET", `/api/events?limit=${limit}`).then(parsed(eventSchema.array())),
   };

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppConflictsRouteImport } from './routes/_app/conflicts'
 import { Route as AppDevicesRouteImport } from './routes/_app/devices'
 import { Route as AppFoldersIndexRouteImport } from './routes/_app/folders/index'
 import { Route as AppFoldersFolderIdRouteImport } from './routes/_app/folders/$folderId'
@@ -28,6 +29,11 @@ const LoginRoute = LoginRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConflictsRoute = AppConflictsRouteImport.update({
+  id: '/conflicts',
+  path: '/conflicts',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDevicesRoute = AppDevicesRouteImport.update({
@@ -49,12 +55,14 @@ const AppFoldersFolderIdRoute = AppFoldersFolderIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/conflicts': typeof AppConflictsRoute
   '/devices': typeof AppDevicesRoute
   '/folders/$folderId': typeof AppFoldersFolderIdRoute
   '/folders/': typeof AppFoldersIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/conflicts': typeof AppConflictsRoute
   '/devices': typeof AppDevicesRoute
   '/': typeof AppIndexRoute
   '/folders/$folderId': typeof AppFoldersFolderIdRoute
@@ -64,6 +72,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/conflicts': typeof AppConflictsRoute
   '/_app/devices': typeof AppDevicesRoute
   '/_app/': typeof AppIndexRoute
   '/_app/folders/$folderId': typeof AppFoldersFolderIdRoute
@@ -71,13 +80,26 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/devices' | '/folders/$folderId' | '/folders/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/conflicts'
+    | '/devices'
+    | '/folders/$folderId'
+    | '/folders/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/devices' | '/' | '/folders/$folderId' | '/folders'
+  to:
+    | '/login'
+    | '/conflicts'
+    | '/devices'
+    | '/'
+    | '/folders/$folderId'
+    | '/folders'
   id:
     | '__root__'
     | '/_app'
     | '/login'
+    | '/_app/conflicts'
     | '/_app/devices'
     | '/_app/'
     | '/_app/folders/$folderId'
@@ -112,6 +134,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/conflicts': {
+      id: '/_app/conflicts'
+      path: '/conflicts'
+      fullPath: '/conflicts'
+      preLoaderRoute: typeof AppConflictsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/devices': {
       id: '/_app/devices'
       path: '/devices'
@@ -137,6 +166,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppConflictsRoute: typeof AppConflictsRoute
   AppDevicesRoute: typeof AppDevicesRoute
   AppIndexRoute: typeof AppIndexRoute
   AppFoldersFolderIdRoute: typeof AppFoldersFolderIdRoute
@@ -144,6 +174,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppConflictsRoute: AppConflictsRoute,
   AppDevicesRoute: AppDevicesRoute,
   AppIndexRoute: AppIndexRoute,
   AppFoldersFolderIdRoute: AppFoldersFolderIdRoute,

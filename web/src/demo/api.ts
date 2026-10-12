@@ -7,7 +7,7 @@ import {
   type Overview,
   type Share,
 } from "../api/types";
-import { type DemoState, demoLive, demoState } from "./fixtures";
+import { type DemoState, demoConflictContent, demoLive, demoState } from "./fixtures";
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
@@ -151,6 +151,29 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
       return { device };
     },
     events: async (limit = 20) => state.events.slice(0, limit),
-    status: async () => demoLive(nowSeconds()),
+    status: async () => ({
+      ...demoLive(nowSeconds()),
+      conflicts: structuredClone(state.conflicts),
+    }),
+    conflictContent: async (folderId, path) => {
+      if (!state.conflicts[folderId]?.some((c) => c.path === path)) {
+        throw new ApiError(404, "conflict copy not found");
+      }
+      return demoConflictContent(nowSeconds());
+    },
+    resolveConflict: async (folderId, path) => {
+      const remaining = (state.conflicts[folderId] ?? []).filter((c) => c.path !== path);
+      state = { ...state, conflicts: { ...state.conflicts, [folderId]: remaining } };
+    },
+    versions: async (folderId) => {
+      findFolder(folderId);
+      return structuredClone(state.versions[folderId] ?? []);
+    },
+    restoreVersion: async (folderId, path) => {
+      findFolder(folderId);
+      if (!state.versions[folderId]?.some((f) => f.path === path)) {
+        throw new ApiError(400, "no such version");
+      }
+    },
   };
 }

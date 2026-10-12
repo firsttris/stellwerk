@@ -7,6 +7,8 @@ use std::sync::{Arc, Mutex};
 
 use tokio::sync::watch;
 
+use stellwerk_engine::Client;
+use stellwerk_engine::files::Conflict;
 use stellwerk_engine::monitor::Snapshot;
 use stellwerk_protocol::status::FolderStatus;
 
@@ -23,6 +25,9 @@ pub struct App {
 struct Inner {
     store: Store,
     hub: Hub,
+    hub_client: Client,
+    /// Conflict copies on the hub by folder ID, from the last scan.
+    conflicts: Mutex<BTreeMap<String, Vec<Conflict>>>,
     revision: watch::Sender<u64>,
     /// Connected agents: device ID → (connection, connected since).
     online: Mutex<BTreeMap<String, (u64, i64)>>,
@@ -33,12 +38,14 @@ struct Inner {
 }
 
 impl App {
-    pub async fn new(store: Store, hub: Hub) -> Result<Self> {
+    pub async fn new(store: Store, hub: Hub, hub_client: Client) -> Result<Self> {
         let revision = store.revision().await?;
         Ok(Self {
             inner: Arc::new(Inner {
                 store,
                 hub,
+                hub_client,
+                conflicts: Mutex::default(),
                 revision: watch::Sender::new(revision),
                 online: Mutex::default(),
                 connections: AtomicU64::new(0),
@@ -54,6 +61,27 @@ impl App {
 
     pub fn hub(&self) -> &Hub {
         &self.inner.hub
+    }
+
+    /// The hub's Syncthing API.
+    pub fn hub_client(&self) -> &Client {
+        &self.inner.hub_client
+    }
+
+    pub fn conflicts(&self) -> BTreeMap<String, Vec<Conflict>> {
+        lock(&self.inner.conflicts).clone()
+    }
+
+    pub fn set_conflicts(&self, conflicts: BTreeMap<String, Vec<Conflict>>) {
+        let changed = {
+            let mut current = lock(&self.inner.conflicts);
+            let changed = *current != conflicts;
+            *current = conflicts;
+            changed
+        };
+        if changed {
+            self.tick();
+        }
     }
 
     /// Call after every change: agents and hub get the new desired state.

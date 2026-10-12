@@ -37,6 +37,8 @@ describe("live state in words", () => {
     expect(folderBadge(o, live, "musik")).toEqual({ tone: "ok", text: "Synchron" });
     expect(folderBadge(o, live, "dokumente")).toEqual({ tone: "warn", text: "Fehler" });
     expect(folderBadge(o, undefined, "musik").text).toBe("…");
+    const withConflict = { ...live, conflicts: demoState(now).conflicts };
+    expect(folderBadge(o, withConflict, "projekte")).toEqual({ tone: "warn", text: "1 Konflikt" });
     expect(folderErrors(o, live, "dokumente")).toEqual([
       { device: "laptop", message: "2 Dateien nicht synchronisiert" },
     ]);

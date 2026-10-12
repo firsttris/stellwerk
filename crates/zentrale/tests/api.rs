@@ -21,7 +21,9 @@ async fn app() -> (Router, App, tempfile::TempDir) {
         address: "tcp://hub:22001".into(),
         folders_dir: "/data/folders".into(),
     };
-    let app = App::new(store, hub).await.unwrap();
+    // No Syncthing behind it: the endpoints tested here do not reach the hub.
+    let client = stellwerk_engine::Client::new("http://127.0.0.1:9".parse().unwrap(), "none");
+    let app = App::new(store, hub, client).await.unwrap();
     (router(app.clone()), app, dir)
 }
 

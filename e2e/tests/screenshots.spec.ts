@@ -30,6 +30,12 @@ test("folder @screenshots", async ({ page }) => {
   await page.screenshot({ path: shot("screenshot-folder"), fullPage: true });
 });
 
+test("conflict @screenshots", async ({ page }) => {
+  await page.goto("/conflicts");
+  await expect(page.getByText("Fassung von werkbank")).toBeVisible();
+  await page.screenshot({ path: shot("screenshot-conflict"), fullPage: true });
+});
+
 test("dark mode @screenshots", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/");

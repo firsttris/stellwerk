@@ -60,13 +60,13 @@ async fn a_paired_device_syncs_its_folder_with_the_hub() {
     // the activity feed says who changed what.
     let app = &zentrale.app;
     wait_for("the agent's folder status", || async {
-        let view = view(&store.config().await.ok()?, &app.live());
+        let view = view(&store.config().await.ok()?, &app.live(), &app.conflicts());
         let docs = view.devices.get(&device.id)?.folders.get(&folder.id)?;
         (docs.global_files == 1 && docs.need_files == 0).then_some(())
     })
     .await;
     wait_for("the hub's completion for the device", || async {
-        let view = view(&store.config().await.ok()?, &app.live());
+        let view = view(&store.config().await.ok()?, &app.live(), &app.conflicts());
         let done = view.hub.completion.get(&folder.id)?.get(&device.id)?;
         (done.percent >= 100.0).then_some(())
     })

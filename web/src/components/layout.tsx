@@ -1,10 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Folder, LayoutGrid, LogOut, Monitor, RefreshCw } from "lucide-react";
+import { Folder, LayoutGrid, LogOut, Monitor, RefreshCw, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { api } from "../api";
 import { useLiveUpdates } from "../api/live";
-import { overviewQuery, sessionQuery } from "../api/queries";
+import { overviewQuery, sessionQuery, statusQuery } from "../api/queries";
 import { Button } from "./ui/button";
 
 const navLink =
@@ -17,6 +17,11 @@ function hostOf(address: string): string {
 
 export function Layout({ children }: { children: ReactNode }) {
   const { data: overview } = useQuery(overviewQuery);
+  const { data: live } = useQuery(statusQuery);
+  const conflicts = Object.values(live?.conflicts ?? {}).reduce(
+    (sum, list) => sum + list.length,
+    0,
+  );
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   useLiveUpdates();
@@ -64,6 +69,15 @@ export function Layout({ children }: { children: ReactNode }) {
             <span className="ml-auto text-xs text-muted-foreground">
               {overview?.devices.length}
             </span>
+          </Link>
+          <Link to="/conflicts" className={navLink} activeProps={{ className: navActive }}>
+            <TriangleAlert aria-hidden="true" />
+            Konflikte
+            {conflicts > 0 && (
+              <span className="ml-auto rounded-full bg-amber-700 px-[7px] text-xs leading-[18px] font-medium text-white">
+                {conflicts}
+              </span>
+            )}
           </Link>
         </nav>
         <div className="mt-auto flex flex-col gap-3">

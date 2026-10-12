@@ -18,6 +18,16 @@ pub struct Client {
     api_key: String,
 }
 
+/// One archived version of a file.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileVersion {
+    /// When it was archived, RFC 3339; passed back as is to restore it.
+    pub version_time: String,
+    pub mod_time: String,
+    pub size: u64,
+}
+
 #[derive(Deserialize)]
 struct Ignores {
     #[serde(default)]
@@ -157,6 +167,32 @@ impl Client {
             .append_pair("events", kinds)
             .append_pair("timeout", &timeout_secs.to_string());
         Ok(self.send_to(Method::GET, url, |r| r).await?.json().await?)
+    }
+
+    /// `GET /rest/folder/versions?folder={id}`: archived versions by file path
+    /// (lib/versioner/versioner.go, `FileVersion`).
+    pub async fn versions(&self, folder: &str) -> Result<BTreeMap<String, Vec<FileVersion>>> {
+        let mut url = self.url(&["rest", "folder", "versions"]);
+        url.query_pairs_mut().append_pair("folder", folder);
+        Ok(self.send_to(Method::GET, url, |r| r).await?.json().await?)
+    }
+
+    /// `POST /rest/folder/versions?folder={id}`: puts the version back; Syncthing archives the
+    /// current file first. `version_time` as the listing gave it. Returns errors by path.
+    pub async fn restore_version(
+        &self,
+        folder: &str,
+        path: &str,
+        version_time: &str,
+    ) -> Result<BTreeMap<String, String>> {
+        let mut url = self.url(&["rest", "folder", "versions"]);
+        url.query_pairs_mut().append_pair("folder", folder);
+        let body = serde_json::json!({ path: version_time });
+        Ok(self
+            .send_to(Method::POST, url, |r| r.json(&body))
+            .await?
+            .json()
+            .await?)
     }
 
     /// `POST /rest/system/shutdown`

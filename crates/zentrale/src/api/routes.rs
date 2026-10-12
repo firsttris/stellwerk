@@ -7,7 +7,10 @@ use serde::{Deserialize, Serialize};
 
 use super::error::{ApiError, ApiResult};
 use super::session::Admin;
+use stellwerk_engine::files::Keep;
+
 use crate::app::App;
+use crate::files::{self, ConflictContent, FileVersions, FilesError};
 use crate::model::{Device, DeviceKind, Folder, Share};
 use crate::pairing::{CODE_LIFETIME_SECS, code_hash, fingerprint, new_code};
 use crate::store::{DeviceUpdate, Event, ShareChange, now};
@@ -237,4 +240,87 @@ pub async fn events(
 ) -> ApiResult<Json<Vec<Event>>> {
     let limit = query.limit.unwrap_or(50).min(500);
     Ok(Json(app.store().events(limit).await?))
+}
+
+impl From<FilesError> for ApiError {
+    fn from(err: FilesError) -> Self {
+        match err {
+            FilesError::NotFound(what) => {
+                ApiError::new(StatusCode::NOT_FOUND, format!("{what} not found"))
+            }
+            FilesError::Invalid(message) => ApiError::new(StatusCode::BAD_REQUEST, message),
+            FilesError::Failed(message) => {
+                tracing::error!(%message, "file operation failed");
+                ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, message)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PathQuery {
+    path: String,
+}
+
+pub async fn conflict_content(
+    State(app): State<App>,
+    _: Admin,
+    Path(id): Path<String>,
+    Query(query): Query<PathQuery>,
+) -> ApiResult<Json<ConflictContent>> {
+    Ok(Json(files::content(&app, &id, &query.path).await?))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum KeepChoice {
+    Original,
+    Copy,
+    Both,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Resolution {
+    path: String,
+    keep: KeepChoice,
+}
+
+pub async fn resolve_conflict(
+    State(app): State<App>,
+    _: Admin,
+    Path(id): Path<String>,
+    Json(resolution): Json<Resolution>,
+) -> ApiResult<StatusCode> {
+    let keep = match resolution.keep {
+        KeepChoice::Original => Keep::Original,
+        KeepChoice::Copy => Keep::Copy,
+        KeepChoice::Both => Keep::Both,
+    };
+    files::resolve(&app, &id, &resolution.path, keep).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn versions(
+    State(app): State<App>,
+    _: Admin,
+    Path(id): Path<String>,
+) -> ApiResult<Json<Vec<FileVersions>>> {
+    Ok(Json(files::versions(&app, &id).await?))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Restore {
+    path: String,
+    version_time: String,
+}
+
+pub async fn restore_version(
+    State(app): State<App>,
+    _: Admin,
+    Path(id): Path<String>,
+    Json(restore): Json<Restore>,
+) -> ApiResult<StatusCode> {
+    files::restore(&app, &id, &restore.path, &restore.version_time).await?;
+    Ok(StatusCode::NO_CONTENT)
 }

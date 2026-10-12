@@ -16,7 +16,7 @@ use stellwerk_zentrale::store::now;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
-pub const TIMEOUT: Duration = Duration::from_secs(120);
+pub const TIMEOUT: Duration = Duration::from_secs(180);
 
 pub async fn syncthing_binary() -> PathBuf {
     let cache = std::env::var_os("STELLWERK_SYNCTHING_CACHE")

@@ -77,6 +77,12 @@ export function describeEvent(
     }
     case "error":
       return `Fehler auf ${name}: ${event.text}`;
+    case "conflict":
+      return `Konflikt in ${folder}: ${event.text}`;
+    case "resolved":
+      return `Konflikt in ${folder} gelöst`;
+    case "restored":
+      return `${event.text} in ${folder} wiederhergestellt`;
     default:
       return event.text;
   }

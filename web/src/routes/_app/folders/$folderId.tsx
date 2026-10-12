@@ -5,16 +5,32 @@ import { type FormEvent, useState } from "react";
 import { api } from "../../../api";
 import { overviewQuery, refresh, statusQuery } from "../../../api/queries";
 import type { Device, Folder, FolderPatch, Live, Overview, ShareChange } from "../../../api/types";
+import { ConflictCard } from "../../../components/conflict-card";
 import { StatusDot } from "../../../components/device-icon";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Field, Input, Select } from "../../../components/ui/input";
+import { VersionsList } from "../../../components/versions-list";
 import { deviceStatus, nowSeconds, plural } from "../../../lib/format";
 import { completion, folderSize, formatCount } from "../../../lib/live";
 import { type CellMode, isWaiting, matrixDevices, storedMode } from "../../../lib/matrix";
 import { cn } from "../../../lib/utils";
 
-export const Route = createFileRoute("/_app/folders/$folderId")({ component: FolderPage });
+const TABS = ["devices", "versions", "conflicts", "settings"] as const;
+type Tab = (typeof TABS)[number];
+const TAB_LABEL: Record<Tab, string> = {
+  devices: "Geräte",
+  versions: "Versionen",
+  conflicts: "Konflikte",
+  settings: "Einstellungen",
+};
+
+export const Route = createFileRoute("/_app/folders/$folderId")({
+  validateSearch: (search: Record<string, unknown>): { tab?: Tab } => ({
+    tab: TABS.find((t) => t === search.tab),
+  }),
+  component: FolderPage,
+});
 
 const OPTIONS: { value: CellMode; label: string }[] = [
   { value: "sendReceive", label: "Senden & empfangen" },
@@ -23,13 +39,13 @@ const OPTIONS: { value: CellMode; label: string }[] = [
   { value: "off", label: "Aus" },
 ];
 
-type Tab = "devices" | "settings";
-
 function FolderPage() {
   const { folderId } = Route.useParams();
   const { data: overview } = useQuery(overviewQuery);
   const { data: live } = useQuery(statusQuery);
-  const [tab, setTab] = useState<Tab>("devices");
+  const { tab = "devices" } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const setTab = (next: Tab) => navigate({ search: { tab: next }, replace: true });
   const folder = overview?.folders.find((f) => f.id === folderId);
 
   if (!overview) return null;
@@ -44,6 +60,7 @@ function FolderPage() {
     );
   }
   const holders = overview.shares.filter((s) => s.folderId === folder.id).length;
+  const conflicts = live?.conflicts[folder.id] ?? [];
 
   return (
     <>
@@ -67,7 +84,7 @@ function FolderPage() {
         </div>
       </div>
       <div role="tablist" aria-label="Ordnerbereiche" className="flex gap-1 border-b border-border">
-        {(["devices", "settings"] as const).map((t) => (
+        {TABS.map((t) => (
           <button
             key={t}
             type="button"
@@ -79,15 +96,36 @@ function FolderPage() {
               tab === t ? "border-primary font-medium" : "border-transparent text-muted-foreground",
             )}
           >
-            {t === "devices" ? "Geräte" : "Einstellungen"}
+            {TAB_LABEL[t]}
+            {t === "conflicts" && conflicts.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-warn px-1.5 text-xs text-warn-foreground">
+                {conflicts.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
-      {tab === "devices" ? (
+      {tab === "devices" && (
         <FolderDevices key={overview.revision} overview={overview} live={live} folder={folder} />
-      ) : (
-        <FolderSettings folder={folder} />
       )}
+      {tab === "versions" && <VersionsList folderId={folder.id} />}
+      {tab === "conflicts" &&
+        (conflicts.length === 0 ? (
+          <Card className="p-5 text-muted-foreground">
+            Keine Konflikte. Wenn zwei Geräte dieselbe Datei ändern, bevor sie voneinander wissen,
+            erscheint sie hier.
+          </Card>
+        ) : (
+          conflicts.map((conflict) => (
+            <ConflictCard
+              key={conflict.path}
+              folderId={folder.id}
+              conflict={conflict}
+              devices={overview.devices}
+            />
+          ))
+        ))}
+      {tab === "settings" && <FolderSettings folder={folder} />}
     </>
   );
 }

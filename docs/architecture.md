@@ -106,8 +106,9 @@ of the Zentrale embeds `web/dist`; paths outside `/api` fall back to `index.html
 - **Geräte**: list with search and filter, rename, block, remove; "Gerät koppeln" creates a code,
   shows the command per OS and waits until the device shows up, then asks for its name and
   folders.
-- **Ordner**: mode and local path per device, rename, ignore patterns (one per line, on every
-  device and the hub), remove.
+- **Ordner**: mode and local path per device; versions per file with restore; conflicts side by
+  side; rename, ignore patterns (one per line, on every device and the hub), remove.
+- **Konflikte**: every conflict of every folder in one list.
 
 Live updates come through `/api/ws` (see above); polling every 30 seconds is only the fallback.
 `src/api/types.ts` checks every answer with Zod.
@@ -134,6 +135,28 @@ reads `/rest/db/status` for every folder whenever something happened, at most on
 Syncthing keeps events for a mask only from its first request on (lib/api/api.go,
 `getEventSub`), so the monitor starts together with Syncthing.
 
+## Conflicts and versions
+
+The hub holds every folder in full, so both are handled there and Syncthing carries the result
+to every device (`crates/engine/src/files.rs`, `crates/zentrale/src/files.rs`).
+
+- **Conflicts.** Syncthing names a conflict copy
+  `name.sync-conflict-YYYYMMDD-HHMMSS-<short ID>.ext` (lib/model/folder_sendrecv.go). The
+  Zentrale searches the hub's folders every 30 seconds, notes new conflicts in the activity feed
+  and shows both sides, with a line diff for text up to 256 KB. Resolving happens on the hub's
+  disk, followed by a rescan:
+  - keep the current file: the copy goes to the versions;
+  - keep the copy: the current file goes to the versions, the copy takes its name;
+  - keep both: the copy becomes `name.<device>.ext` next to the original.
+
+  The discarded side is moved into `.stversions` under Syncthing's own naming
+  (`name~YYYYMMDD-HHMMSS.ext`, lib/versioner/util.go), so it shows up among the versions. The
+  time in that name is UTC; Syncthing reads it as local time, which is the same in the Docker
+  image.
+- **Versions.** The hub keeps staggered versions (a year by default). The UI lists them through
+  `GET /rest/folder/versions` and restores one with `POST /rest/folder/versions`, which archives
+  the current file first.
+
 ## Engine
 
 | Module | Does |
@@ -145,6 +168,7 @@ Syncthing keeps events for a mask only from its first request on (lib/api/api.go
 | `reconcile` | pure function: actual config + desired state → list of API calls |
 | `apply` | runs those calls; the only side effects of reconciling |
 | `monitor` | event stream, folder status, completion of other devices, changes that arrived |
+| `files` | conflict copies and versions in a folder on disk: find, parse, resolve, archive |
 
 ### Reconciler
 

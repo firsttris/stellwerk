@@ -108,6 +108,18 @@ export const completionSchema = z.object({
 });
 export type Completion = z.infer<typeof completionSchema>;
 
+export const conflictSchema = z.object({
+  path: z.string(),
+  original: z.string(),
+  at: z.number(),
+  deviceId: z.string().nullable(),
+  size: z.number(),
+  modified: z.number(),
+  originalSize: z.number().nullable(),
+  originalModified: z.number().nullable(),
+});
+export type Conflict = z.infer<typeof conflictSchema>;
+
 /** What is happening right now (crates/zentrale/src/live.rs), by the Zentrale's IDs. */
 export const liveSchema = z.object({
   devices: z.record(
@@ -118,6 +130,7 @@ export const liveSchema = z.object({
     folders: z.record(z.string(), folderViewSchema),
     completion: z.record(z.string(), z.record(z.string(), completionSchema)),
   }),
+  conflicts: z.record(z.string(), z.array(conflictSchema)),
 });
 export type Live = z.infer<typeof liveSchema>;
 
@@ -128,6 +141,27 @@ export const uiMessageSchema = z.object({
   status: liveSchema,
 });
 export type UiMessage = z.infer<typeof uiMessageSchema>;
+
+const fileContentSchema = z.object({
+  size: z.number(),
+  modified: z.number(),
+  text: z.string().nullable(),
+});
+export type FileContent = z.infer<typeof fileContentSchema>;
+
+export const conflictContentSchema = z.object({
+  original: fileContentSchema.nullable(),
+  copy: fileContentSchema,
+});
+export type ConflictContent = z.infer<typeof conflictContentSchema>;
+
+export const fileVersionsSchema = z.object({
+  path: z.string(),
+  versions: z.array(z.object({ versionTime: z.string(), modTime: z.string(), size: z.number() })),
+});
+export type FileVersions = z.infer<typeof fileVersionsSchema>;
+
+export type Keep = "original" | "copy" | "both";
 
 /** One cell of the matrix as the API takes it; `mode: null` is "off". */
 export type ShareChange = {
@@ -156,6 +190,10 @@ export type Api = {
   enrollmentStatus(code: string): Promise<{ device: Device | null }>;
   events(limit?: number): Promise<ActivityEvent[]>;
   status(): Promise<Live>;
+  conflictContent(folderId: string, path: string): Promise<ConflictContent>;
+  resolveConflict(folderId: string, path: string, keep: Keep): Promise<void>;
+  versions(folderId: string): Promise<FileVersions[]>;
+  restoreVersion(folderId: string, path: string, versionTime: string): Promise<void>;
 };
 
 export class ApiError extends Error {

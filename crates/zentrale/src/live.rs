@@ -8,6 +8,9 @@ use serde::Serialize;
 use stellwerk_engine::monitor::Snapshot;
 use stellwerk_protocol::status::{FolderStatus, RemoteChange, SyncState};
 
+use stellwerk_engine::files::Conflict;
+
+use crate::files::{ConflictView, conflict_view};
 use crate::model::Config;
 
 /// The latest status of one device, as its agent reported it.
@@ -68,6 +71,8 @@ pub struct HubLiveView {
 pub struct LiveView {
     pub devices: BTreeMap<String, DeviceLiveView>,
     pub hub: HubLiveView,
+    /// Conflict copies on the hub by folder ID.
+    pub conflicts: BTreeMap<String, Vec<ConflictView>>,
 }
 
 fn folder_view(status: &FolderStatus) -> FolderView {
@@ -105,7 +110,7 @@ fn folder_views(config: &Config, folders: &[FolderStatus]) -> BTreeMap<String, F
 }
 
 /// Maps Syncthing's IDs to the Zentrale's and drops what no longer exists.
-pub fn view(config: &Config, live: &Live) -> LiveView {
+pub fn view(config: &Config, live: &Live, conflicts: &BTreeMap<String, Vec<Conflict>>) -> LiveView {
     let devices = live
         .devices
         .iter()
@@ -141,12 +146,21 @@ pub fn view(config: &Config, live: &Live) -> LiveView {
             },
         );
     }
+    let conflicts = conflicts
+        .iter()
+        .filter(|(folder, _)| config.folders.iter().any(|f| &f.id == *folder))
+        .map(|(folder, list)| {
+            let views = list.iter().map(|c| conflict_view(config, c)).collect();
+            (folder.clone(), views)
+        })
+        .collect();
     LiveView {
         devices,
         hub: HubLiveView {
             folders: folder_views(config, &live.hub.folders),
             completion,
         },
+        conflicts,
     }
 }
 
@@ -261,7 +275,7 @@ mod tests {
             },
         };
 
-        let view = view(&config(), &live);
+        let view = view(&config(), &live, &BTreeMap::new());
 
         assert_eq!(view.devices.keys().collect::<Vec<_>>(), ["laptop"]);
         let laptop = &view.devices["laptop"];

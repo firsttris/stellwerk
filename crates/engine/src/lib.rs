@@ -6,11 +6,13 @@
 //! - [`reconcile`] is the pure part: actual config + desired state → list of API calls.
 //! - [`apply`] runs those calls; the only place where reconciling has side effects.
 //! - [`monitor`] follows the event stream: folder states, completion, remote changes.
+//! - [`files`] finds and resolves conflict copies and archives versions in a folder on disk.
 
 pub mod apply;
 pub mod client;
 pub mod download;
 pub mod error;
+pub mod files;
 pub mod monitor;
 pub mod pin;
 pub mod process;

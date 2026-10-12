@@ -50,9 +50,13 @@ export function folderErrors(overview: Overview, live: Live | undefined, folderI
   return found;
 }
 
-/** The badge next to a folder: error, running with the lowest progress, or in sync. */
+/** The badge next to a folder: conflicts, error, running with the lowest progress, in sync. */
 export function folderBadge(overview: Overview, live: Live | undefined, folderId: string): Badge {
   if (!live) return { tone: "neutral", text: "…" };
+  const conflicts = live.conflicts[folderId]?.length ?? 0;
+  if (conflicts > 0) {
+    return { tone: "warn", text: conflicts === 1 ? "1 Konflikt" : `${conflicts} Konflikte` };
+  }
   if (folderErrors(overview, live, folderId).length > 0) return { tone: "warn", text: "Fehler" };
   const running = holders(overview, folderId)
     .filter((d) => d.online)

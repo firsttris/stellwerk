@@ -6,6 +6,7 @@ pub mod api;
 pub mod app;
 pub mod auth;
 pub mod desired;
+pub mod files;
 pub mod hub;
 pub mod live;
 pub mod model;

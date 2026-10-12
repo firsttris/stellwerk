@@ -1,4 +1,14 @@
-import type { ActivityEvent, Device, Folder, FolderView, Live, Share } from "../api/types";
+import type {
+  ActivityEvent,
+  Conflict,
+  ConflictContent,
+  Device,
+  FileVersions,
+  Folder,
+  FolderView,
+  Live,
+  Share,
+} from "../api/types";
 
 // Demo data for `vite --mode demo`, the E2E tests and the screenshots. Times are relative to
 // `now`, so "offline for 3 days" stays true.
@@ -11,7 +21,29 @@ export type DemoState = {
   folders: Folder[];
   shares: Share[];
   events: ActivityEvent[];
+  /** By folder ID. */
+  conflicts: Record<string, Conflict[]>;
+  /** By folder ID. */
+  versions: Record<string, FileVersions[]>;
 };
+
+export const DEMO_CONFLICT_PATH = "haul/src/config.sync-conflict-20261012-103112-WERKBAN.ts";
+
+/** Both sides of the demo conflict, as in the mockup. */
+export const demoConflictContent = (now: number): ConflictContent => ({
+  original: {
+    size: 4_100,
+    modified: now - 11 * 60,
+    text: "export const config = {\n  retries: 5,\n  hoster: 'ddownload',\n  proxy: true,\n};\n",
+  },
+  copy: {
+    size: 4_000,
+    modified: now - 13 * 60,
+    text: "export const config = {\n  retries: 3,\n  timeoutMs: 30_000,\n  parallel: 4,\n  hoster: 'ddownload',\n};\n",
+  },
+});
+
+const iso = (seconds: number) => new Date(seconds * 1000).toISOString();
 
 const device = (now: number, d: Partial<Device> & Pick<Device, "id" | "name">): Device => ({
   kind: "desktop",
@@ -141,7 +173,36 @@ export function demoState(now: number): DemoState {
     { id: 2, at: now - 9 * DAY, deviceId: "macbook", folderId: null, kind: "paired", text: "" },
     { id: 1, at: now - 30 * DAY, deviceId: "werkbank", folderId: null, kind: "paired", text: "" },
   ];
-  return { revision: 12, devices, folders, shares, events };
+  const conflicts: Record<string, Conflict[]> = {
+    projekte: [
+      {
+        path: DEMO_CONFLICT_PATH,
+        original: "haul/src/config.ts",
+        at: now - 11 * 60,
+        deviceId: "werkbank",
+        size: 4_000,
+        modified: now - 13 * 60,
+        originalSize: 4_100,
+        originalModified: now - 11 * 60,
+      },
+    ],
+  };
+  const version = (ago: number, size: number) => ({
+    versionTime: iso(now - ago),
+    modTime: iso(now - ago - 300),
+    size,
+  });
+  const versions: Record<string, FileVersions[]> = {
+    projekte: [
+      {
+        path: "haul/src/config.ts",
+        versions: [version(2 * 3600, 4_050), version(DAY, 3_900), version(9 * DAY, 3_700)],
+      },
+      { path: "README.md", versions: [version(3 * DAY, 12_400)] },
+    ],
+    dokumente: [{ path: "Steuer/2025/Belege.pdf", versions: [version(5 * DAY, 2_400_000)] }],
+  };
+  return { revision: 12, devices, folders, shares, events, conflicts, versions };
 }
 
 const folderView = (globalFiles: number, globalBytes: number, extra: Partial<FolderView> = {}) =>
@@ -215,5 +276,6 @@ export function demoLive(now: number): Live {
         musik: { werkbank: done, laptop: done },
       },
     },
+    conflicts: {},
   };
 }

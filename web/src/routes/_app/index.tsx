@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Clock, TriangleAlert } from "lucide-react";
 import { eventsQuery, overviewQuery, statusQuery } from "../../api/queries";
 import type { Live, Overview as OverviewData } from "../../api/types";
@@ -7,6 +7,7 @@ import { PageHeader } from "../../components/layout";
 import { Matrix } from "../../components/matrix";
 import { NewFolderDialog } from "../../components/new-folder-dialog";
 import { PairDialog } from "../../components/pair-dialog";
+import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { ago, describeEvent, nowSeconds, plural, since } from "../../lib/format";
 import {
@@ -126,6 +127,9 @@ function Stats({ overview, live }: { overview: OverviewData; live: Live | undefi
 function Attention({ overview, live }: { overview: OverviewData; live: Live | undefined }) {
   const now = nowSeconds();
   const offline = overview.devices.filter((d) => d.approved && !d.online);
+  const conflicts = overview.folders.flatMap((folder) =>
+    (live?.conflicts[folder.id] ?? []).map((conflict) => ({ folder, conflict })),
+  );
   const errors = overview.folders.flatMap((folder) =>
     folderErrors(overview, live, folder.id).map((error) => ({ folder, ...error })),
   );
@@ -134,7 +138,30 @@ function Attention({ overview, live }: { overview: OverviewData; live: Live | un
       <h2 id="attention-title" className="text-base font-semibold">
         Braucht Aufmerksamkeit
       </h2>
-      {offline.length === 0 && errors.length === 0 && (
+      {conflicts.map(({ folder, conflict }) => (
+        <div key={`${folder.id}-${conflict.path}`} className="flex items-start gap-3">
+          <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-warn text-warn-foreground">
+            <TriangleAlert className="size-4" aria-hidden="true" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="font-medium">Konflikt in {folder.label}</span>
+            <span className="text-[13px] text-muted-foreground">
+              <span className="font-mono">{conflict.original}</span> wurde auf zwei Geräten
+              gleichzeitig geändert.
+            </span>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link
+              to="/folders/$folderId"
+              params={{ folderId: folder.id }}
+              search={{ tab: "conflicts" }}
+            >
+              Lösen
+            </Link>
+          </Button>
+        </div>
+      ))}
+      {offline.length === 0 && errors.length === 0 && conflicts.length === 0 && (
         <p className="text-muted-foreground">
           Nichts zu tun. Alle Geräte sind online und synchron.
         </p>

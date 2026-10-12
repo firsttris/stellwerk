@@ -17,7 +17,7 @@ use tokio::task::JoinHandle;
 use crate::app::App;
 use crate::model::Hub;
 use crate::store::Store;
-use crate::{agents, api, hub, web};
+use crate::{agents, api, files, hub, web};
 
 #[derive(Debug, Clone)]
 pub struct Options {
@@ -38,7 +38,7 @@ pub struct Running {
     pub app: App,
     pub addr: SocketAddr,
     hub: Instance,
-    hub_tasks: [JoinHandle<()>; 2],
+    hub_tasks: [JoinHandle<()>; 3],
     server: JoinHandle<std::io::Result<()>>,
     shutdown: oneshot::Sender<()>,
 }
@@ -76,13 +76,15 @@ pub async fn start(options: &Options, listener: TcpListener) -> anyhow::Result<R
     };
     tracing::info!(id = %hub_info.syncthing_id, address = %hub_info.address, "hub Syncthing running");
 
-    let app = App::new(store, hub_info).await?;
+    let app = App::new(store, hub_info, hub.client().clone()).await?;
     let hub_reconcile = tokio::spawn(hub::run(app.clone(), hub.client().clone()));
     let hub_watch = tokio::spawn(hub::watch(
         app.clone(),
         hub.client().clone(),
         options.activity_window,
     ));
+
+    let conflicts = tokio::spawn(files::watch(app.clone()));
 
     let addr = listener.local_addr()?;
     let (shutdown, stopped) = oneshot::channel();
@@ -98,7 +100,7 @@ pub async fn start(options: &Options, listener: TcpListener) -> anyhow::Result<R
         app,
         addr,
         hub,
-        hub_tasks: [hub_reconcile, hub_watch],
+        hub_tasks: [hub_reconcile, hub_watch, conflicts],
         server,
         shutdown,
     })

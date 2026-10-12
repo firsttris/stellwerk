@@ -67,6 +67,10 @@ Server: Linux with Docker or Podman. Devices: Linux, Windows and macOS.
 ### 🗄️ The server holds everything
 
 - **Hub in every folder**: the server keeps a full copy of each folder, with versions for a year.
+- **Live status**: progress per folder and device, what an offline device will get, and an
+  activity feed ("laptop changed 18 files in Projekte").
+- **Conflicts solved in one place**: both versions side by side with a diff; keep one or both,
+  the other stays in the versions. Any older version of a file can be restored.
 - **Your Syncthing stays yours**: the agent brings its own Syncthing on its own ports and never
   touches a Syncthing you already run.
 
@@ -80,6 +84,10 @@ Server: Linux with Docker or Podman. Devices: Linux, Windows and macOS.
   <tr>
     <td><img src="docs/screenshot-folder.png" alt="Folder page with the mode and the local path of the folder on every device"></td>
     <td><img src="docs/screenshot-dark.png" alt="The overview with the folder by device matrix in dark mode"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshot-conflict.png" alt="A Syncthing conflict shown side by side with a line diff and the choice to keep one or both versions"></td>
+    <td></td>
   </tr>
 </table>
 

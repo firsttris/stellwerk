@@ -23,6 +23,19 @@ pub fn router() -> Router<App> {
             "/api/folders/{id}",
             patch(routes::update_folder).delete(routes::delete_folder),
         )
+        .route(
+            "/api/folders/{id}/conflicts/content",
+            get(routes::conflict_content),
+        )
+        .route(
+            "/api/folders/{id}/conflicts/resolve",
+            post(routes::resolve_conflict),
+        )
+        .route("/api/folders/{id}/versions", get(routes::versions))
+        .route(
+            "/api/folders/{id}/versions/restore",
+            post(routes::restore_version),
+        )
         .route("/api/shares", post(routes::apply_shares))
         .route(
             "/api/devices/{id}",

@@ -18,7 +18,7 @@ const THROTTLE: Duration = Duration::from_millis(300);
 
 pub async fn status(State(app): State<App>, _: Admin) -> ApiResult<Json<LiveView>> {
     let config = app.store().config().await?;
-    Ok(Json(view(&config, &app.live())))
+    Ok(Json(view(&config, &app.live(), &app.conflicts())))
 }
 
 /// One push to the UI: the live state, plus what tells it to reload the overview.
@@ -66,7 +66,7 @@ async fn update(app: &App) -> ApiResult<String> {
     let message = UiMessage::Update {
         revision: config.revision,
         online: app.online_devices().into_keys().collect(),
-        status: view(&config, &app.live()),
+        status: view(&config, &app.live(), &app.conflicts()),
     };
     Ok(serde_json::to_string(&message).expect("UI messages serialize"))
 }
