@@ -9,7 +9,7 @@
     "dev:demo": "vite --mode demo",
     "build": "vite build",
     "build:demo": "vite build --mode demo --outDir dist-demo",
-    "preview:demo": "vite preview --outDir dist-demo --port 4173 --strictPort",
+    "preview:demo": "vite preview --outDir dist-demo --host 127.0.0.1 --port 4173 --strictPort",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "test": "vitest run",
