@@ -98,6 +98,11 @@ The hub port must be reachable from the devices; the web port only through the p
 
 ## Agent on a device
 
+Every release carries the agent as a single file per platform (`stellwerk-agent-linux-x86_64`,
+`-linux-aarch64`, `-windows-x86_64.exe`, `-macos-aarch64`, `-macos-x86_64`) and their
+`SHA256SUMS`; the Linux builds are static and run on any distribution. Before v1.0, build it with
+`cargo build --release -p stellwerk-agent`.
+
 In the UI, **Gerät koppeln** shows the command with a one-time code:
 
 ```bash
@@ -109,3 +114,10 @@ The agent keeps its key, its own Syncthing and Syncthing's database in its data 
 (`~/.local/share/stellwerk-agent` on Linux, `--data-dir` to change it). It downloads the pinned
 Syncthing on first start and never touches a Syncthing that is already installed. Running it as a
 service (systemd, Windows service, launchd) comes with the installers in phase 3.
+
+## Releases
+
+**Actions → Bump version** raises the version in `Cargo.toml` (and the `package.json` files), tags
+it and starts `release.yml`: the checks from `ci.yml`, the agents from `agents.yml`, then the
+multi-arch image (`linux/amd64`, `linux/arm64`) on Docker Hub and GHCR and the GitHub release with
+the agents attached. Docker Hub needs the `DOCKER_PAT` secret.

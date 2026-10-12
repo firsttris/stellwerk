@@ -1,0 +1,64 @@
+name: Agents
+
+# The agent for every platform, as the artifact "agents" (binaries plus SHA256SUMS). release.yml
+# attaches it to the GitHub release; run by hand it only builds.
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Static musl binaries, cross-compiled with zig (aws-lc needs a musl C compiler)
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl, name: linux-x86_64, zig: true }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-musl, name: linux-aarch64, zig: true }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, name: windows-x86_64, ext: .exe }
+          - { os: macos-latest, target: aarch64-apple-darwin, name: macos-aarch64 }
+          - { os: macos-latest, target: x86_64-apple-darwin, name: macos-x86_64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - if: matrix.zig
+        run: pip install ziglang && cargo install --locked cargo-zigbuild
+      - name: Build
+        shell: bash
+        run: |
+          cargo ${{ matrix.zig && 'zigbuild' || 'build' }} --release --locked \
+            --target ${{ matrix.target }} -p stellwerk-agent
+          mkdir dist
+          cp target/${{ matrix.target }}/release/stellwerk-agent${{ matrix.ext }} \
+            dist/stellwerk-agent-${{ matrix.name }}${{ matrix.ext }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  agents:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: agent-*
+          merge-multiple: true
+          path: agents
+      - run: cd agents && sha256sum stellwerk-agent-* > SHA256SUMS && cat SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agents
+          path: agents/*
+          if-no-files-found: error

@@ -1,0 +1,30 @@
+name: Release
+
+# A tag vX.Y.Z (from "Bump version" or pushed from a checkout) publishes the image
+# tristanteu/stellwerk (also on GHCR) and the GitHub release with the agents attached.
+# Run by hand on a branch it publishes the image as `edge` only.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  agents:
+    uses: ./.github/workflows/agents.yml
+
+  docker:
+    needs: [checks, agents]
+    uses: firsttris/workflows/.github/workflows/docker-release.yml@v1
+    with:
+      image: tristanteu/stellwerk
+      description: Central web UI to manage Syncthing on all your devices
+      version-file: Cargo.toml
+      release-artifact: agents
+      ghcr: true
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
