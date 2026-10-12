@@ -16,10 +16,12 @@ export function FolderSettings({ folder }: { folder: Folder }) {
   const [ignores, setIgnores] = useState(folder.ignorePatterns.join("\n"));
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const update = useMutation({
-    mutationFn: (patch: FolderPatch) => api.updateFolder(folder.id, patch),
+  // Two mutations, so each card shows its own pending state and error.
+  const patchFolder = (patch: FolderPatch) => ({
+    mutationFn: () => api.updateFolder(folder.id, patch),
     onSuccess: () => refresh(queryClient),
   });
+  const renameFolder = useMutation(patchFolder({ label }));
   const remove = useMutation({
     mutationFn: () => api.deleteFolder(folder.id),
     onSuccess: async () => {
@@ -29,12 +31,13 @@ export function FolderSettings({ folder }: { folder: Folder }) {
   });
   const rename = (event: FormEvent) => {
     event.preventDefault();
-    update.mutate({ label });
+    renameFolder.mutate();
   };
   const ignoreLines = ignores
     .split("\n")
     .map((line) => line.trimEnd())
     .filter(Boolean);
+  const saveIgnores = useMutation(patchFolder({ ignorePatterns: ignoreLines }));
   const ignoresChanged = ignoreLines.join("\n") !== folder.ignorePatterns.join("\n");
   const keep =
     folder.versioning.type === "staggered"
@@ -55,11 +58,14 @@ export function FolderSettings({ folder }: { folder: Folder }) {
           <Button
             type="submit"
             variant="outline"
-            disabled={!label.trim() || label === folder.label}
+            disabled={!label.trim() || label === folder.label || renameFolder.isPending}
           >
             {m.settings_rename()}
           </Button>
         </form>
+        {renameFolder.error && (
+          <p className="text-sm text-danger">{errorMessage(renameFolder.error)}</p>
+        )}
         <p className="text-[13px] text-muted-foreground">{m.settings_versions({ keep })}</p>
       </Card>
       <Card className="flex flex-col gap-3 p-5">
@@ -87,13 +93,15 @@ export function FolderSettings({ folder }: { folder: Folder }) {
           </a>
           <Button
             variant="outline"
-            disabled={!ignoresChanged || update.isPending}
-            onClick={() => update.mutate({ ignorePatterns: ignoreLines })}
+            disabled={!ignoresChanged || saveIgnores.isPending}
+            onClick={() => saveIgnores.mutate()}
           >
             {m.settings_ignore_save()}
           </Button>
         </div>
-        {update.error && <p className="text-sm text-danger">{errorMessage(update.error)}</p>}
+        {saveIgnores.error && (
+          <p className="text-sm text-danger">{errorMessage(saveIgnores.error)}</p>
+        )}
       </Card>
       <Card className="flex flex-wrap items-center justify-between gap-4 border-danger/30 p-5">
         <div className="flex flex-col gap-0.5">
@@ -102,6 +110,7 @@ export function FolderSettings({ folder }: { folder: Folder }) {
         </div>
         <Button
           variant="destructive"
+          disabled={remove.isPending}
           onClick={() => {
             if (window.confirm(m.settings_remove_confirm({ folder: folder.label }))) {
               remove.mutate();
@@ -110,6 +119,7 @@ export function FolderSettings({ folder }: { folder: Folder }) {
         >
           {m.remove()}
         </Button>
+        {remove.error && <p className="w-full text-sm text-danger">{errorMessage(remove.error)}</p>}
       </Card>
     </div>
   );
