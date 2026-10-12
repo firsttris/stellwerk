@@ -107,10 +107,15 @@ describe("live state in words", () => {
       if (!found) throw new Error(id);
       return found;
     };
-    const status = (id: string, folder: string) =>
-      shareStatus(device(id), live, folder, o.revision);
+    const status = (id: string, folder: string, l = live) =>
+      shareStatus(device(id), l, folder, o.revision);
     expect(status("workbench", "photos")).toBe("Lädt 18 Änderungen · 72 %");
     expect(status("office", "projects")).toBe("Offline · 202 Änderungen warten auf dem Server");
     expect(status("macbook", "photos")).toBe("Synchron");
+    const onlyDeletes = structuredClone(live);
+    const photos = onlyDeletes.hub.completion.photos?.workbench;
+    if (!photos) throw new Error("fixtures changed");
+    photos.needItems = 0;
+    expect(status("workbench", "photos", onlyDeletes)).toBe("Synchron");
   });
 });

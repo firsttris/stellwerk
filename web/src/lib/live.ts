@@ -165,7 +165,8 @@ export function shareStatus(
   }
   const error = live?.devices[device.id]?.folders[folderId]?.error;
   if (error) return m.share_error({ error });
-  if (done && done.percent < 100) {
+  // As in deviceSummary: below 100 % with nothing to fetch means only deletions are left.
+  if (done && done.percent < 100 && missing > 0) {
     const percent = Math.floor(done.percent);
     return byCount(
       missing,
