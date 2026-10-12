@@ -6,7 +6,7 @@
 
 use std::net::{Ipv4Addr, TcpListener};
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
+use std::process::{ExitStatus, Stdio};
 use std::time::Duration;
 
 use rand::Rng;
@@ -28,7 +28,9 @@ pub struct SpawnOptions {
     pub binary: PathBuf,
     /// Configuration, keys and database.
     pub home: PathBuf,
-    /// Where Syncthing accepts sync connections, e.g. `tcp://127.0.0.1:41234`.
+    /// Where Syncthing accepts sync connections, e.g. `tcp://127.0.0.1:41234`. Only written
+    /// into a new `config.xml`; a home that has one keeps its address, so a port picked here
+    /// matters on the first start only.
     pub listen_address: String,
     /// Global and local discovery, relays and NAT traversal.
     pub discovery: bool,
@@ -61,13 +63,21 @@ impl Instance {
         &self.client
     }
 
-    /// The sync address other devices dial.
+    /// The sync address other devices dial, as given in [`SpawnOptions`]: true for a home
+    /// started fresh, not necessarily for one that already had a `config.xml`.
     pub fn listen_address(&self) -> &str {
         &self.listen_address
     }
 
     pub fn home(&self) -> &Path {
         &self.home
+    }
+
+    /// Completes when Syncthing has exited, after a crash or a restart asked for over the API:
+    /// it runs with `--no-restart`, so a caller that should keep syncing has to start it again.
+    /// Cancel-safe, for use in `select!`.
+    pub async fn exited(&mut self) -> Result<ExitStatus> {
+        self.child.wait().await.map_err(io_at(&self.home))
     }
 
     /// Asks Syncthing to shut down and kills it if it does not.
