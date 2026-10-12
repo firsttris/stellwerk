@@ -149,11 +149,34 @@ async fn set_password(data_dir: &std::path::Path) -> anyhow::Result<()> {
 
 /// `tcp://0.0.0.0:22001` → `tcp://<host name>:22001`.
 fn default_hub_address(listen: &str) -> anyhow::Result<String> {
+    hub_address(listen, &hostname::get()?.to_string_lossy())
+}
+
+fn hub_address(listen: &str, host: &str) -> anyhow::Result<String> {
     let port = listen
         .rsplit(':')
         .next()
         .filter(|port| port.parse::<u16>().is_ok())
         .ok_or_else(|| anyhow::anyhow!("--hub-listen has no port: {listen}"))?;
-    let host = hostname::get()?.to_string_lossy().into_owned();
     Ok(format!("tcp://{host}:{port}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_hub_address_takes_the_port_of_the_listen_address() {
+        let address = |listen| hub_address(listen, "nas").ok();
+        assert_eq!(
+            address("tcp://0.0.0.0:22001").as_deref(),
+            Some("tcp://nas:22001")
+        );
+        assert_eq!(
+            address("tcp://[::]:22002").as_deref(),
+            Some("tcp://nas:22002")
+        );
+        assert_eq!(address("tcp://0.0.0.0"), None);
+        assert_eq!(address("tcp://0.0.0.0:99999"), None);
+    }
 }

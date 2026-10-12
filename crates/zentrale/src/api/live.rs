@@ -84,3 +84,34 @@ async fn update(app: &App) -> ApiResult<String> {
     };
     Ok(serde_json::to_string(&message).expect("UI messages serialize"))
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    /// The contract with `web/src/api/types.ts`.
+    #[test]
+    fn an_update_has_the_shape_the_ui_parses() {
+        let message = UiMessage::Update {
+            revision: 3,
+            online: vec!["laptop".into()],
+            status: LiveView::default(),
+        };
+        assert_eq!(
+            serde_json::to_value(&message).unwrap(),
+            json!({
+                "type": "update",
+                "revision": 3,
+                "online": ["laptop"],
+                "status": {
+                    "devices": {},
+                    "hub": { "folders": {}, "completion": {} },
+                    "conflicts": {},
+                    "waiting": [],
+                },
+            })
+        );
+    }
+}
