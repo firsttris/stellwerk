@@ -117,7 +117,6 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
           <label className="flex items-center gap-2.5 px-2.5 text-sm text-zinc-700 dark:text-zinc-300">
             <Languages className="size-4" aria-hidden="true" />
-            <span className="sr-only">{m.language()}</span>
             <select
               aria-label={m.language()}
               value={getLocale()}

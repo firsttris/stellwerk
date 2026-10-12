@@ -46,7 +46,12 @@ function Side({
         </span>
       </div>
       {!file ? null : lines ? (
-        <pre className="max-h-72 overflow-auto rounded-md bg-subtle p-2 font-mono text-xs leading-5">
+        <pre
+          // A scrollable region must be focusable to scroll it with the keyboard (WCAG 2.1.1).
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: see above
+          tabIndex={0}
+          className="max-h-72 overflow-auto rounded-md bg-subtle p-2 font-mono text-xs leading-5"
+        >
           {lines.map((line, index) => (
             <span
               // Lines can repeat; their position is their identity here.
