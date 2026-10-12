@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleCheck, Copy, Link2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api";
 import { overviewQuery, refresh } from "../api/queries";
 import type { Device } from "../api/types";
@@ -53,11 +53,12 @@ function PairDialogContent({ onDone }: { onDone: () => void }) {
     retry: false,
   });
   const code = enrollment.data?.code;
+  const expired = useExpired(enrollment.data?.expiresAt);
 
   const status = useQuery({
     queryKey: ["enrollment", code],
     queryFn: () => api.enrollmentStatus(code ?? ""),
-    enabled: code !== undefined,
+    enabled: code !== undefined && !expired,
     refetchInterval: (query) => (query.state.data?.device ? false : 2_000),
   });
   const device = status.data?.device;
@@ -69,6 +70,8 @@ function PairDialogContent({ onDone }: { onDone: () => void }) {
       ) : (
         <Waiting
           code={code}
+          expired={expired}
+          onNewCode={() => void enrollment.refetch()}
           error={enrollment.error ? errorMessage(enrollment.error) : undefined}
           onCancel={onDone}
         />
@@ -77,12 +80,28 @@ function PairDialogContent({ onDone }: { onDone: () => void }) {
   );
 }
 
+/** True once `expiresAt` (seconds) has passed; the server keeps answering for a dead code. */
+function useExpired(expiresAt: number | undefined): boolean {
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    setExpired(false);
+    if (expiresAt === undefined) return;
+    const timer = setTimeout(() => setExpired(true), Math.max(0, expiresAt * 1000 - Date.now()));
+    return () => clearTimeout(timer);
+  }, [expiresAt]);
+  return expired;
+}
+
 function Waiting({
   code,
+  expired,
+  onNewCode,
   error,
   onCancel,
 }: {
   code: string | undefined;
+  expired: boolean;
+  onNewCode: () => void;
   error: string | undefined;
   onCancel: () => void;
 }) {
@@ -131,7 +150,7 @@ function Waiting({
               variant="outline"
               size="sm"
               onClick={copy}
-              disabled={!code}
+              disabled={!code || expired}
               aria-label={m.pair_copy_command()}
             >
               <Copy aria-hidden="true" />
@@ -142,13 +161,25 @@ function Waiting({
           <span className="text-xs text-muted-foreground">{m.pair_lan_hint()}</span>
           {error && <span className="text-sm text-danger">{error}</span>}
         </div>
-        <div className="flex items-center gap-3 rounded-lg border border-dashed border-border-strong p-3">
-          <span className="size-2.5 animate-pulse rounded-full bg-info-accent" />
-          <div className="flex flex-col">
-            <span className="font-medium">{m.pair_step_wait()}</span>
-            <span className="text-[13px] text-muted-foreground">{m.pair_wait_hint()}</span>
+        {expired ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-border-strong p-3">
+            <div className="flex flex-col">
+              <span className="font-medium">{m.pair_expired()}</span>
+              <span className="text-[13px] text-muted-foreground">{m.pair_expired_hint()}</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={onNewCode}>
+              {m.pair_new_code()}
+            </Button>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-3 rounded-lg border border-dashed border-border-strong p-3">
+            <span className="size-2.5 animate-pulse rounded-full bg-info-accent" />
+            <div className="flex flex-col">
+              <span className="font-medium">{m.pair_step_wait()}</span>
+              <span className="text-[13px] text-muted-foreground">{m.pair_wait_hint()}</span>
+            </div>
+          </div>
+        )}
       </div>
       <div className="flex justify-end">
         <Button variant="outline" onClick={onCancel}>

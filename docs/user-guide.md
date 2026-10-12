@@ -133,7 +133,8 @@ version, and when they were last seen. Search by name and filter by online or of
     [installer](installation.md#windows-installer), which asks for the address and the code.
 3. The dialog waits. As soon as the agent has signed in, it shows the device with its OS, agent
    version and fingerprint, and asks **Which folders should it get?** The chosen folders are
-   shared in mode Both with the default path; change that per folder afterwards.
+   shared in mode Both with the default path; change that per folder afterwards. When the
+   code expires first, the dialog stops waiting and offers **Create a new code**.
 
 **Later** closes the dialog; the device is paired anyway and shows up in the list.
 
