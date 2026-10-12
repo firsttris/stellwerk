@@ -204,7 +204,7 @@ function FolderDevices({
               {m.server()}
             </span>
             <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              <StatusDot online /> Online
+              <StatusDot online /> {m.devices_online()}
             </span>
           </div>
           <Select

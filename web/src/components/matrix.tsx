@@ -268,7 +268,7 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
                             <span>{modeLabel(mode)}</span>
                             {progress !== undefined && (
                               <span className="absolute -top-2 -right-1.5 rounded-full border border-info-border bg-background px-1.5 text-[10px] font-medium text-info-foreground tabular-nums dark:text-info-accent">
-                                {progress} %
+                                {m.matrix_progress({ percent: progress })}
                               </span>
                             )}
                             {waiting && (

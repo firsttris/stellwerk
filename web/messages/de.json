@@ -156,6 +156,7 @@
   "matrix_offline_other": "{count} davon betreffen Offline-Geräte und werden nachgeholt.",
   "matrix_on_devices_one": "auf 1 Gerät und dem Server",
   "matrix_on_devices_other": "auf {count} Geräten und dem Server",
+  "matrix_progress": "{percent} %",
   "matrix_title": "Freigaben",
   "matrix_unsaved_one": "1 ungespeicherte Änderung.",
   "matrix_unsaved_other": "{count} ungespeicherte Änderungen.",

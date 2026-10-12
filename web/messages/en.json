@@ -156,6 +156,7 @@
   "matrix_offline_other": "{count} of them are for offline devices and follow when they are back.",
   "matrix_on_devices_one": "on 1 device and the server",
   "matrix_on_devices_other": "on {count} devices and the server",
+  "matrix_progress": "{percent} %",
   "matrix_title": "Shares",
   "matrix_unsaved_one": "1 unsaved change.",
   "matrix_unsaved_other": "{count} unsaved changes.",
