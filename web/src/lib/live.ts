@@ -1,6 +1,7 @@
 import type { Device, Live, Overview } from "../api/types";
 import { m } from "../paraglide/messages.js";
 import { byCount, intlLocale } from "./i18n";
+import { isWaiting } from "./matrix";
 
 // What the live state means for a folder or a device, in the UI's words. Pure functions.
 
@@ -142,4 +143,35 @@ export function deviceSummary(overview: Overview, live: Live | undefined, device
     () => m.device_loading_one({ percent }),
     () => m.device_loading_other({ count, percent }),
   );
+}
+
+/** One device's progress in this folder, from the hub's view of it. */
+export function shareStatus(
+  device: Device,
+  live: Live | undefined,
+  folderId: string,
+  revision: number,
+) {
+  const done = completion(live, folderId, device.id);
+  const missing = done?.needItems ?? 0;
+  const count = formatCount(missing);
+  if (!device.online) {
+    if (missing > 0) {
+      return byCount(missing, m.share_offline_waiting_one, () =>
+        m.share_offline_waiting_other({ count }),
+      );
+    }
+    return isWaiting(device, revision) ? m.share_waiting_online() : m.share_offline_complete();
+  }
+  const error = live?.devices[device.id]?.folders[folderId]?.error;
+  if (error) return m.share_error({ error });
+  if (done && done.percent < 100) {
+    const percent = Math.floor(done.percent);
+    return byCount(
+      missing,
+      () => m.share_loading_one({ percent }),
+      () => m.share_loading_other({ count, percent }),
+    );
+  }
+  return m.share_in_sync();
 }

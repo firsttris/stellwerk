@@ -10,6 +10,7 @@ import {
   folderSize,
   formatBytes,
   holders,
+  shareStatus,
   waitingChanges,
 } from "./live";
 
@@ -96,5 +97,20 @@ describe("live state in words", () => {
     if (!laptop) throw new Error("fixtures changed");
     expect(deviceFolderCount(blocked, laptop)).toBe(0);
     expect(deviceFolderCount(o, { ...laptop, approved: true })).toBeGreaterThan(0);
+  });
+
+  it("says how far a device is with one folder", () => {
+    const o = overview();
+    const live = demoLive(now);
+    const device = (id: string) => {
+      const found = o.devices.find((d) => d.id === id);
+      if (!found) throw new Error(id);
+      return found;
+    };
+    const status = (id: string, folder: string) =>
+      shareStatus(device(id), live, folder, o.revision);
+    expect(status("workbench", "photos")).toBe("Lädt 18 Änderungen · 72 %");
+    expect(status("office", "projects")).toBe("Offline · 202 Änderungen warten auf dem Server");
+    expect(status("macbook", "photos")).toBe("Synchron");
   });
 });
