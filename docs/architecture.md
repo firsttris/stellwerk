@@ -92,6 +92,24 @@ device and one for the hub, as pure functions. The topology is a star:
   default), shared with every device that has the folder;
 - a blocked device gets no desired state and disappears from the hub's peers and folders.
 
+## Web UI
+
+`web/`: React with TanStack Router (file-based routes), Query and Table, Tailwind 4 with design
+tokens for light and dark, components in shadcn style on Radix, lucide icons. The release build
+of the Zentrale embeds `web/dist`; paths outside `/api` fall back to `index.html`.
+
+- **Übersicht**: devices online, folders, revision; the folder × device matrix. Clicks collect in
+  a draft ("3 ungespeicherte Änderungen") and "Anwenden" sends it as one revision. The server
+  column is fixed: the hub holds every folder. Cells of an offline device that has not applied the
+  current revision show "wartet".
+- **Geräte**: list with search and filter, rename, block, remove; "Gerät koppeln" creates a code,
+  shows the command per OS and waits until the device shows up, then asks for its name and
+  folders.
+- **Ordner**: mode and local path per device, rename, remove.
+
+The overview is polled every five seconds. `src/api/types.ts` checks every answer with Zod.
+`pnpm dev:demo` runs the UI on fixtures (`src/demo/`) without a Zentrale.
+
 ## Engine
 
 | Module | Does |

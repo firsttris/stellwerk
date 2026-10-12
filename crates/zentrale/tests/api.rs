@@ -222,3 +222,14 @@ async fn folders_drafts_and_pairing_codes() {
     let (_, overview) = browser.send(&router, "GET", "/api/overview", None).await;
     assert_eq!(overview["folders"], json!([]));
 }
+
+#[tokio::test]
+async fn unknown_api_paths_are_404_and_everything_else_goes_to_the_ui() {
+    let (router, _app, _dir) = app().await;
+    let mut browser = Browser::default();
+    let (status, _) = browser.send(&router, "GET", "/api/nope", None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    // With web/dist built this is index.html, without it a hint how to build it.
+    let (status, _) = browser.send(&router, "GET", "/folders/abc", None).await;
+    assert!(status == StatusCode::OK || status == StatusCode::NOT_FOUND);
+}

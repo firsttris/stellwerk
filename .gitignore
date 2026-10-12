@@ -1,3 +1,7 @@
 /target
 node_modules/
 /.syncthing-cache/
+dist/
+dist-demo/
+test-results/
+playwright-report/

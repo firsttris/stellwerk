@@ -72,15 +72,16 @@ The documentation is at **[firsttris.github.io/stellwerk](https://firsttris.gith
 
 ## 🛠️ Development
 
-Requires Rust (stable).
+Requires Rust (stable), Node 22 and pnpm.
 
 ```bash
 git clone https://github.com/firsttris/stellwerk && cd stellwerk
-cargo test    # downloads the pinned Syncthing once and runs two instances on random ports
+pnpm install && pnpm dev:demo   # the UI on demo data, no server needed
+cargo test                      # downloads the pinned Syncthing once and runs real instances
 ```
 
-Rust workspace: `protocol` (desired state), `engine` (Syncthing control and reconciler), `agent`,
-`zentrale`; React UI in `web/` from phase 1.
+Rust workspace: `protocol` (messages, desired state), `engine` (Syncthing control and
+reconciler), `agent`, `zentrale` (axum, SQLite); React UI in `web/`, embedded into the Zentrale.
 
 ## 🤝 Contributing
 

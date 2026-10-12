@@ -1,0 +1,112 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+/* Design tokens, light and dark; the components only use the semantic names. */
+:root {
+  --background: #ffffff;
+  --foreground: #09090b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --subtle: #fafafa;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --primary: #18181b;
+  --primary-foreground: #fafafa;
+  --secondary: #e4e4e7;
+  --secondary-foreground: #18181b;
+  --info: #eff6ff;
+  --info-border: #bfdbfe;
+  --info-foreground: #1e3a8a;
+  --info-accent: #2563eb;
+  --ok: #16a34a;
+  --ok-ring: #dcfce7;
+  --ok-surface: #f0fdf4;
+  --ok-border: #bbf7d0;
+  --ok-foreground: #14532d;
+  --warn: #fef3c7;
+  --warn-border: #fde68a;
+  --warn-foreground: #92400e;
+  --danger: #b91c1c;
+  --danger-surface: #fef2f2;
+  --offline: #a1a1aa;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #09090b;
+    --foreground: #fafafa;
+    --muted: #27272a;
+    --muted-foreground: #a1a1aa;
+    --subtle: #111113;
+    --border: #27272a;
+    --border-strong: #3f3f46;
+    --primary: #fafafa;
+    --primary-foreground: #18181b;
+    --secondary: #3f3f46;
+    --secondary-foreground: #fafafa;
+    --info: #172554;
+    --info-border: #1e3a8a;
+    --info-foreground: #dbeafe;
+    --info-accent: #60a5fa;
+    --ok: #22c55e;
+    --ok-ring: #14532d;
+    --ok-surface: #052e16;
+    --ok-border: #14532d;
+    --ok-foreground: #bbf7d0;
+    --warn: #451a03;
+    --warn-border: #78350f;
+    --warn-foreground: #fde68a;
+    --danger: #f87171;
+    --danger-surface: #450a0a;
+    --offline: #52525b;
+  }
+}
+
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle: var(--subtle);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-info: var(--info);
+  --color-info-border: var(--info-border);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-accent: var(--info-accent);
+  --color-ok: var(--ok);
+  --color-ok-ring: var(--ok-ring);
+  --color-ok-surface: var(--ok-surface);
+  --color-ok-border: var(--ok-border);
+  --color-ok-foreground: var(--ok-foreground);
+  --color-warn: var(--warn);
+  --color-warn-border: var(--warn-border);
+  --color-warn-foreground: var(--warn-foreground);
+  --color-danger: var(--danger);
+  --color-danger-surface: var(--danger-surface);
+  --color-offline: var(--offline);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+}

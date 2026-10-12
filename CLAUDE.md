@@ -37,6 +37,7 @@ Green before every push, then check CI:
 cargo fmt --all --check
 cargo clippy --all-targets -- -D warnings
 cargo test                # downloads the pinned Syncthing once into .syncthing-cache/
+pnpm --filter web check   # Biome, tsc --noEmit, Vitest, vite build
 mkdocs build --strict     # when docs/ or mkdocs.yml changed
 ```
 
@@ -73,6 +74,11 @@ the edges; function components and hooks, no classes; errors as values. A file d
 split it past ~400 lines, a function past ~80. A refactor changes no behaviour.
 
 ## Stellwerk specifics
+
+- The UI (`web/`) talks to the Zentrale only through `src/api/types.ts` (Zod schemas mirroring
+  `crates/zentrale/src/api`). Change both together. `pnpm dev:demo` runs it on fixtures
+  (`src/demo/`), which E2E tests and screenshots use too; keep the fixtures in step.
+- Texts in the UI are German for now; Paraglide (German and English) comes in phase 2.
 
 - **Never start a test Syncthing on the standard ports 8384 (GUI) or 22000 (sync).** Use
   `engine::process::SpawnOptions::isolated`, which takes random ports on 127.0.0.1 from the OS
