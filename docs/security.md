@@ -58,8 +58,14 @@ browser ──HTTPS (proxy)──▶ Zentrale ◀──WSS (proxy)── agent
   stores only the token's hash. Sessions last 30 days; a new password ends all of them.
 - Every change needs the header `X-CSRF-Token` with a second token from the login, so another
   website cannot make your browser change anything.
-- A failed login waits half a second. There is no lockout; use a long password, and if the
-  login is public, consider limiting it in the proxy (e.g. only from your VPN).
+- Passwords are checked one at a time. A failed login waits half a second, doubling with each
+  further failure in a row up to 8 seconds, so parallel guessing is no faster than serial. There
+  is no lockout; use a long password, and if the login is public, consider limiting it in the
+  proxy (e.g. only from your VPN).
+- The UI's live WebSocket (`/api/ws`) checks the session before each update and closes once the
+  session is gone (logout, expiry, new password).
+- Behind a TLS proxy, the cookie gets `Secure` only if the proxy sets `X-Forwarded-Proto: https`
+  (the examples in [installation](installation.md#reverse-proxy-and-tls) do).
 
 ## Pairing and device sign-in
 
@@ -69,7 +75,8 @@ browser ──HTTPS (proxy)──▶ Zentrale ◀──WSS (proxy)── agent
   `agent.json`, readable only by the user (on Linux and macOS, file mode `600`). On every
   connection the Zentrale sends a fresh random nonce and the agent signs it, so a recorded
   sign-in cannot be replayed. After the first sign-in the code is dropped; the key alone
-  identifies the device.
+  identifies the device. Each device must have its own Syncthing device ID: a device reporting
+  an ID that belongs to another device (a copied Syncthing home) is turned away.
 - **LAN pairing without a code.** A device that comes without a code only waits. The UI shows
   the **fingerprint** of its key (the first 8 bytes of the key's SHA-256, e.g.
   `3F2A-91BC-04DE-77A1`), and `join` prints the same on the device. Approve only if they match;

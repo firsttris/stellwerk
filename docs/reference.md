@@ -54,7 +54,7 @@ stellwerk-agent service uninstall            stop and remove the background serv
 
 `join` creates the device's Ed25519 key, stores it with the server and the code in `agent.json`
 and prints the key's fingerprint. Running `join` again replaces server and code but keeps the
-key.
+key; with a new code, a device that was paired before comes back as the same device.
 
 `service install` sets up the service for the binary it is run from and the data directory it
 is given, and starts it. Run it again after moving the binary or to restart the agent.
@@ -105,9 +105,11 @@ Both programs log to standard error, at level `info` by default. `RUST_LOG` chan
 | What | Value |
 |---|---|
 | pairing code | valid 15 minutes, works once; only its hash is stored |
-| login session | 30 days; a failed login waits half a second |
+| login session | 30 days; logins are checked one at a time, and a failed login waits half a second, doubling with each failure in a row up to 8 s |
 | waiting devices (LAN pairing) | at most 20, in memory, gone when the agent disconnects or the Zentrale restarts |
 | agent reconnect | after 1 s, doubling up to 30 s; 60 s after being turned away |
+| agent heartbeat | the Zentrale pings every agent every 30 s and ends the session after 90 s without a frame |
+| hub reconcile retry | after a failure 1 s, doubling up to 60 s, until it succeeds or the revision changes |
 | live status from a device | on change, at most about once per second |
 | activity "changed N files" | counted per device and folder over 30 seconds |
 | conflict scan on the hub | every 30 seconds |
