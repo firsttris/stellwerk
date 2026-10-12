@@ -2,7 +2,9 @@
 //! agents and steers the hub Syncthing.
 
 pub mod agents;
+pub mod api;
 pub mod app;
+pub mod auth;
 pub mod desired;
 pub mod hub;
 pub mod model;

@@ -16,7 +16,7 @@ use tokio::task::JoinHandle;
 use crate::app::App;
 use crate::model::Hub;
 use crate::store::Store;
-use crate::{agents, hub};
+use crate::{agents, api, hub};
 
 #[derive(Debug, Clone)]
 pub struct Options {
@@ -43,6 +43,7 @@ pub struct Running {
 pub fn router(app: App) -> Router {
     Router::new()
         .route(AGENT_WS_PATH, get(agents::ws))
+        .merge(api::router())
         .with_state(app)
 }
 

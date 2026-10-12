@@ -15,6 +15,7 @@ stellwerk-protocol = { path = "crates/protocol" }
 stellwerk-engine = { path = "crates/engine" }
 stellwerk-agent = { path = "crates/agent" }
 anyhow = "1"
+argon2 = "0.6"
 axum = { version = "0.8", features = ["ws"] }
 base64 = "0.23"
 clap = { version = "4", features = ["derive", "env"] }
@@ -33,6 +34,7 @@ tar = "0.4"
 tempfile = "3"
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "time", "fs", "net", "signal", "sync"] }
+tower = { version = "0.5", features = ["util"] }
 tokio-tungstenite = { version = "0.30", features = ["rustls-tls-native-roots"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

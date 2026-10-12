@@ -62,6 +62,25 @@ SQLite with migrations embedded in the binary (`crates/zentrale/migrations`).
 | `events` | at, device, folder, kind, text (activity feed) |
 | `admin`, `sessions` | login |
 
+### Login and API
+
+One admin with a password (argon2id), set with `stellwerk set-password` on the server. A login
+sets an HttpOnly, SameSite=Strict session cookie (Secure behind HTTPS) and returns a CSRF token
+the UI sends back in `X-CSRF-Token` on every change. Only hashes of session tokens and pairing
+codes are stored.
+
+| Endpoint | Does |
+|---|---|
+| `GET /api/session`, `POST /api/login`, `POST /api/logout` | login state, log in, log out |
+| `GET /api/overview` | revision, hub, devices (with online state), folders, shares |
+| `POST /api/folders`, `PATCH`/`DELETE /api/folders/{id}` | create, rename, remove a folder |
+| `POST /api/shares` | apply a matrix draft as one revision |
+| `PATCH`/`DELETE /api/devices/{id}` | rename, block, remove a device |
+| `POST /api/enrollments`, `POST /api/enrollments/status` | new pairing code, has a device used it yet |
+| `GET /api/events` | activity feed |
+
+Every change raises the revision and sends connected agents and the hub their new desired state.
+
 ### Desired states
 
 `crates/zentrale/src/desired.rs` turns the stored configuration into one desired state per
