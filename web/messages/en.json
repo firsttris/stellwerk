@@ -201,6 +201,7 @@
   "pair_later": "Later",
   "pair_new_code": "Create a new code",
   "pair_os": "Operating system",
+  "pair_selected": "Selected – copy it now",
   "pair_setup_one": "Set up device with 1 folder",
   "pair_setup_other": "Set up device with {count} folders",
   "pair_step_install": "1. Install and pair the agent",

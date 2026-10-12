@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleCheck, Copy, Link2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { overviewQuery, refresh } from "../api/queries";
 import type { Device } from "../api/types";
@@ -80,6 +80,15 @@ function PairDialogContent({ onDone }: { onDone: () => void }) {
   );
 }
 
+/** Whether the text reached the clipboard; `navigator.clipboard` needs a secure origin. */
+async function copyToClipboard(text: string): Promise<boolean> {
+  if (!navigator.clipboard) return false;
+  return navigator.clipboard.writeText(text).then(
+    () => true,
+    () => false,
+  );
+}
+
 /** True once `expiresAt` (seconds) has passed; the server keeps answering for a dead code. */
 function useExpired(expiresAt: number | undefined): boolean {
   const [expired, setExpired] = useState(false);
@@ -106,13 +115,16 @@ function Waiting({
   onCancel: () => void;
 }) {
   const [os, setOs] = useState<Os>("linux");
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"copied" | "selected" | undefined>();
+  const commandRef = useRef<HTMLElement>(null);
   const command = code ? pairCommand(os, window.location.origin, code) : m.pair_code_pending();
 
   const copy = async () => {
-    await navigator.clipboard?.writeText(command).catch(() => undefined);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+    // No clipboard API on plain HTTP (a LAN address): select the command for a manual copy.
+    const done = await copyToClipboard(command);
+    if (!done && commandRef.current) window.getSelection()?.selectAllChildren(commandRef.current);
+    setCopied(done ? "copied" : "selected");
+    setTimeout(() => setCopied(undefined), 1800);
   };
 
   return (
@@ -143,6 +155,7 @@ function Waiting({
             <code
               className="min-w-0 flex-1 self-center font-mono text-[13px] break-all"
               data-testid="pair-command"
+              ref={commandRef}
             >
               {command}
             </code>
@@ -154,7 +167,11 @@ function Waiting({
               aria-label={m.pair_copy_command()}
             >
               <Copy aria-hidden="true" />
-              {copied ? m.pair_copied() : m.pair_copy()}
+              {copied === "copied"
+                ? m.pair_copied()
+                : copied === "selected"
+                  ? m.pair_selected()
+                  : m.pair_copy()}
             </Button>
           </div>
           <span className="text-xs text-muted-foreground">{m.pair_code_valid()}</span>
