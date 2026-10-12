@@ -53,8 +53,8 @@ impl Agent {
     }
 }
 
-/// Creates a pairing code at the Zentrale and joins with it, like "Pair device" in the UI.
-pub async fn pair_agent(zentrale: &Running, data_dir: PathBuf) -> Agent {
+/// A new pairing code at the Zentrale, like "Pair device" in the UI.
+pub async fn new_pairing_code(zentrale: &Running) -> String {
     let code = new_code();
     zentrale
         .app
@@ -62,6 +62,12 @@ pub async fn pair_agent(zentrale: &Running, data_dir: PathBuf) -> Agent {
         .create_enrollment(&code_hash(&code), now() + CODE_LIFETIME_SECS)
         .await
         .unwrap();
+    code
+}
+
+/// Creates a pairing code at the Zentrale and joins with it.
+pub async fn pair_agent(zentrale: &Running, data_dir: PathBuf) -> Agent {
+    let code = new_pairing_code(zentrale).await;
     stellwerk_agent::join(&data_dir, &format!("http://{}", zentrale.addr), Some(&code)).unwrap();
     start_agent(data_dir).await
 }

@@ -13,7 +13,7 @@ use crate::app::App;
 use crate::desired;
 use crate::model::{Device, DeviceKind};
 use crate::pairing::{code_hash, new_nonce, verify_hello};
-use crate::store::{self, NewDevice, now};
+use crate::store::{self, Enrolled, NewDevice, now};
 use crate::waiting::{Decision, Refused};
 
 /// How long an agent has to answer the challenge.
@@ -139,8 +139,10 @@ async fn identify(app: &App, nonce: &str, hello: &Hello) -> Result<Option<Device
             .enroll(&code_hash(code), report(hello), at)
             .await
             .map_err(|err| err.to_string())?;
-        if let Some(device) = enrolled {
-            paired(app, &device).await;
+        if let Some(Enrolled { device, new }) = enrolled {
+            if new {
+                paired(app, &device).await;
+            }
             return Ok(Some(device));
         }
     }
