@@ -1,0 +1,69 @@
+<!doctype html>
+<!-- Template for the repository's social preview image (Settings → Social preview), 1280 × 640.
+     Render: pnpm screenshots (or pnpm --filter e2e social-preview) → docs/social-preview.png -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    position: relative;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    color: #e6e8ec;
+    background:
+      radial-gradient(55% 60% at 6% 0%, rgba(37,99,235,.28), transparent 70%),
+      radial-gradient(45% 50% at 100% 100%, rgba(96,165,250,.14), transparent 70%),
+      linear-gradient(135deg, #18181b, #09090b);
+  }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(#232327 1px, transparent 1px),
+      linear-gradient(90deg, #232327 1px, transparent 1px);
+    background-size: 32px 32px; opacity: .5;
+  }
+  .head { position: absolute; left: 64px; top: 52px; display: flex; align-items: center; gap: 22px; }
+  .head img { width: 80px; height: 80px; border-radius: 20px; box-shadow: 0 8px 30px rgba(37,99,235,.45); outline: 1px solid #3f3f46; }
+  h1 { font-size: 64px; font-weight: 700; letter-spacing: -2px; line-height: 1; }
+  .chips { position: absolute; right: 64px; top: 76px; display: flex; gap: 10px; }
+  .chip {
+    font-size: 15px; font-weight: 600; color: #93c5fd; padding: 7px 14px; border-radius: 999px;
+    background: rgba(37,99,235,.14); border: 1px solid rgba(96,165,250,.32);
+  }
+  .sub { position: absolute; left: 64px; top: 158px; font-size: 27px; color: #b3b9c4; letter-spacing: -.2px; }
+  .sub b { color: #f3f4f6; font-weight: 600; }
+  .command {
+    position: absolute; left: 64px; right: 64px; top: 214px; padding: 18px 26px;
+    border-radius: 14px; background: rgba(24,24,27,.92); border: 1px solid #2e2e33;
+    font-family: "DejaVu Sans Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 19px; line-height: 1.75;
+  }
+  .command .note { color: #8c93a0; }
+  .command .line { display: flex; align-items: center; gap: 12px; }
+  .command .prompt { color: #60a5fa; font-weight: 700; }
+  .command .code { color: #fbbf24; }
+  .shot {
+    position: absolute; left: 40px; top: 330px; width: 1200px;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 90px);
+            mask-image: linear-gradient(180deg, transparent 0, #000 90px);
+  }
+  .shot img { width: 100%; display: block; border-radius: 12px; }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="head">
+    <img src="../../web/public/favicon.svg" alt="">
+    <h1>Stellwerk</h1>
+  </div>
+  <div class="chips">
+    <span class="chip">Syncthing</span><span class="chip">Linux</span><span class="chip">Windows</span><span class="chip">macOS</span><span class="chip">Docker</span>
+  </div>
+  <p class="sub">Central web UI to manage <b>Syncthing on all your devices</b>. Self-hosted, no cloud.</p>
+  <div class="command">
+    <div class="note"># pair a device once, then manage it only in the web UI</div>
+    <div class="line"><span class="prompt">$</span><span>stellwerk-agent join --server https://sync.example.org <span class="code">K7Q2-MX9P-41TZ</span></span></div>
+  </div>
+  <div class="shot"><img src="../../docs/screenshot-dark.png" alt=""></div>
+</body>
+</html>

@@ -6,7 +6,7 @@
     "dev": "pnpm --filter web dev",
     "dev:demo": "pnpm --filter web dev:demo",
     "check": "pnpm --filter web check",
-    "screenshots": "pnpm --filter e2e screenshots",
+    "screenshots": "pnpm --filter e2e screenshots && node scripts/social-preview/render.mjs",
     "e2e": "pnpm --filter e2e test"
   }
 }

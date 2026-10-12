@@ -132,5 +132,7 @@ mkdocs serve                     # http://127.0.0.1:8000, reloads on change
 ```
 
 Pictures come from `pnpm screenshots` or **Actions → Update screenshots**; never edit them by
-hand. Links between pages are relative (`installation.md#…`); links from the README go to the
+hand. The same command renders `docs/social-preview.png` (1280 × 640) from
+`scripts/social-preview/social-preview.html` and the dark screenshot; upload it under
+**Settings → General → Social preview** when it changed. Links between pages are relative (`installation.md#…`); links from the README go to the
 published site.
