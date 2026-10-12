@@ -119,7 +119,7 @@ function FolderPage() {
         ))}
       </div>
       {tab === "devices" && (
-        <FolderDevices key={overview.revision} overview={overview} live={live} folder={folder} />
+        <FolderDevices key={folder.id} overview={overview} live={live} folder={folder} />
       )}
       {tab === "versions" && <VersionsList folderId={folder.id} />}
       {tab === "conflicts" &&
@@ -158,9 +158,9 @@ function FolderDevices({
     path:
       overview.shares.find((s) => s.folderId === folder.id && s.deviceId === deviceId)?.path ?? "",
   });
-  const [rows, setRows] = useState<Record<string, Row>>(() =>
-    Object.fromEntries(devices.map((d) => [d.id, stored(d.id)])),
-  );
+  // Only the rows edited here; the others follow the stored state, also when another tab or
+  // the matrix changes it meanwhile.
+  const [rows, setRows] = useState<Record<string, Row>>({});
   const queryClient = useQueryClient();
 
   const changes: ShareChange[] = devices.flatMap((d) => {
@@ -180,7 +180,10 @@ function FolderDevices({
   });
   const save = useMutation({
     mutationFn: () => api.applyShares(changes),
-    onSuccess: () => refresh(queryClient),
+    onSuccess: async () => {
+      await refresh(queryClient);
+      setRows({});
+    },
   });
   const set = (deviceId: string, row: Partial<Row>) =>
     setRows((current) => ({
