@@ -89,9 +89,10 @@ The synced folders are not in the data directory; they are wherever their paths 
 
 Both programs log to standard error, at level `info` by default. `RUST_LOG` changes it, e.g.
 `RUST_LOG=debug` or `RUST_LOG=stellwerk_engine=debug,info`. The Syncthing instances log into
-`stellwerk-syncthing.log` in their home directory. The agent warns about a connection problem
-once; while the same problem repeats, it logs each retry only at level `debug`, so `agent.log`
-does not grow while the Zentrale is out of reach.
+`stellwerk-syncthing.log` in their home directory; the log of the previous start is kept as
+`stellwerk-syncthing.log.1`. The agent warns about a connection problem once; while the same
+problem repeats, it logs each retry only at level `debug`, so `agent.log` does not grow while
+the Zentrale is out of reach.
 
 ## Ports
 

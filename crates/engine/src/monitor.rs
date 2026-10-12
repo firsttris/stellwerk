@@ -16,6 +16,8 @@ pub const THROTTLE: Duration = Duration::from_secs(1);
 /// Read again after this long even without events.
 const IDLE_REFRESH_SECS: u32 = 30;
 const RETRY: Duration = Duration::from_secs(5);
+/// Failed reads in a row before the monitor warns: one can fail while a folder is removed.
+const FAILURES_TO_WARN: u32 = 3;
 
 /// The events that change what a snapshot shows (lib/events/events.go).
 const EVENTS: &str = "StateChanged,FolderSummary,FolderErrors,FolderCompletion,\
@@ -150,16 +152,28 @@ pub async fn run(
     changes: Option<mpsc::UnboundedSender<Vec<RemoteChange>>>,
 ) {
     let mut since = 0;
+    let mut failures = 0_u32;
     loop {
         match snapshot(&client, options).await {
             Ok(fresh) => {
+                if failures >= FAILURES_TO_WARN {
+                    tracing::info!("Syncthing answers again");
+                }
+                failures = 0;
                 snapshots.send_if_modified(|current| {
                     let modified = *current != fresh;
                     *current = fresh;
                     modified
                 });
             }
-            Err(err) => tracing::debug!(%err, "could not read Syncthing's state"),
+            Err(err) => {
+                failures += 1;
+                if failures == FAILURES_TO_WARN {
+                    tracing::warn!(%err, "Syncthing does not answer; has it exited?");
+                } else {
+                    tracing::debug!(%err, "could not read Syncthing's state");
+                }
+            }
         }
         if snapshots.is_closed() {
             return;

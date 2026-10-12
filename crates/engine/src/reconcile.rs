@@ -52,95 +52,108 @@ pub enum PlanError {
 /// nothing differs.
 pub fn plan(actual: &Actual, desired: &DesiredState) -> Result<Vec<ApiCall>, PlanError> {
     validate(&actual.my_id, desired)?;
+    let (put_devices, delete_devices) = plan_devices(actual, desired);
+    let folders = plan_folders(actual, desired);
+    let set_ignores = plan_ignores(actual, desired, &folders.fresh);
+    Ok([
+        put_devices,
+        folders.delete,
+        folders.put,
+        set_ignores,
+        delete_devices,
+    ]
+    .concat())
+}
 
-    let want_devices: BTreeMap<_, _> = desired
+/// Devices to put and devices to delete; the own device is never touched.
+fn plan_devices(actual: &Actual, desired: &DesiredState) -> (Vec<ApiCall>, Vec<ApiCall>) {
+    let want: BTreeMap<_, _> = desired
         .peers
         .iter()
         .map(|peer| (peer.device_id.as_str(), device_config(peer)))
         .collect();
-    let want_folders: BTreeMap<_, _> = desired
-        .folders
-        .iter()
-        .map(|folder| (folder.id.as_str(), folder_config(&actual.my_id, folder)))
-        .collect();
-    let have_devices: BTreeMap<_, _> = actual
+    let have: BTreeMap<_, _> = actual
         .config
         .devices
         .iter()
         .filter(|device| device.device_id != actual.my_id)
         .map(|device| (device.device_id.as_str(), device))
         .collect();
-    let have_folders: BTreeMap<_, _> = actual
+    let put = want
+        .iter()
+        .filter(|(id, want)| have.get(*id).is_none_or(|have| *have != *want))
+        .map(|(_, want)| ApiCall::PutDevice(want.clone()))
+        .collect();
+    let delete = have
+        .keys()
+        .filter(|id| !want.contains_key(*id))
+        .map(|id| ApiCall::DeleteDevice(id.to_string()))
+        .collect();
+    (put, delete)
+}
+
+struct FolderCalls<'a> {
+    delete: Vec<ApiCall>,
+    put: Vec<ApiCall>,
+    /// Folders that are new to Syncthing after the plan: added, or removed and added again.
+    fresh: BTreeSet<&'a str>,
+}
+
+fn plan_folders<'a>(actual: &Actual, desired: &'a DesiredState) -> FolderCalls<'a> {
+    let want: BTreeMap<_, _> = desired
+        .folders
+        .iter()
+        .map(|folder| (folder.id.as_str(), folder_config(&actual.my_id, folder)))
+        .collect();
+    let have: BTreeMap<_, _> = actual
         .config
         .folders
         .iter()
         .map(|folder| (folder.id.as_str(), folder))
         .collect();
-
-    let put_devices = want_devices
-        .iter()
-        .filter(|(id, want)| have_devices.get(*id).is_none_or(|have| *have != *want))
-        .map(|(_, want)| ApiCall::PutDevice(want.clone()));
-
     // A new path is a new folder: Syncthing would otherwise compare the new directory with the
     // index of the old one and announce every file as deleted.
-    let moved: BTreeSet<&str> = want_folders
+    let fresh: BTreeSet<&str> = want
         .iter()
-        .filter(|(id, want)| {
-            have_folders
-                .get(*id)
-                .is_some_and(|have| have.path != want.path)
-        })
+        .filter(|(id, want)| have.get(*id).is_none_or(|have| have.path != want.path))
         .map(|(id, _)| *id)
         .collect();
-    let delete_folders = have_folders
-        .keys()
-        .filter(|id| !want_folders.contains_key(*id) || moved.contains(*id))
-        .map(|id| ApiCall::DeleteFolder(id.to_string()));
-
-    let put_folders = want_folders
+    let delete = have
+        .iter()
+        .filter(|(id, _)| !want.contains_key(*id) || fresh.contains(*id))
+        .map(|(id, _)| ApiCall::DeleteFolder(id.to_string()))
+        .collect();
+    let put = want
         .iter()
         .filter(|(id, want)| {
-            moved.contains(*id)
-                || have_folders
-                    .get(*id)
-                    .is_none_or(|have| !same_folder(have, want))
+            fresh.contains(*id) || have.get(*id).is_some_and(|have| !same_folder(have, want))
         })
-        .map(|(_, want)| ApiCall::PutFolder(want.clone()));
+        .map(|(_, want)| ApiCall::PutFolder(want.clone()))
+        .collect();
+    FolderCalls { delete, put, fresh }
+}
 
-    // Ignores live in the folder (.stignore), so a new or re-created folder needs them set
-    // after it exists; an empty list on a new folder is what Syncthing has anyway.
-    let set_ignores = desired.folders.iter().filter_map(|folder| {
-        let want = ignore_lines(&folder.ignore_patterns);
-        let fresh =
-            moved.contains(folder.id.as_str()) || !have_folders.contains_key(folder.id.as_str());
-        let have = if fresh {
-            Vec::new()
-        } else {
-            ignore_lines(
-                actual
-                    .ignores
-                    .get(&folder.id)
-                    .map_or(&[][..], Vec::as_slice),
-            )
-        };
-        (want != have).then(|| ApiCall::SetIgnores {
-            folder: folder.id.clone(),
-            lines: want,
+/// Ignores live in the folder (.stignore), so a new or re-created folder always gets them set
+/// after it exists: its directory may already hold a `.stignore` (a folder added again, a
+/// directory left from a removed one) that Syncthing would load, and an empty list removes it
+/// (lib/ignore/ignore.go, `WriteIgnores`).
+fn plan_ignores(actual: &Actual, desired: &DesiredState, fresh: &BTreeSet<&str>) -> Vec<ApiCall> {
+    desired
+        .folders
+        .iter()
+        .filter_map(|folder| {
+            let want = ignore_lines(&folder.ignore_patterns);
+            let have = actual
+                .ignores
+                .get(&folder.id)
+                .map_or(&[][..], Vec::as_slice);
+            let differs = fresh.contains(folder.id.as_str()) || want != ignore_lines(have);
+            differs.then(|| ApiCall::SetIgnores {
+                folder: folder.id.clone(),
+                lines: want,
+            })
         })
-    });
-
-    let delete_devices = have_devices
-        .keys()
-        .filter(|id| !want_devices.contains_key(*id))
-        .map(|id| ApiCall::DeleteDevice(id.to_string()));
-
-    Ok(put_devices
-        .chain(delete_folders)
-        .chain(put_folders)
-        .chain(set_ignores)
-        .chain(delete_devices)
-        .collect())
+        .collect()
 }
 
 fn validate(my_id: &str, desired: &DesiredState) -> Result<(), PlanError> {
@@ -211,11 +224,13 @@ fn folder_config(my_id: &str, folder: &Folder) -> FolderConfig {
     }
 }
 
-/// Ignore lines as compared and written: without trailing spaces and empty lines.
+/// Ignore lines as compared and written: trimmed and without empty lines, as Syncthing reads
+/// `.stignore` and returns it from `GET /rest/db/ignores` (lib/ignore/ignore.go,
+/// `parseIgnoreFile`: `strings.TrimSpace`).
 fn ignore_lines(lines: &[String]) -> Vec<String> {
     lines
         .iter()
-        .map(|line| line.trim_end().to_string())
+        .map(|line| line.trim().to_string())
         .filter(|line| !line.is_empty())
         .collect()
 }

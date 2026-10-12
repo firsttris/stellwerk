@@ -234,16 +234,22 @@ to every device (`crates/engine/src/files.rs`, `crates/zentrale/src/files.rs`).
 - **Conflicts.** Syncthing names a conflict copy
   `name.sync-conflict-YYYYMMDD-HHMMSS-<short ID>.ext` (lib/model/folder_sendrecv.go). The
   Zentrale searches the hub's folders every 30 seconds, notes new conflicts in the activity feed
-  and shows both sides, with a line diff for text up to 256 KB. Resolving happens on the hub's
+  and shows both sides, with a line diff for text up to 256 KB. Syncthing's temporary files
+  are not conflicts, and symbolic links are neither listed nor read, since a device could sync
+  one that points anywhere on the server. Resolving happens on the hub's
   disk, followed by a rescan:
   - keep the current file: the copy goes to the versions;
   - keep the copy: the current file goes to the versions, the copy takes its name;
   - keep both: the copy becomes `name.<device>.ext` next to the original.
 
   The discarded side is moved into `.stversions` under Syncthing's own naming
-  (`name~YYYYMMDD-HHMMSS.ext`, lib/versioner/util.go), so it shows up among the versions. The
-  time in that name is UTC; Syncthing reads it as local time, which is the same in the Docker
-  image.
+  (`name~YYYYMMDD-HHMMSS.ext`, lib/versioner/util.go), so it shows up among the versions.
+
+  Both names carry a time without a zone. Syncthing writes and reads it as local time
+  (`conflictName`; `ParseInLocation(…, time.Local)` in lib/versioner/util.go), Stellwerk as
+  UTC. In the Docker image both are UTC; on a server in another time zone the conflict time
+  shown and the time of a version archived by resolving are off by the zone's offset, and the
+  staggered cleanup ages such a version by that much.
 - **Versions.** The hub keeps staggered versions (a year by default). The UI lists them through
   `GET /rest/folder/versions` and restores one with `POST /rest/folder/versions`, which archives
   the current file first.
@@ -299,7 +305,9 @@ leftover from an interrupted uninstall cannot stop a new agent.
 3. Write the changes with `PUT`/`DELETE` on `/rest/config/devices/{id}` and
    `/rest/config/folders/{id}`, devices before the folders that name them; then the ignore
    patterns with `POST /rest/db/ignores?folder={id}` where they differ from `GET` (empty lines
-   and trailing spaces do not count).
+   and surrounding spaces do not count, as Syncthing trims them too). A new folder always gets
+   its patterns written, even none, so a `.stignore` left in its directory does not stay in
+   force.
 
 A folder with a new path is removed and added again, so Syncthing starts with a fresh index
 instead of treating the files at the old path as deleted. The reconciler only changes

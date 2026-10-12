@@ -6,7 +6,7 @@
 
 use std::net::{Ipv4Addr, TcpListener};
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
+use std::process::{ExitStatus, Stdio};
 use std::time::Duration;
 
 use rand::Rng;
@@ -28,7 +28,9 @@ pub struct SpawnOptions {
     pub binary: PathBuf,
     /// Configuration, keys and database.
     pub home: PathBuf,
-    /// Where Syncthing accepts sync connections, e.g. `tcp://127.0.0.1:41234`.
+    /// Where Syncthing accepts sync connections, e.g. `tcp://127.0.0.1:41234`. Only written
+    /// into a new `config.xml`; a home that has one keeps its address, so a port picked here
+    /// matters on the first start only.
     pub listen_address: String,
     /// Global and local discovery, relays and NAT traversal.
     pub discovery: bool,
@@ -61,13 +63,21 @@ impl Instance {
         &self.client
     }
 
-    /// The sync address other devices dial.
+    /// The sync address other devices dial, as given in [`SpawnOptions`]: true for a home
+    /// started fresh, not necessarily for one that already had a `config.xml`.
     pub fn listen_address(&self) -> &str {
         &self.listen_address
     }
 
     pub fn home(&self) -> &Path {
         &self.home
+    }
+
+    /// Completes when Syncthing has exited, after a crash or a restart asked for over the API:
+    /// it runs with `--no-restart`, so a caller that should keep syncing has to start it again.
+    /// Cancel-safe, for use in `select!`.
+    pub async fn exited(&mut self) -> Result<ExitStatus> {
+        self.child.wait().await.map_err(io_at(&self.home))
     }
 
     /// Asks Syncthing to shut down and kills it if it does not.
@@ -97,7 +107,7 @@ pub async fn start(options: &SpawnOptions) -> Result<Instance> {
 
     let gui = format!("http://127.0.0.1:{}", free_port()?);
     let api_key = random_key();
-    let log_path = home.join(LOG_FILE);
+    let log_path = rotate_log(home)?;
     let log = std::fs::File::create(&log_path).map_err(io_at(&log_path))?;
     let log_err = log.try_clone().map_err(io_at(&log_path))?;
 
@@ -106,8 +116,10 @@ pub async fn start(options: &SpawnOptions) -> Result<Instance> {
         .arg("--home")
         .arg(home)
         .args(["--no-browser", "--no-restart", "--no-upgrade"])
-        .arg(format!("--gui-address={gui}"))
-        .arg(format!("--gui-apikey={api_key}"))
+        // In the environment, not in argv, which every local user can read (`ps`); same
+        // options as --gui-address/--gui-apikey (cmd/syncthing/main.go, `serveCmd`).
+        .env("STGUIADDRESS", &gui)
+        .env("STGUIAPIKEY", &api_key)
         .env("STNOUPGRADE", "1")
         .stdin(Stdio::null())
         .stdout(log)
@@ -147,6 +159,17 @@ async fn wait_until_ready(instance: &mut Instance) -> Result<()> {
         }
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
+}
+
+/// The path of a fresh log; the one of the previous run is kept as `….log.1`, so the log of
+/// a crash survives the restart that follows it.
+fn rotate_log(home: &Path) -> Result<PathBuf> {
+    let log = home.join(LOG_FILE);
+    if log.exists() {
+        let previous = home.join(format!("{LOG_FILE}.1"));
+        std::fs::rename(&log, &previous).map_err(io_at(&log))?;
+    }
+    Ok(log)
 }
 
 fn log_tail(home: &Path) -> String {
@@ -248,6 +271,18 @@ mod tests {
         for _ in 0..20 {
             assert!(!STANDARD_PORTS.contains(&free_port().unwrap()));
         }
+    }
+
+    #[test]
+    fn the_previous_log_is_kept_once() {
+        let home = tempfile::tempdir().unwrap();
+        let write = |text: &str| std::fs::write(rotate_log(home.path()).unwrap(), text).unwrap();
+        write("first run");
+        write("crashed run");
+        write("this run");
+        let read = |name: &str| std::fs::read_to_string(home.path().join(name)).unwrap();
+        assert_eq!(read(LOG_FILE), "this run");
+        assert_eq!(read(&format!("{LOG_FILE}.1")), "crashed run");
     }
 
     #[test]

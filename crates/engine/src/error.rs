@@ -9,7 +9,7 @@ pub enum Error {
 
     #[error("Syncthing answered {method} {path} with {status}: {body}")]
     Api {
-        method: &'static str,
+        method: reqwest::Method,
         path: String,
         status: reqwest::StatusCode,
         body: String,

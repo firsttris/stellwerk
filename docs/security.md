@@ -46,8 +46,9 @@ browser ──HTTPS (proxy)──▶ Zentrale ◀──WSS (proxy)── agent
   even on the open sync port. Discovery servers and relays are off; data goes only between a
   device and the hub.
 - **Stellwerk → Syncthing.** Each Syncthing's GUI/REST API listens on `127.0.0.1` on a random
-  port, with a fresh random API key on every start. Other users on the machine could reach the
-  port, but not without the key.
+  port, with a fresh random API key on every start. The key goes to Syncthing in its
+  environment, not on the command line, where every local user could read it (`ps`). Other
+  users on the machine could reach the port, but not without the key.
 
 ## Admin login
 

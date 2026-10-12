@@ -196,6 +196,13 @@ async fn file_from_a_arrives_in_b_and_reapplying_changes_nothing() {
         "{changes:?}"
     );
 
+    // A Syncthing that exits on its own (it runs with --no-restart) is noticed.
+    let mut b = b;
+    b.client().shutdown().await.unwrap();
+    tokio::time::timeout(SYNC_TIMEOUT, b.exited())
+        .await
+        .expect("Syncthing exits after a shutdown")
+        .unwrap();
+
     a.stop().await.unwrap();
-    b.stop().await.unwrap();
 }
