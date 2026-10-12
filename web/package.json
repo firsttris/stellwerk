@@ -10,7 +10,7 @@
     "dev:demo": "vite --mode demo",
     "build": "vite build",
     "build:demo": "vite build --mode demo --outDir dist-demo",
-    "preview:demo": "vite preview --outDir dist-demo --host 127.0.0.1 --port 4173 --strictPort",
+    "preview:demo": "vite preview --outDir dist-demo --host 127.0.0.1 --strictPort --port ${PW_PORT:-4173}",
     "typecheck": "pnpm i18n && tsc --noEmit",
     "lint": "biome check .",
     "test": "pnpm i18n && vitest run",

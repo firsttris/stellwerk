@@ -4,8 +4,9 @@ test("pairing shows a command, waits for the device and sets it up", async ({ pa
   await page.goto("/devices");
   await page.getByRole("button", { name: "Gerät koppeln" }).click();
   const dialog = page.getByRole("dialog", { name: "Gerät koppeln" });
+  const origin = new URL(page.url()).origin;
   await expect(dialog.getByTestId("pair-command")).toContainText(
-    "stellwerk-agent join --server http://127.0.0.1:4173 K7Q2-MX9P-41TZ && stellwerk-agent service install",
+    `stellwerk-agent join --server ${origin} K7Q2-MX9P-41TZ && stellwerk-agent service install`,
   );
   await dialog.getByRole("tab", { name: "Windows" }).click();
   await expect(dialog.getByTestId("pair-command")).toContainText("stellwerk-agent.exe join");
