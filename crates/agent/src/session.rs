@@ -57,7 +57,7 @@ pub async fn run(
     let key = identity::signing_key(&config.secret_key)?;
     let hello = Hello {
         public_key: identity::public_key(&key),
-        signature: identity::sign_challenge(&key, &nonce),
+        signature: String::new(),
         enrollment_code: config.enrollment_code.clone(),
         name: report.name.clone(),
         os: report.os.clone(),
@@ -65,6 +65,7 @@ pub async fn run(
         syncthing_version: report.syncthing_version.clone(),
         syncthing_id: DeviceId::new(&report.syncthing_id),
     };
+    let hello = identity::sign_hello(&key, &nonce, hello);
     send(&mut sink, &AgentMessage::Hello(hello)).await?;
 
     let mut welcomed = false;

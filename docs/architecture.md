@@ -79,7 +79,7 @@ field (`crates/protocol/src/messages.rs`).
 | Direction | Message | Content |
 |---|---|---|
 | Zentrale → agent | `challenge` | a fresh nonce |
-| agent → Zentrale | `hello` | public key, signature over the nonce, on first contact the one-time code; host name, OS, agent and Syncthing version, Syncthing device ID |
+| agent → Zentrale | `hello` | public key, on first contact the one-time code; host name, OS, agent and Syncthing version, Syncthing device ID; a signature over the nonce and all these fields (`hello_payload`) |
 | Zentrale → agent | `welcome` | the device's ID at the Zentrale |
 | Zentrale → agent | `desiredState` | revision, peers (device IDs and addresses), folders with ID, label, mode, path, versioning, ignore patterns, peers |
 | agent → Zentrale | `applied` | revision, errors per folder |

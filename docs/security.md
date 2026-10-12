@@ -67,8 +67,11 @@ browser ──HTTPS (proxy)──▶ Zentrale ◀──WSS (proxy)── agent
   hash. It proves to the Zentrale that the person running `join` was allowed to pair.
 - **Device key.** `join` creates an **Ed25519** key pair on the device; the secret key stays in
   `agent.json`, readable only by the user (on Linux and macOS, file mode `600`). On every
-  connection the Zentrale sends a fresh random nonce and the agent signs it, so a recorded
-  sign-in cannot be replayed. After the first sign-in the code is dropped; the key alone
+  connection the Zentrale sends a fresh random nonce and the agent signs it together with
+  everything else its hello says (code, Syncthing device ID, name, OS, versions), so a recorded
+  sign-in cannot be replayed, and someone who can read and change an `http://` connection
+  cannot keep the signature but put in their own Syncthing ID, nor move the code into a hello
+  of their own. They can still read the code; use HTTPS wherever the network is not trusted. After the first sign-in the code is dropped; the key alone
   identifies the device.
 - **LAN pairing without a code.** A device that comes without a code only waits. The UI shows
   the **fingerprint** of its key (the first 8 bytes of the key's SHA-256, e.g.

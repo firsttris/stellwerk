@@ -130,7 +130,7 @@ async fn record_applied(app: &App, device_id: &str, applied: Applied) {
 /// The device for a verified hello: enrolled now with its code, or known by its key; `None`
 /// for an unknown key without a code.
 async fn identify(app: &App, nonce: &str, hello: &Hello) -> Result<Option<Device>, String> {
-    verify_hello(&hello.public_key, &hello.signature, nonce).map_err(|err| err.to_string())?;
+    verify_hello(hello, nonce).map_err(|err| err.to_string())?;
     let store = app.store();
     let at = now();
 
