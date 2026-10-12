@@ -10,6 +10,7 @@ test("pairing shows a command, waits for the device and sets it up", async ({ pa
   );
   await dialog.getByRole("tab", { name: "Windows" }).click();
   await expect(dialog.getByTestId("pair-command")).toContainText("stellwerk-agent.exe join");
+  await expect(dialog.getByText("In PowerShell ausführen", { exact: false })).toBeVisible();
 
   await expect(dialog.getByText("Neues Gerät verbunden")).toBeVisible({ timeout: 10_000 });
   await dialog.getByLabel("Name").fill("workshop");

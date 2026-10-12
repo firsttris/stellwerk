@@ -14,13 +14,12 @@ import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { Field, Input } from "./ui/input";
 
 type Os = "linux" | "windows" | "macos";
-const OS_TABS: { id: Os; label: string }[] = [
-  { id: "linux", label: "Linux" },
-  { id: "windows", label: "Windows" },
-  { id: "macos", label: "macOS" },
-];
+const OS_TABS: readonly Os[] = ["linux", "windows", "macos"];
 
-/** The command shown for a code; the agent binary comes from the release page for now. */
+/**
+ * The command shown for a code; the agent binary comes from the release page for now. On Windows
+ * `;` chains the commands in every PowerShell (`&&` needs 7+), so the dialog says PowerShell.
+ */
 export function pairCommand(os: Os, origin: string, code: string): string {
   const agent = os === "windows" ? "stellwerk-agent.exe" : "stellwerk-agent";
   const join = `${agent} join --server ${origin} ${code}`;
@@ -133,19 +132,19 @@ function Waiting({
         <div role="tablist" aria-label={m.pair_os()} className="flex gap-1 rounded-lg bg-muted p-1">
           {OS_TABS.map((tab) => (
             <button
-              key={tab.id}
+              key={tab}
               type="button"
               role="tab"
-              aria-selected={tab.id === os}
-              onClick={() => setOs(tab.id)}
+              aria-selected={tab === os}
+              onClick={() => setOs(tab)}
               className={cn(
                 "h-9 flex-1 cursor-pointer rounded-md text-sm",
-                tab.id === os
+                tab === os
                   ? "bg-background font-medium shadow-sm"
                   : "text-zinc-700 dark:text-zinc-300",
               )}
             >
-              {tab.label}
+              {osLabel(tab)}
             </button>
           ))}
         </div>
@@ -174,6 +173,9 @@ function Waiting({
                   : m.pair_copy()}
             </Button>
           </div>
+          {os === "windows" && (
+            <span className="text-xs text-muted-foreground">{m.pair_windows_shell()}</span>
+          )}
           <span className="text-xs text-muted-foreground">{m.pair_code_valid()}</span>
           <span className="text-xs text-muted-foreground">{m.pair_lan_hint()}</span>
           {error && <span className="text-sm text-danger">{error}</span>}

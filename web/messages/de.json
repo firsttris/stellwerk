@@ -208,6 +208,7 @@
   "pair_step_wait": "2. Warte auf das Gerät …",
   "pair_wait_hint": "Es taucht hier automatisch auf, sobald der Befehl gelaufen ist.",
   "pair_which_folders": "Welche Ordner soll es bekommen?",
+  "pair_windows_shell": "In PowerShell ausführen, nicht in der Eingabeaufforderung (cmd).",
   "remove": "Entfernen …",
   "save": "Speichern",
   "server": "Server",

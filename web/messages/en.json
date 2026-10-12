@@ -208,6 +208,7 @@
   "pair_step_wait": "2. Waiting for the device …",
   "pair_wait_hint": "It shows up here by itself as soon as the command has run.",
   "pair_which_folders": "Which folders should it get?",
+  "pair_windows_shell": "Run it in PowerShell, not in the Command Prompt (cmd).",
   "remove": "Remove …",
   "save": "Save",
   "server": "Server",
