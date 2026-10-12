@@ -107,6 +107,7 @@ Both programs log to standard error, at level `info` by default. `RUST_LOG` chan
 | pairing code | valid 15 minutes, works once; only its hash is stored |
 | login session | 30 days; a failed login waits half a second |
 | waiting devices (LAN pairing) | at most 20, in memory, gone when the agent disconnects or the Zentrale restarts |
+| agent heartbeat | a ping every 30 s; a connection silent for 90 s counts as lost |
 | agent reconnect | after 1 s, doubling up to 30 s; 60 s after being turned away |
 | live status from a device | on change, at most about once per second |
 | activity "changed N files" | counted per device and folder over 30 seconds |

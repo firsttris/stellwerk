@@ -82,6 +82,7 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
                 syncthing.client(),
                 &report,
                 &mut status,
+                session::HEARTBEAT,
             )
             .await;
             let wait = match result {

@@ -240,7 +240,9 @@ to every device (`crates/engine/src/files.rs`, `crates/zentrale/src/files.rs`).
 ## Agent
 
 `stellwerk-agent run` loads `agent.json`, starts its Syncthing (downloading the pinned release on
-first start), starts the monitor and connects to the Zentrale. A lost connection is retried after
+first start), starts the monitor and connects to the Zentrale. It pings the Zentrale every 30
+seconds and counts the connection as lost when nothing at all came back for 90 seconds, so a
+link that died silently (suspend, NAT timeout) is noticed. A lost connection is retried after
 1 second, doubling up to 30 seconds; after `rejected` it waits a minute. Syncthing keeps running
 while the Zentrale is unreachable, so syncing with the hub goes on with the last applied state.
 
