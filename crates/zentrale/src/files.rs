@@ -171,14 +171,9 @@ fn read(root: &Path, path: &str) -> Result<Option<FileContent>> {
         .then(|| std::fs::read(&full).ok())
         .flatten()
         .and_then(|bytes| String::from_utf8(bytes).ok());
-    let modified = meta
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
     Ok(Some(FileContent {
         size: meta.len(),
-        modified,
+        modified: files::modified_secs(&meta),
         text,
     }))
 }
@@ -187,10 +182,8 @@ fn read(root: &Path, path: &str) -> Result<Option<FileContent>> {
 pub async fn content(app: &App, folder_id: &str, copy: &str) -> Result<ConflictContent> {
     let config = app.store().config().await?;
     let folder = folder(&config, folder_id)?;
-    let name = copy.rsplit('/').next().unwrap_or(copy);
-    let (original, _, _) = files::parse_conflict_name(name)
+    let (original, _, _) = files::conflict_original(copy)
         .ok_or_else(|| FilesError::Invalid(format!("not a conflict copy: {copy}")))?;
-    let original = format!("{}{original}", copy.strip_suffix(name).unwrap_or(""));
     let root = root(app, folder);
     Ok(ConflictContent {
         original: read(&root, &original)?,
@@ -202,10 +195,9 @@ pub async fn content(app: &App, folder_id: &str, copy: &str) -> Result<ConflictC
 pub async fn resolve(app: &App, folder_id: &str, copy: &str, keep: Keep) -> Result<()> {
     let config = app.store().config().await?;
     let folder = folder(&config, folder_id)?;
-    let name = copy.rsplit('/').next().unwrap_or(copy);
-    let label = files::parse_conflict_name(name)
+    let label = files::conflict_original(copy)
         .and_then(|(_, _, by)| device_by_short_id(&config, &by).map(|d| d.name.clone()))
-        .unwrap_or_else(|| "konflikt".into());
+        .unwrap_or_else(|| "conflict".into());
     let root = root(app, folder);
     let copy_owned = copy.to_string();
     tokio::task::spawn_blocking(move || files::resolve(&root, &copy_owned, keep, &label, now()))

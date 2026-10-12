@@ -9,6 +9,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::{Error, Result, io_at};
 
+mod tag;
+pub use tag::{format_tag, parse_tag, tag_filename};
+
 const CONFLICT_MARK: &str = ".sync-conflict-";
 pub const VERSIONS_DIR: &str = ".stversions";
 /// Syncthing's own marker and temporary files, never conflicts.
@@ -63,79 +66,20 @@ pub fn parse_conflict_name(name: &str) -> Option<(String, i64, String)> {
     ))
 }
 
-/// `YYYYMMDD-HHMMSS` as seconds since the epoch, read as UTC.
-pub fn parse_tag(tag: &str) -> Option<i64> {
-    let digits = |s: &str| {
-        s.chars()
-            .all(|c| c.is_ascii_digit())
-            .then(|| s.parse::<i64>().ok())?
-    };
-    if tag.len() != 15 || tag.as_bytes()[8] != b'-' {
-        return None;
-    }
-    let (year, month, day) = (
-        digits(&tag[0..4])?,
-        digits(&tag[4..6])?,
-        digits(&tag[6..8])?,
-    );
-    let (hour, minute, second) = (
-        digits(&tag[9..11])?,
-        digits(&tag[11..13])?,
-        digits(&tag[13..15])?,
-    );
-    if !(1..=12).contains(&month)
-        || !(1..=31).contains(&day)
-        || hour > 23
-        || minute > 59
-        || second > 60
-    {
-        return None;
-    }
-    Some(days_from_civil(year, month, day) * 86_400 + hour * 3_600 + minute * 60 + second)
+/// The original of a conflict copy at `copy` (a path with `/`), in the same directory:
+/// (original path, time, short ID).
+pub fn conflict_original(copy: &str) -> Option<(String, i64, String)> {
+    let (dir, name) = split_path(copy);
+    let (original, at, by) = parse_conflict_name(name)?;
+    Some((format!("{dir}{original}"), at, by))
 }
 
-/// Seconds since the epoch as `YYYYMMDD-HHMMSS` (UTC), Syncthing's version tag.
-pub fn format_tag(seconds: i64) -> String {
-    let (days, rest) = (seconds.div_euclid(86_400), seconds.rem_euclid(86_400));
-    let (year, month, day) = civil_from_days(days);
-    format!(
-        "{year:04}{month:02}{day:02}-{:02}{:02}{:02}",
-        rest / 3_600,
-        rest % 3_600 / 60,
-        rest % 60
-    )
-}
-
-// Howard Hinnant's algorithms for the proleptic Gregorian calendar.
-fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
-    let year = if month <= 2 { year - 1 } else { year };
-    let era = year.div_euclid(400);
-    let yoe = year - era * 400;
-    let doy = (153 * ((month + 9) % 12) + 2) / 5 + day - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    era * 146_097 + doe - 719_468
-}
-
-fn civil_from_days(days: i64) -> (i64, i64, i64) {
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = doy - (153 * mp + 2) / 5 + 1;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    (yoe + era * 400 + i64::from(month <= 2), month, day)
-}
-
-/// `dir/name.ext` → `dir/name~tag.ext`, as Syncthing tags versions.
-pub fn tag_filename(path: &str, tag: &str) -> String {
-    let (dir, file) = match path.rfind('/') {
+/// `dir/name` → (`dir/`, `name`).
+fn split_path(path: &str) -> (&str, &str) {
+    match path.rfind('/') {
         Some(slash) => (&path[..=slash], &path[slash + 1..]),
         None => ("", path),
-    };
-    let (stem, ext) = split_ext(file);
-    format!("{dir}{stem}~{tag}{ext}")
+    }
 }
 
 /// `name.ext` → (`name`, `.ext`); a leading dot is not an extension.
@@ -165,10 +109,14 @@ pub fn safe_relative(path: &str) -> Result<PathBuf> {
     }
 }
 
-fn modified_secs(meta: &std::fs::Metadata) -> i64 {
-    meta.modified()
-        .ok()
-        .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+/// When the file was last modified, seconds since the epoch; 0 when unknown.
+pub fn modified_secs(meta: &std::fs::Metadata) -> i64 {
+    meta.modified().map_or(0, secs)
+}
+
+/// Seconds since the epoch; 0 before it.
+pub fn secs(time: SystemTime) -> i64 {
+    time.duration_since(UNIX_EPOCH)
         .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
 }
 
@@ -233,11 +181,8 @@ pub fn archive(root: &Path, path: &str, now: i64) -> Result<String> {
 /// Resolves a conflict copy in place; Syncthing then sends the result to every device.
 /// `label` names the copy for [`Keep::Both`] (usually the device it came from).
 pub fn resolve(root: &Path, copy: &str, keep: Keep, label: &str, now: i64) -> Result<()> {
-    let name = copy.rsplit('/').next().unwrap_or(copy);
-    let (original_name, _, _) = parse_conflict_name(name)
+    let (original, _, _) = conflict_original(copy)
         .ok_or_else(|| Error::Archive(format!("not a conflict copy: {copy}")))?;
-    let dir = copy.strip_suffix(name).unwrap_or("");
-    let original = format!("{dir}{original_name}");
     let copy_path = root.join(safe_relative(copy)?);
     if !copy_path.is_file() {
         return Err(Error::Archive(format!("conflict copy is gone: {copy}")));
@@ -270,10 +215,7 @@ fn free_name(root: &Path, original: &str, label: &str) -> String {
             }
         })
         .collect();
-    let (dir, file) = match original.rfind('/') {
-        Some(slash) => (&original[..=slash], &original[slash + 1..]),
-        None => ("", original),
-    };
+    let (dir, file) = split_path(original);
     let (stem, ext) = split_ext(file);
     (1..)
         .map(|n| match n {
@@ -286,9 +228,7 @@ fn free_name(root: &Path, original: &str, label: &str) -> String {
 
 /// Seconds since the epoch, now.
 pub fn now() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
+    secs(SystemTime::now())
 }
 
 #[cfg(test)]
@@ -316,21 +256,17 @@ mod tests {
     }
 
     #[test]
-    fn tags_round_trip_and_match_known_dates() {
-        assert_eq!(parse_tag("19700101-000000"), Some(0));
-        assert_eq!(parse_tag("20000301-000000"), Some(951_868_800));
-        for seconds in [0, 951_868_800, 1_791_798_071] {
-            assert_eq!(parse_tag(&format_tag(seconds)), Some(seconds));
-        }
-        assert_eq!(parse_tag("20261312-000000"), None);
+    fn the_original_of_a_copy_is_in_the_same_directory() {
+        let (original, _, by) =
+            conflict_original("a/b/config.sync-conflict-20261012-103112-ABCDEFG.ts").unwrap();
         assert_eq!(
-            tag_filename("a/b/config.ts", "20261012-103112"),
-            "a/b/config~20261012-103112.ts"
+            (original.as_str(), by.as_str()),
+            ("a/b/config.ts", "ABCDEFG")
         );
-        assert_eq!(
-            tag_filename(".bashrc", "20261012-103112"),
-            ".bashrc~20261012-103112"
-        );
+        let (original, _, _) =
+            conflict_original("config.sync-conflict-20261012-103112-ABCDEFG.ts").unwrap();
+        assert_eq!(original, "config.ts");
+        assert_eq!(conflict_original("a/config.ts"), None);
     }
 
     #[test]
