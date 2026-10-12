@@ -107,7 +107,7 @@ pub async fn start(options: &SpawnOptions) -> Result<Instance> {
 
     let gui = format!("http://127.0.0.1:{}", free_port()?);
     let api_key = random_key();
-    let log_path = home.join(LOG_FILE);
+    let log_path = rotate_log(home)?;
     let log = std::fs::File::create(&log_path).map_err(io_at(&log_path))?;
     let log_err = log.try_clone().map_err(io_at(&log_path))?;
 
@@ -159,6 +159,17 @@ async fn wait_until_ready(instance: &mut Instance) -> Result<()> {
         }
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
+}
+
+/// The path of a fresh log; the one of the previous run is kept as `….log.1`, so the log of
+/// a crash survives the restart that follows it.
+fn rotate_log(home: &Path) -> Result<PathBuf> {
+    let log = home.join(LOG_FILE);
+    if log.exists() {
+        let previous = home.join(format!("{LOG_FILE}.1"));
+        std::fs::rename(&log, &previous).map_err(io_at(&log))?;
+    }
+    Ok(log)
 }
 
 fn log_tail(home: &Path) -> String {
@@ -260,6 +271,18 @@ mod tests {
         for _ in 0..20 {
             assert!(!STANDARD_PORTS.contains(&free_port().unwrap()));
         }
+    }
+
+    #[test]
+    fn the_previous_log_is_kept_once() {
+        let home = tempfile::tempdir().unwrap();
+        let write = |text: &str| std::fs::write(rotate_log(home.path()).unwrap(), text).unwrap();
+        write("first run");
+        write("crashed run");
+        write("this run");
+        let read = |name: &str| std::fs::read_to_string(home.path().join(name)).unwrap();
+        assert_eq!(read(LOG_FILE), "this run");
+        assert_eq!(read(&format!("{LOG_FILE}.1")), "crashed run");
     }
 
     #[test]
