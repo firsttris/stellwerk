@@ -7,7 +7,7 @@ import { refresh } from "../api/queries";
 import type { Live, Overview } from "../api/types";
 import { deviceStatus, nowSeconds } from "../lib/format";
 import { byCount } from "../lib/i18n";
-import { completion, folderBadge, folderSize } from "../lib/live";
+import { completion, folderBadge, folderSize, holders } from "../lib/live";
 import {
   type CellMode,
   cellKey,
@@ -198,7 +198,7 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
             </thead>
             <tbody>
               {overview.folders.map((folder) => {
-                const holders = overview.shares.filter((s) => s.folderId === folder.id).length;
+                const holderCount = holders(overview, folder.id).length;
                 const badge = folderBadge(overview, live, folder.id);
                 return (
                   <tr key={folder.id} className="border-b border-muted hover:bg-subtle">
@@ -216,8 +216,8 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
                         </div>
                         <span className="text-xs text-muted-foreground">
                           {folderSize(live, folder.id) ??
-                            byCount(holders, m.matrix_on_devices_one, () =>
-                              m.matrix_on_devices_other({ count: holders }),
+                            byCount(holderCount, m.matrix_on_devices_one, () =>
+                              m.matrix_on_devices_other({ count: holderCount }),
                             )}
                         </span>
                       </div>

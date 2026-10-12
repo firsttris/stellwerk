@@ -29,12 +29,17 @@ export function completion(live: Live | undefined, folderId: string, deviceId: s
   return live?.hub.completion[folderId]?.[deviceId];
 }
 
-/** Devices holding the folder. */
-function holders(overview: Overview, folderId: string): Device[] {
+/** Devices holding the folder; a blocked device keeps its shares but gets nothing. */
+export function holders(overview: Overview, folderId: string): Device[] {
   const ids = new Set(
     overview.shares.filter((s) => s.folderId === folderId).map((s) => s.deviceId),
   );
   return overview.devices.filter((d) => d.approved && ids.has(d.id));
+}
+
+/** How many folders a device gets: none while it is blocked. */
+export function deviceFolderCount(overview: Overview, device: Device): number {
+  return device.approved ? overview.shares.filter((s) => s.deviceId === device.id).length : 0;
 }
 
 /** Errors in a folder anywhere: on the hub or on a device. */

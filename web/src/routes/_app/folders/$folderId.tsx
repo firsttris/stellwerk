@@ -13,7 +13,7 @@ import { Field, Input, Select } from "../../../components/ui/input";
 import { VersionsList } from "../../../components/versions-list";
 import { deviceStatus, nowSeconds } from "../../../lib/format";
 import { byCount } from "../../../lib/i18n";
-import { completion, folderSize, formatCount } from "../../../lib/live";
+import { completion, folderSize, formatCount, holders } from "../../../lib/live";
 import { type CellMode, isWaiting, matrixDevices, storedMode } from "../../../lib/matrix";
 import { cn } from "../../../lib/utils";
 import { m } from "../../../paraglide/messages.js";
@@ -62,7 +62,7 @@ function FolderPage() {
       </p>
     );
   }
-  const holders = overview.shares.filter((s) => s.folderId === folder.id).length;
+  const holderCount = holders(overview, folder.id).length;
   const conflicts = live?.conflicts[folder.id] ?? [];
 
   return (
@@ -84,7 +84,9 @@ function FolderPage() {
         <div className="flex flex-col gap-0.5">
           <h1 className="text-2xl font-semibold tracking-tight">{folder.label}</h1>
           <span className="text-[13px] text-muted-foreground">
-            {byCount(holders, m.folder_meta_one, () => m.folder_meta_other({ count: holders }))}{" "}
+            {byCount(holderCount, m.folder_meta_one, () =>
+              m.folder_meta_other({ count: holderCount }),
+            )}{" "}
             <span className="font-mono">{folder.syncthingFolderId}</span>
           </span>
         </div>

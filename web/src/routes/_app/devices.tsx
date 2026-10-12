@@ -20,7 +20,7 @@ import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { WaitingDevices } from "../../components/waiting-devices";
 import { ago, nowSeconds, osLabel } from "../../lib/format";
-import { deviceSummary, waitingChanges } from "../../lib/live";
+import { deviceFolderCount, deviceSummary, waitingChanges } from "../../lib/live";
 import { isWaiting } from "../../lib/matrix";
 import { cn } from "../../lib/utils";
 import { m } from "../../paraglide/messages.js";
@@ -101,10 +101,6 @@ function Devices() {
   );
 }
 
-function folderCount(overview: Overview, device: Device) {
-  return overview.shares.filter((s) => s.deviceId === device.id).length;
-}
-
 function DeviceTable({
   overview,
   live,
@@ -159,7 +155,7 @@ function DeviceTable({
       {
         id: "folders",
         header: () => m.devices_column_folders(),
-        cell: ({ row: { original: d } }) => folderCount(overview, d),
+        cell: ({ row: { original: d } }) => deviceFolderCount(overview, d),
       },
       {
         id: "seen",

@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { Overview } from "../api/types";
 import { demoLive, demoState } from "../demo/fixtures";
 import {
+  deviceFolderCount,
   deviceProgress,
   deviceSummary,
   folderBadge,
   folderErrors,
   folderSize,
   formatBytes,
+  holders,
   waitingChanges,
 } from "./live";
 
@@ -77,5 +79,22 @@ describe("live state in words", () => {
     expect(folderErrors(o, live, "documents")).toEqual([
       { device: "laptop", message: "1 Datei nicht synchronisiert" },
     ]);
+  });
+
+  it("leaves blocked devices out of the counts", () => {
+    const o = overview();
+    const before = holders(o, "projects").map((d) => d.id);
+    expect(before).toContain("laptop");
+    const blocked = {
+      ...o,
+      devices: o.devices.map((d) => (d.id === "laptop" ? { ...d, approved: false } : d)),
+    };
+    expect(holders(blocked, "projects").map((d) => d.id)).toEqual(
+      before.filter((id) => id !== "laptop"),
+    );
+    const laptop = blocked.devices.find((d) => d.id === "laptop");
+    if (!laptop) throw new Error("fixtures changed");
+    expect(deviceFolderCount(blocked, laptop)).toBe(0);
+    expect(deviceFolderCount(o, { ...laptop, approved: true })).toBeGreaterThan(0);
   });
 });

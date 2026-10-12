@@ -6,6 +6,7 @@ import { PageHeader } from "../../../components/layout";
 import { NewFolderDialog } from "../../../components/new-folder-dialog";
 import { Card } from "../../../components/ui/card";
 import { byCount } from "../../../lib/i18n";
+import { holders } from "../../../lib/live";
 import { m } from "../../../paraglide/messages.js";
 
 export const Route = createFileRoute("/_app/folders/")({ component: Folders });
@@ -24,7 +25,7 @@ function Folders() {
           <p className="px-5 py-10 text-center text-muted-foreground">{m.folders_none()}</p>
         )}
         {overview?.folders.map((folder) => {
-          const holders = overview.shares.filter((s) => s.folderId === folder.id).length;
+          const count = holders(overview, folder.id).length;
           return (
             <Link
               key={folder.id}
@@ -38,8 +39,8 @@ function Folders() {
               <div className="flex flex-1 flex-col">
                 <span className="font-medium">{folder.label}</span>
                 <span className="text-xs text-muted-foreground">
-                  {byCount(holders, m.folders_on_devices_one, () =>
-                    m.folders_on_devices_other({ count: holders }),
+                  {byCount(count, m.folders_on_devices_one, () =>
+                    m.folders_on_devices_other({ count }),
                   )}{" "}
                   · <span className="font-mono">{folder.syncthingFolderId}</span>
                 </span>
