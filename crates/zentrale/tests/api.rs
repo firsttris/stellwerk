@@ -250,3 +250,38 @@ async fn unknown_api_paths_are_404_and_everything_else_goes_to_the_ui() {
     let (status, _) = browser.send(&router, "GET", "/folders/abc", None).await;
     assert!(status == StatusCode::OK || status == StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn parallel_wrong_logins_are_checked_one_after_another() {
+    let (router, app, _dir) = app().await;
+    app.store()
+        .set_admin_password_hash(&hash_password(PASSWORD).unwrap())
+        .await
+        .unwrap();
+    let guess = || {
+        let router = router.clone();
+        async move {
+            let wrong = json!({ "password": "wrong password!" });
+            Browser::default()
+                .send(&router, "POST", "/api/login", Some(wrong))
+                .await
+                .0
+        }
+    };
+
+    let started = std::time::Instant::now();
+    let (a, b) = tokio::join!(guess(), guess());
+    assert_eq!((a, b), (StatusCode::UNAUTHORIZED, StatusCode::UNAUTHORIZED));
+    // 0.5 s after the first failure, then 1 s after the second, one after the other.
+    assert!(started.elapsed() >= std::time::Duration::from_millis(1500));
+
+    let (status, _) = Browser::default()
+        .send(
+            &router,
+            "POST",
+            "/api/login",
+            Some(json!({ "password": PASSWORD })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+}
