@@ -1,9 +1,11 @@
-//! What the Zentrale tells a device: which peers it knows and which folders it holds.
+//! What agent and Zentrale say to each other, and the desired state of a device.
 //!
 //! The types describe devices, folders, modes and paths only, nothing that is specific to
 //! Syncthing beyond the device ID, so a different engine can take over behind `engine` later.
 
 use serde::{Deserialize, Serialize};
+
+pub mod messages;
 
 /// A Syncthing device ID in its canonical form (`XXXXXXX-XXXXXXX-…`).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -35,6 +37,16 @@ pub enum FolderMode {
     ReceiveOnly,
 }
 
+/// How old file versions are kept when a peer changes or deletes a file.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum Versioning {
+    #[default]
+    None,
+    /// Fewer versions the older they get, none older than `max_age_days`.
+    Staggered { max_age_days: u32 },
+}
+
 /// Another device this device talks to directly.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Peer {
@@ -54,6 +66,8 @@ pub struct Folder {
     pub mode: FolderMode,
     /// The peers this folder is shared with; each must be listed in [`DesiredState::peers`].
     pub shared_with: Vec<DeviceId>,
+    #[serde(default)]
+    pub versioning: Versioning,
 }
 
 /// The complete configuration a device should have, never a diff.
@@ -83,11 +97,13 @@ mod tests {
                 path: "/srv/fotos".into(),
                 mode: FolderMode::ReceiveOnly,
                 shared_with: vec![DeviceId::new("AAAAAAA")],
+                versioning: Versioning::Staggered { max_age_days: 30 },
             }],
         };
 
         let json = serde_json::to_string(&state).unwrap();
         assert!(json.contains("\"mode\":\"receiveOnly\""));
+        assert!(json.contains("\"versioning\":{\"type\":\"staggered\",\"max_age_days\":30}"));
         assert_eq!(serde_json::from_str::<DesiredState>(&json).unwrap(), state);
     }
 }

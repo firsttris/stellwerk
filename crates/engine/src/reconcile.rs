@@ -22,6 +22,17 @@ pub enum ApiCall {
     DeleteDevice(String),
 }
 
+impl ApiCall {
+    /// The folder this call is about, if any.
+    pub fn folder(&self) -> Option<&str> {
+        match self {
+            Self::PutFolder(folder) => Some(&folder.id),
+            Self::DeleteFolder(id) => Some(id),
+            Self::PutDevice(_) | Self::DeleteDevice(_) => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum PlanError {
     #[error("the device's own ID {0} is listed as a peer")]
@@ -165,6 +176,7 @@ fn folder_config(my_id: &str, folder: &Folder) -> FolderConfig {
         label: folder.label.clone(),
         path: folder.path.clone(),
         folder_type: folder.mode.into(),
+        versioning: folder.versioning.into(),
         devices: devices
             .into_iter()
             .map(|id| FolderDevice {
@@ -185,6 +197,7 @@ fn same_folder(have: &FolderConfig, want: &FolderConfig) -> bool {
     have.label == want.label
         && have.path == want.path
         && have.folder_type == want.folder_type
+        && have.versioning == want.versioning
         && device_ids(have) == device_ids(want)
 }
 

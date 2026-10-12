@@ -15,6 +15,23 @@
 The Zentrale never sends commands like "create folder X", always "this is how it should look,
 revision 42". Applying is idempotent, so a device that was offline simply gets the current state.
 
+## Protocol
+
+The agent opens a WebSocket to the Zentrale (`/api/agent/ws`); messages are JSON with a `type`
+field (`crates/protocol/src/messages.rs`).
+
+| Direction | Message | Content |
+|---|---|---|
+| Zentrale → agent | `challenge` | a fresh nonce |
+| agent → Zentrale | `hello` | public key, signature over the nonce, on first contact the one-time code; host name, OS, agent and Syncthing version, Syncthing device ID, last applied revision |
+| Zentrale → agent | `welcome` | the device's ID at the Zentrale |
+| Zentrale → agent | `desiredState` | revision, peers (device IDs and addresses), folders with ID, label, mode, path, versioning, peers |
+| agent → Zentrale | `applied` | revision, errors per folder |
+| Zentrale → agent | `rejected` | why; the socket closes |
+
+The desired state is always complete, never a diff: an agent that was offline for three days just
+gets the current state when it connects.
+
 ## Engine
 
 | Module | Does |

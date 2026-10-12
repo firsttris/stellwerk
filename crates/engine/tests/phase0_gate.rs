@@ -11,7 +11,7 @@ use stellwerk_engine::download::ensure_syncthing;
 use stellwerk_engine::process::{Instance, SpawnOptions, start};
 use stellwerk_engine::syncthing_config::FolderType;
 use stellwerk_engine::{Client, reconcile};
-use stellwerk_protocol::{DesiredState, DeviceId, Folder, FolderMode, Peer};
+use stellwerk_protocol::{DesiredState, DeviceId, Folder, FolderMode, Peer, Versioning};
 
 const FOLDER: &str = "stellwerk-phase0";
 const SYNC_TIMEOUT: Duration = Duration::from_secs(120);
@@ -28,7 +28,13 @@ async fn start_instance(binary: &Path, home: PathBuf) -> Instance {
 }
 
 /// The state one device should have: the other as its only peer, the folder shared with it.
-fn desired(other: &DeviceId, other_address: &str, path: &Path, mode: FolderMode) -> DesiredState {
+fn desired(
+    other: &DeviceId,
+    other_address: &str,
+    path: &Path,
+    mode: FolderMode,
+    versioning: Versioning,
+) -> DesiredState {
     DesiredState {
         revision: 1,
         peers: vec![Peer {
@@ -42,8 +48,16 @@ fn desired(other: &DeviceId, other_address: &str, path: &Path, mode: FolderMode)
             path: path.to_string_lossy().into_owned(),
             mode,
             shared_with: vec![other.clone()],
+            versioning,
         }],
     }
+}
+
+/// Reconciles and returns how many calls it took; every call must have gone through.
+async fn calls_made(client: &Client, desired: &DesiredState) -> usize {
+    let outcome = reconcile(client, desired).await.unwrap();
+    assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
+    outcome.calls.len()
 }
 
 async fn folder_type(client: &Client) -> FolderType {
@@ -78,12 +92,24 @@ async fn file_from_a_arrives_in_b_and_reapplying_changes_nothing() {
     let a_data = tmp.path().join("a/data");
     let b_data = tmp.path().join("b/data");
 
-    let want_a = desired(&b_id, b.listen_address(), &a_data, FolderMode::SendOnly);
-    let want_b = desired(&a_id, a.listen_address(), &b_data, FolderMode::ReceiveOnly);
+    let want_a = desired(
+        &b_id,
+        b.listen_address(),
+        &a_data,
+        FolderMode::SendOnly,
+        Versioning::None,
+    );
+    let want_b = desired(
+        &a_id,
+        a.listen_address(),
+        &b_data,
+        FolderMode::ReceiveOnly,
+        Versioning::Staggered { max_age_days: 30 },
+    );
 
     // First apply: device and folder are created, the folder type is set.
-    assert_eq!(reconcile(a.client(), &want_a).await.unwrap().len(), 2);
-    assert_eq!(reconcile(b.client(), &want_b).await.unwrap().len(), 2);
+    assert_eq!(calls_made(a.client(), &want_a).await, 2);
+    assert_eq!(calls_made(b.client(), &want_b).await, 2);
     assert_eq!(folder_type(a.client()).await, FolderType::SendOnly);
     assert_eq!(folder_type(b.client()).await, FolderType::ReceiveOnly);
 
@@ -92,8 +118,8 @@ async fn file_from_a_arrives_in_b_and_reapplying_changes_nothing() {
         a.client().config_raw().await.unwrap(),
         b.client().config_raw().await.unwrap(),
     );
-    assert_eq!(reconcile(a.client(), &want_a).await.unwrap(), []);
-    assert_eq!(reconcile(b.client(), &want_b).await.unwrap(), []);
+    assert_eq!(calls_made(a.client(), &want_a).await, 0);
+    assert_eq!(calls_made(b.client(), &want_b).await, 0);
     let after = (
         a.client().config_raw().await.unwrap(),
         b.client().config_raw().await.unwrap(),

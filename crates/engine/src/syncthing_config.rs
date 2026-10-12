@@ -6,8 +6,10 @@
 //! (lib/api/confighandler.go, `adjustFolder`/`adjustDevice`), so the fields left out here get
 //! Syncthing's default values.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
-use stellwerk_protocol::FolderMode;
+use stellwerk_protocol::{FolderMode, Versioning};
 
 /// `devices[]` in the configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,6 +49,32 @@ impl From<FolderMode> for FolderType {
     }
 }
 
+/// `folders[].versioning`, see lib/config/versioningconfiguration.go. An empty type means
+/// no versioning.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VersioningConfig {
+    #[serde(rename = "type", default)]
+    pub kind: String,
+    #[serde(default)]
+    pub params: BTreeMap<String, String>,
+}
+
+impl From<Versioning> for VersioningConfig {
+    fn from(versioning: Versioning) -> Self {
+        match versioning {
+            Versioning::None => Self::default(),
+            // lib/versioner/staggered.go reads `maxAge` in seconds
+            Versioning::Staggered { max_age_days } => Self {
+                kind: "staggered".into(),
+                params: BTreeMap::from([(
+                    "maxAge".into(),
+                    (u64::from(max_age_days) * 24 * 60 * 60).to_string(),
+                )]),
+            },
+        }
+    }
+}
+
 /// `folders[]` in the configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FolderConfig {
@@ -58,6 +86,8 @@ pub struct FolderConfig {
     pub folder_type: FolderType,
     #[serde(default)]
     pub devices: Vec<FolderDevice>,
+    #[serde(default)]
+    pub versioning: VersioningConfig,
 }
 
 /// The managed part of `GET /rest/config`.
@@ -94,5 +124,13 @@ mod tests {
         assert_eq!(config.devices[0].addresses, ["dynamic"]);
         assert_eq!(config.folders[0].folder_type, FolderType::ReceiveOnly);
         assert_eq!(config.folders[0].devices[0].device_id, "AAA");
+        assert_eq!(config.folders[0].versioning, VersioningConfig::default());
+    }
+
+    #[test]
+    fn staggered_versioning_keeps_max_age_in_seconds() {
+        let config = VersioningConfig::from(Versioning::Staggered { max_age_days: 30 });
+        assert_eq!(config.kind, "staggered");
+        assert_eq!(config.params["maxAge"], "2592000");
     }
 }

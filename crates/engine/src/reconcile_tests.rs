@@ -1,4 +1,4 @@
-use stellwerk_protocol::{DesiredState, DeviceId, Folder, FolderMode, Peer};
+use stellwerk_protocol::{DesiredState, DeviceId, Folder, FolderMode, Peer, Versioning};
 
 use super::*;
 use crate::syncthing_config::{Config, FolderType};
@@ -22,6 +22,7 @@ fn folder(id: &str, mode: FolderMode, shared_with: &[&str]) -> Folder {
         path: format!("/data/{id}"),
         mode,
         shared_with: shared_with.iter().map(|id| DeviceId::new(*id)).collect(),
+        versioning: Versioning::None,
     }
 }
 
@@ -148,6 +149,24 @@ fn a_changed_mode_is_one_folder_put() {
 
     assert!(
         matches!(&calls[..], [ApiCall::PutFolder(f)] if f.folder_type == FolderType::ReceiveOnly),
+        "{calls:?}"
+    );
+}
+
+#[test]
+fn changed_versioning_is_one_folder_put() {
+    let state = desired(
+        &[HUB],
+        vec![folder("fotos", FolderMode::SendReceive, &[HUB])],
+    );
+    let actual = simulate(fresh(), &plan(&fresh(), &state).unwrap());
+    let mut versioned = state.clone();
+    versioned.folders[0].versioning = Versioning::Staggered { max_age_days: 365 };
+
+    let calls = plan(&actual, &versioned).unwrap();
+
+    assert!(
+        matches!(&calls[..], [ApiCall::PutFolder(f)] if f.versioning.kind == "staggered"),
         "{calls:?}"
     );
 }
