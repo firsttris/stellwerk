@@ -45,12 +45,15 @@ pub fn for_device(config: &Config, hub: &Hub, device_id: &str) -> Option<Desired
     })
 }
 
-/// The desired state of the hub: every approved device a peer, every folder present.
+/// The desired state of the hub: every approved device a peer, every folder present. Two
+/// devices reporting the same Syncthing ID (a copied Syncthing home) count once, so the
+/// reconciler does not refuse the whole state for a duplicate peer.
 pub fn for_hub(config: &Config, hub: &Hub) -> DesiredState {
+    let mut seen = BTreeSet::from([hub.syncthing_id.as_str()]);
     let approved: Vec<&Device> = config
         .devices
         .iter()
-        .filter(|device| device.approved && device.syncthing_id != hub.syncthing_id)
+        .filter(|device| device.approved && seen.insert(device.syncthing_id.as_str()))
         .collect();
     let peers = approved
         .iter()
@@ -206,6 +209,29 @@ mod tests {
         // The blocked device is not in fotos, the empty folder still lives on the hub.
         assert_eq!(state.folders[1].shared_with, [DeviceId::new("ST-a")]);
         assert!(state.folders[2].shared_with.is_empty());
+    }
+
+    #[test]
+    fn a_syncthing_id_reported_twice_is_one_peer() {
+        let mut config = config();
+        let mut copy = device("copy", true);
+        copy.syncthing_id = "ST-a".into();
+        config.devices.push(copy);
+        config
+            .shares
+            .push(share("docs", "copy", FolderMode::SendReceive));
+        let hub = hub();
+
+        let state = for_hub(&config, &hub);
+        let peers: Vec<_> = state.peers.iter().map(|p| p.device_id.as_str()).collect();
+        assert_eq!(peers, ["ST-a", "ST-b"]);
+        assert_eq!(state.folders[0].shared_with.len(), 2);
+        let empty = stellwerk_engine::syncthing_config::Actual {
+            my_id: "ST-HUB".into(),
+            config: Default::default(),
+            ignores: Default::default(),
+        };
+        assert!(stellwerk_engine::plan(&empty, &state).is_ok());
     }
 
     #[test]

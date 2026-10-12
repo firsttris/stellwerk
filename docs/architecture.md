@@ -90,6 +90,11 @@ field (`crates/protocol/src/messages.rs`).
 The desired state is always complete, never a diff: an agent that was offline for three days just
 gets the current state when it connects.
 
+The Zentrale sends a WebSocket ping to every connected agent every 30 seconds, also while it waits
+for approval, and ends the session when nothing (not even a pong) arrived for 90 seconds, so a
+silently dropped link (suspend, NAT timeout) does not keep a device "online". The agent's
+WebSocket library answers pings by itself.
+
 ## Pairing
 
 1. "Pair device" in the UI: the Zentrale creates a one-time code (valid for 15 minutes) and
@@ -100,6 +105,8 @@ gets the current state when it connects.
 3. The agent answers the Zentrale's challenge with a hello signed by its key and carrying the
    code. The Zentrale uses the code up and creates the device; the agent drops the code.
 4. From then on the agent signs in with its key only. A blocked device is turned away.
+   `join` again with a new code keeps the key: the Zentrale recognises the device, lets it in
+   as itself and marks the code used, so the pairing dialog moves on.
 
 **LAN pairing, without a code.** The Zentrale announces itself over mDNS as `_stellwerk._tcp`
 (`crates/zentrale/src/discovery.rs`), with the TXT entry `url` when `--public-url` is set.
@@ -155,6 +162,8 @@ codes are stored.
 | `GET /api/ws` | WebSocket with an `update` per change: revision, online devices, live status |
 
 Every change raises the revision and sends connected agents and the hub their new desired state.
+A failed hub reconcile (hub API briefly unreachable, a refused call) is retried after 1 second,
+doubling up to a minute, until it succeeds or a new revision arrives.
 
 ### Desired states
 
@@ -165,7 +174,9 @@ device and one for the hub, as pure functions. The topology is a star:
 - the hub has every approved device as a peer and holds every folder under
   `<data>/folders/<syncthing folder id>`, in mode "both", with staggered versioning (one year by
   default), shared with every device that has the folder;
-- a blocked device gets no desired state and disappears from the hub's peers and folders.
+- a blocked device gets no desired state and disappears from the hub's peers and folders;
+- a Syncthing device ID is one peer, even if two devices report it; the store turns away a
+  device whose Syncthing ID already belongs to another one.
 
 ## Web UI
 

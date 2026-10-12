@@ -41,7 +41,9 @@ uuid.workspace = true
 
 [dev-dependencies]
 stellwerk-agent.workspace = true
+futures-util.workspace = true
 tempfile.workspace = true
+tokio-tungstenite.workspace = true
 tower.workspace = true
 
 [lints]

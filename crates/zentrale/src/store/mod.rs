@@ -14,7 +14,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Sqlite, SqlitePool, Transaction};
 
 pub use auth::Session;
-pub use devices::{DeviceUpdate, NewDevice};
+pub use devices::{DeviceUpdate, Enrolled, NewDevice};
 pub use events::Event;
 pub use folders::ShareChange;
 
@@ -135,7 +135,12 @@ pub(crate) async fn test_device(store: &Store, public_key: &str) -> crate::model
         agent_version: "0.1.0".into(),
         syncthing_version: "v2.1.6".into(),
     };
-    store.enroll(&code, device, 1).await.unwrap().unwrap()
+    store
+        .enroll(&code, device, 1)
+        .await
+        .unwrap()
+        .unwrap()
+        .device
 }
 
 #[cfg(test)]

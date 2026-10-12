@@ -12,7 +12,7 @@ use stellwerk_protocol::messages::fingerprint;
 
 use crate::agents;
 use crate::app::App;
-use crate::files::{self, ConflictContent, FileVersions, FilesError};
+use crate::files::{self, ConflictContent, FileVersions};
 use crate::model::{Device, DeviceKind, Folder, Share};
 use crate::pairing::{CODE_LIFETIME_SECS, code_hash, new_code};
 use crate::store::{DeviceUpdate, Event, ShareChange, now};
@@ -272,21 +272,6 @@ pub async fn events(
 ) -> ApiResult<Json<Vec<Event>>> {
     let limit = query.limit.unwrap_or(50).min(500);
     Ok(Json(app.store().events(limit).await?))
-}
-
-impl From<FilesError> for ApiError {
-    fn from(err: FilesError) -> Self {
-        match err {
-            FilesError::NotFound(what) => {
-                ApiError::new(StatusCode::NOT_FOUND, format!("{what} not found"))
-            }
-            FilesError::Invalid(message) => ApiError::new(StatusCode::BAD_REQUEST, message),
-            FilesError::Failed(message) => {
-                tracing::error!(%message, "file operation failed");
-                ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, message)
-            }
-        }
-    }
 }
 
 #[derive(Debug, Deserialize)]
