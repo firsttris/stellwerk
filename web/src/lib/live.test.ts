@@ -28,6 +28,9 @@ describe("live state in words", () => {
     expect(formatBytes(0)).toBe("0 B");
     expect(formatBytes(512_000)).toBe("512 KB");
     expect(formatBytes(18_400_000_000)).toBe("18,4 GB");
+    expect(formatBytes(999)).toBe("999 B");
+    expect(formatBytes(999_940)).toBe("999,9 KB");
+    expect(formatBytes(999_990)).toBe("1 MB");
   });
 
   it("gives every folder a badge", () => {
@@ -58,5 +61,21 @@ describe("live state in words", () => {
     expect(deviceProgress(o, live, "workbench")).toBe(72);
     expect(deviceSummary(o, live, device("workbench"))).toBe("Lädt 18 Änderungen · 72 %");
     expect(deviceSummary(o, live, device("macbook"))).toBe("Synchron");
+    const onlyDeletes = structuredClone(live);
+    const photos = onlyDeletes.hub.completion.photos?.workbench;
+    if (!photos) throw new Error("fixtures changed");
+    photos.needItems = 0;
+    expect(deviceSummary(o, onlyDeletes, device("workbench"))).toBe("Synchron");
+  });
+
+  it("counts failed files in the singular too", () => {
+    const o = overview();
+    const live = structuredClone(demoLive(now));
+    const laptop = live.devices.laptop?.folders.documents;
+    if (!laptop) throw new Error("fixtures changed");
+    laptop.errors = 1;
+    expect(folderErrors(o, live, "documents")).toEqual([
+      { device: "laptop", message: "1 Datei nicht synchronisiert" },
+    ]);
   });
 });

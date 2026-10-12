@@ -14,7 +14,9 @@ export function formatBytes(bytes: number): string {
   const units = ["B", "KB", "MB", "GB", "TB"];
   let value = bytes;
   let unit = 0;
-  while (value >= 1000 && unit < units.length - 1) {
+  // Compare what will be shown: 999 990 B rounds to "1.000 KB", which reads as "1 MB".
+  const shown = (v: number) => Math.round(v * 10) / 10;
+  while (shown(value) >= 1000 && unit < units.length - 1) {
     value /= 1000;
     unit++;
   }
@@ -44,8 +46,13 @@ export function folderErrors(overview: Overview, live: Live | undefined, folderI
     const status = live?.devices[device.id]?.folders[folderId];
     if (!device.online || !status) continue;
     if (status.error) found.push({ device: device.name, message: status.error });
-    else if (status.errors > 0)
-      found.push({ device: device.name, message: m.error_files_failed({ count: status.errors }) });
+    else if (status.errors > 0) {
+      const count = status.errors;
+      const message = byCount(count, m.error_files_failed_one, () =>
+        m.error_files_failed_other({ count: formatCount(count) }),
+      );
+      found.push({ device: device.name, message });
+    }
   }
   return found;
 }
@@ -123,7 +130,8 @@ export function deviceSummary(overview: Overview, live: Live | undefined, device
     return byCount(waiting, m.device_waiting_one, () => m.device_waiting_other({ count }));
   }
   const percent = deviceProgress(overview, live, device.id);
-  if (percent === undefined) return m.device_in_sync();
+  // Below 100 % with nothing to fetch: only deletions are left, which is not "loading 0".
+  if (percent === undefined || waiting === 0) return m.device_in_sync();
   return byCount(
     waiting,
     () => m.device_loading_one({ percent }),
