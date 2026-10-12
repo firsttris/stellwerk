@@ -223,7 +223,9 @@ to every device (`crates/engine/src/files.rs`, `crates/zentrale/src/files.rs`).
 - **Conflicts.** Syncthing names a conflict copy
   `name.sync-conflict-YYYYMMDD-HHMMSS-<short ID>.ext` (lib/model/folder_sendrecv.go). The
   Zentrale searches the hub's folders every 30 seconds, notes new conflicts in the activity feed
-  and shows both sides, with a line diff for text up to 256 KB. Resolving happens on the hub's
+  and shows both sides, with a line diff for text up to 256 KB. Syncthing's temporary files
+  are not conflicts, and symbolic links are neither listed nor read, since a device could sync
+  one that points anywhere on the server. Resolving happens on the hub's
   disk, followed by a rescan:
   - keep the current file: the copy goes to the versions;
   - keep the copy: the current file goes to the versions, the copy takes its name;

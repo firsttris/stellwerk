@@ -164,7 +164,8 @@ pub struct ConflictContent {
 
 fn read(root: &Path, path: &str) -> Result<Option<FileContent>> {
     let full = root.join(safe_relative(path)?);
-    let Ok(meta) = std::fs::metadata(&full) else {
+    // A symbolic link is not followed: a device could make one point at any file here.
+    let Some(meta) = files::regular_file(&full) else {
         return Ok(None);
     };
     let text = (meta.len() <= TEXT_LIMIT)
@@ -262,4 +263,23 @@ pub async fn restore(app: &App, folder_id: &str, path: &str, version_time: &str)
         .add_event(now(), None, Some(folder_id), "restored", path)
         .await;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn reading_does_not_follow_symbolic_links() {
+        let dir = tempfile::tempdir().unwrap();
+        let secret = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(secret.path(), "secret").unwrap();
+        std::os::unix::fs::symlink(secret.path(), dir.path().join("link.txt")).unwrap();
+        std::fs::write(dir.path().join("plain.txt"), "plain").unwrap();
+
+        assert_eq!(read(dir.path(), "link.txt").unwrap(), None);
+        let plain = read(dir.path(), "plain.txt").unwrap().unwrap();
+        assert_eq!(plain.text.as_deref(), Some("plain"));
+    }
 }

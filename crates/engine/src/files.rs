@@ -138,7 +138,12 @@ pub fn scan_conflicts(root: &Path) -> Vec<Conflict> {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().into_owned();
             let relative = dir.join(&name);
+            // Not followed: Syncthing syncs symbolic links, so one could point anywhere on
+            // this machine.
             let Ok(meta) = entry.metadata() else { continue };
+            if meta.is_symlink() {
+                continue;
+            }
             if meta.is_dir() {
                 if !(dir.as_os_str().is_empty() && SKIP.contains(&name.as_str())) {
                     pending.push(relative);
@@ -149,7 +154,7 @@ pub fn scan_conflicts(root: &Path) -> Vec<Conflict> {
                 continue;
             };
             let original = dir.join(original);
-            let original_meta = std::fs::metadata(root.join(&original)).ok();
+            let original_meta = regular_file(&root.join(&original));
             found.push(Conflict {
                 path: slashes(&relative),
                 original: slashes(&original),
@@ -164,6 +169,13 @@ pub fn scan_conflicts(root: &Path) -> Vec<Conflict> {
     }
     found.sort_by(|a, b| a.path.cmp(&b.path));
     found
+}
+
+/// The metadata of a regular file; `None` for anything else, a symbolic link included.
+pub fn regular_file(path: &Path) -> Option<std::fs::Metadata> {
+    std::fs::symlink_metadata(path)
+        .ok()
+        .filter(std::fs::Metadata::is_file)
 }
 
 fn slashes(path: &Path) -> String {
@@ -191,8 +203,10 @@ pub fn resolve(root: &Path, copy: &str, keep: Keep, label: &str, now: i64) -> Re
     let (original, _, _) = conflict_original(copy)
         .ok_or_else(|| Error::Archive(format!("not a conflict copy: {copy}")))?;
     let copy_path = root.join(safe_relative(copy)?);
-    if !copy_path.is_file() {
-        return Err(Error::Archive(format!("conflict copy is gone: {copy}")));
+    if regular_file(&copy_path).is_none() {
+        return Err(Error::Archive(format!(
+            "conflict copy is gone or not a file: {copy}"
+        )));
     }
     match keep {
         Keep::Original => archive(root, copy, now).map(drop),
@@ -319,6 +333,27 @@ mod tests {
         assert_eq!(found[0].path, copy);
         assert_eq!(found[0].original, "src/config.ts");
         assert_eq!((found[0].size, found[0].original_size), (6, Some(4)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symbolic_links_are_not_followed() {
+        use std::os::unix::fs::symlink;
+        let (dir, copy) = folder_with_conflict();
+        let secret = tempfile::NamedTempFile::new().unwrap();
+        let planted = "src/passwd.sync-conflict-20261012-103112-ABCDEFG";
+        symlink(secret.path(), dir.path().join(planted)).unwrap();
+        std::fs::remove_file(dir.path().join("src/config.ts")).unwrap();
+        symlink(secret.path(), dir.path().join("src/config.ts")).unwrap();
+
+        let found = scan_conflicts(dir.path());
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(
+            (found[0].path.as_str(), found[0].original_size),
+            (copy.as_str(), None)
+        );
+        assert!(resolve(dir.path(), planted, Keep::Copy, "x", 0).is_err());
+        assert!(dir.path().join(planted).is_symlink());
     }
 
     #[test]
