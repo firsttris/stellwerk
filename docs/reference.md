@@ -49,7 +49,7 @@ stellwerk-agent service uninstall            stop and remove the background serv
 | `--data-dir` (`STELLWERK_AGENT_DATA`) | all | where the agent keeps its key, its Syncthing and Syncthing's database |
 | `--server URL` | `join` | the Zentrale, `https://…` or `http://…`; found over mDNS if left out |
 | `CODE` | `join` | the one-time code from **Pair device**; without it the device waits for approval |
-| `--name NAME` | `run` | the device name suggested to the Zentrale; the host name by default |
+| `--name NAME` | `run` | the device name suggested to the Zentrale when it pairs the device; the host name by default. Only for `run` in the foreground: the service always suggests the host name. Later, rename the device in the UI |
 | `--syncthing PATH` (`STELLWERK_SYNCTHING`) | `run` | use this Syncthing binary instead of downloading the pinned one |
 
 `join` creates the device's Ed25519 key, stores it with the server and the code in `agent.json`
