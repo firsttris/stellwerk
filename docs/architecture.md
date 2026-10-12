@@ -127,6 +127,6 @@ configuration; removing a folder leaves its files alone.
 | Phase | Content | Gate |
 |---|---|---|
 | 0 · Spike ✅ | engine starts Syncthing, reconciler applies a fixed desired state | integration test "file from A arrives on B" is green |
-| 1 · MVP | Zentrale with SQLite, agent over WebSocket, pairing with a one-time code, hub Syncthing, matrix and device list in the UI | 3-node test with an offline device green, own devices one week in daily use |
+| 1 · MVP | Zentrale with SQLite, agent over WebSocket, pairing with a one-time code, hub Syncthing, matrix and device list in the UI | 3-node test with an offline device green (`crates/zentrale/tests/phase1_gate.rs`), own devices one week in daily use |
 | 2 · Comfort | live status, activity, conflicts on the hub, versions, ignore patterns, German and English | E2E green, conflict and restore in the integration test |
 | 3 · Distribution | installers, LAN discovery, self-update with signature, Docker image and Quadlet | v1.0 published through `release.yml` |
