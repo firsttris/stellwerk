@@ -30,7 +30,7 @@ export type DemoState = {
   waiting: WaitingDevice[];
 };
 
-export const DEMO_CONFLICT_PATH = "haul/src/config.sync-conflict-20261012-103112-WERKBAN.ts";
+export const DEMO_CONFLICT_PATH = "haul/src/config.sync-conflict-20261012-103112-WORKBEN.ts";
 
 /** Both sides of the demo conflict, as in the mockup. */
 export const demoConflictContent = (now: number): ConflictContent => ({
@@ -82,8 +82,8 @@ const folder = (
 export function demoState(now: number): DemoState {
   const devices = [
     device(now, {
-      id: "werkbank",
-      name: "werkbank",
+      id: "workbench",
+      name: "workbench",
       os: "linux",
       fingerprint: "7F3A-91C2-4E08-B6D1",
     }),
@@ -95,8 +95,8 @@ export function demoState(now: number): DemoState {
       fingerprint: "A04B-17EE-93C5-0F72",
     }),
     device(now, {
-      id: "buero",
-      name: "büro-pc",
+      id: "office",
+      name: "office-pc",
       os: "windows",
       online: false,
       onlineSince: null,
@@ -113,40 +113,40 @@ export function demoState(now: number): DemoState {
     }),
   ];
   const folders = [
-    folder(now, "projekte", "Projekte", "k3j9x-2mwqa", [
+    folder(now, "projects", "Projects", "k3j9x-2mwqa", [
       "node_modules/",
       "dist/",
       "target/",
       "*.log",
       ".DS_Store",
     ]),
-    folder(now, "dokumente", "Dokumente", "p8rte-4nq2c"),
-    folder(now, "fotos", "Fotos", "b7wz4-hh3ke"),
-    folder(now, "musik", "Musik", "m2xc9-q7tpa"),
+    folder(now, "documents", "Documents", "p8rte-4nq2c"),
+    folder(now, "photos", "Photos", "b7wz4-hh3ke"),
+    folder(now, "music", "Music", "m2xc9-q7tpa"),
   ];
   const shares: Share[] = [
-    { folderId: "projekte", deviceId: "werkbank", mode: "sendReceive", path: "~/dev" },
+    { folderId: "projects", deviceId: "workbench", mode: "sendReceive", path: "~/dev" },
     {
-      folderId: "projekte",
+      folderId: "projects",
       deviceId: "laptop",
       mode: "sendReceive",
       path: "C:\\Users\\tristan\\dev",
     },
-    { folderId: "projekte", deviceId: "buero", mode: "sendReceive", path: "D:\\Projekte" },
-    { folderId: "dokumente", deviceId: "werkbank", mode: "sendReceive", path: "~/Dokumente" },
+    { folderId: "projects", deviceId: "office", mode: "sendReceive", path: "D:\\Projects" },
+    { folderId: "documents", deviceId: "workbench", mode: "sendReceive", path: "~/Documents" },
     {
-      folderId: "dokumente",
+      folderId: "documents",
       deviceId: "laptop",
       mode: "sendReceive",
       path: "C:\\Users\\tristan\\Documents",
     },
-    { folderId: "dokumente", deviceId: "buero", mode: "receiveOnly", path: "D:\\Dokumente" },
-    { folderId: "dokumente", deviceId: "macbook", mode: "receiveOnly", path: "~/Documents" },
-    { folderId: "fotos", deviceId: "werkbank", mode: "receiveOnly", path: "~/Bilder" },
-    { folderId: "fotos", deviceId: "macbook", mode: "sendOnly", path: "~/Pictures" },
-    { folderId: "musik", deviceId: "werkbank", mode: "sendReceive", path: "~/Musik" },
+    { folderId: "documents", deviceId: "office", mode: "receiveOnly", path: "D:\\Documents" },
+    { folderId: "documents", deviceId: "macbook", mode: "receiveOnly", path: "~/Documents" },
+    { folderId: "photos", deviceId: "workbench", mode: "receiveOnly", path: "~/Pictures" },
+    { folderId: "photos", deviceId: "macbook", mode: "sendOnly", path: "~/Pictures" },
+    { folderId: "music", deviceId: "workbench", mode: "sendReceive", path: "~/Music" },
     {
-      folderId: "musik",
+      folderId: "music",
       deviceId: "laptop",
       mode: "receiveOnly",
       path: "C:\\Users\\tristan\\Music",
@@ -156,8 +156,8 @@ export function demoState(now: number): DemoState {
     {
       id: 6,
       at: now - 2 * 60,
-      deviceId: "werkbank",
-      folderId: "projekte",
+      deviceId: "workbench",
+      folderId: "projects",
       kind: "changes",
       text: "18",
     },
@@ -165,7 +165,7 @@ export function demoState(now: number): DemoState {
       id: 5,
       at: now - 9 * 60,
       deviceId: "macbook",
-      folderId: "fotos",
+      folderId: "photos",
       kind: "changes",
       text: "46",
     },
@@ -179,15 +179,15 @@ export function demoState(now: number): DemoState {
       text: "Folder b7wz4-hh3ke: path is not writable",
     },
     { id: 2, at: now - 9 * DAY, deviceId: "macbook", folderId: null, kind: "paired", text: "" },
-    { id: 1, at: now - 30 * DAY, deviceId: "werkbank", folderId: null, kind: "paired", text: "" },
+    { id: 1, at: now - 30 * DAY, deviceId: "workbench", folderId: null, kind: "paired", text: "" },
   ];
   const conflicts: Record<string, Conflict[]> = {
-    projekte: [
+    projects: [
       {
         path: DEMO_CONFLICT_PATH,
         original: "haul/src/config.ts",
         at: now - 11 * 60,
-        deviceId: "werkbank",
+        deviceId: "workbench",
         size: 4_000,
         modified: now - 13 * 60,
         originalSize: 4_100,
@@ -201,21 +201,21 @@ export function demoState(now: number): DemoState {
     size,
   });
   const versions: Record<string, FileVersions[]> = {
-    projekte: [
+    projects: [
       {
         path: "haul/src/config.ts",
         versions: [version(2 * 3600, 4_050), version(DAY, 3_900), version(9 * DAY, 3_700)],
       },
       { path: "README.md", versions: [version(3 * DAY, 12_400)] },
     ],
-    dokumente: [{ path: "Steuer/2025/Belege.pdf", versions: [version(5 * DAY, 2_400_000)] }],
+    documents: [{ path: "Taxes/2025/Receipts.pdf", versions: [version(5 * DAY, 2_400_000)] }],
   };
   const waiting: WaitingDevice[] = [
     {
       fingerprint: "9C41-07AB-E2D5-3F18",
-      name: "wohnzimmer-pc",
+      name: "living-room-pc",
       os: "windows",
-      syncthingId: "WOHNZIM-SYNCTHING-ID",
+      syncthingId: "LIVINGR-SYNCTHING-ID",
       since: now - 40,
     },
   ];
@@ -233,64 +233,64 @@ const folderView = (globalFiles: number, globalBytes: number, extra: Partial<Fol
     ...extra,
   }) satisfies FolderView;
 
-/** Live state to go with [`demoState`]: Fotos is arriving on werkbank, büro-pc is behind. */
+/** Live state to go with [`demoState`]: Photos is arriving on workbench, office-pc is behind. */
 export function demoLive(now: number): Live {
   const done = { percent: 100, needBytes: 0, needItems: 0 };
   return {
     devices: {
-      werkbank: {
+      workbench: {
         at: now,
         folders: {
-          projekte: folderView(48_210, 18_400_000_000),
-          dokumente: folderView(3_912, 2_100_000_000),
-          fotos: folderView(61_004, 412_000_000_000, {
+          projects: folderView(48_210, 18_400_000_000),
+          documents: folderView(3_912, 2_100_000_000),
+          photos: folderView(61_004, 412_000_000_000, {
             state: "syncing",
             needFiles: 18,
             needBytes: 115_000_000_000,
           }),
-          musik: folderView(9_880, 96_000_000_000),
+          music: folderView(9_880, 96_000_000_000),
         },
       },
       laptop: {
         at: now,
         folders: {
-          projekte: folderView(48_210, 18_400_000_000),
-          dokumente: folderView(3_912, 2_100_000_000, { errors: 2 }),
-          musik: folderView(9_880, 96_000_000_000),
+          projects: folderView(48_210, 18_400_000_000),
+          documents: folderView(3_912, 2_100_000_000, { errors: 2 }),
+          music: folderView(9_880, 96_000_000_000),
         },
       },
       macbook: {
         at: now,
         folders: {
-          dokumente: folderView(3_912, 2_100_000_000),
-          fotos: folderView(61_004, 412_000_000_000),
+          documents: folderView(3_912, 2_100_000_000),
+          photos: folderView(61_004, 412_000_000_000),
         },
       },
     },
     hub: {
       folders: {
-        projekte: folderView(48_210, 18_400_000_000),
-        dokumente: folderView(3_912, 2_100_000_000),
-        fotos: folderView(61_004, 412_000_000_000),
-        musik: folderView(9_880, 96_000_000_000),
+        projects: folderView(48_210, 18_400_000_000),
+        documents: folderView(3_912, 2_100_000_000),
+        photos: folderView(61_004, 412_000_000_000),
+        music: folderView(9_880, 96_000_000_000),
       },
       completion: {
-        projekte: {
-          werkbank: done,
+        projects: {
+          workbench: done,
           laptop: done,
-          buero: { percent: 96.2, needBytes: 690_000_000, needItems: 202 },
+          office: { percent: 96.2, needBytes: 690_000_000, needItems: 202 },
         },
-        dokumente: {
-          werkbank: done,
+        documents: {
+          workbench: done,
           laptop: done,
-          buero: { percent: 99.1, needBytes: 18_000_000, needItems: 12 },
+          office: { percent: 99.1, needBytes: 18_000_000, needItems: 12 },
           macbook: done,
         },
-        fotos: {
-          werkbank: { percent: 72.4, needBytes: 115_000_000_000, needItems: 18 },
+        photos: {
+          workbench: { percent: 72.4, needBytes: 115_000_000_000, needItems: 18 },
           macbook: done,
         },
-        musik: { werkbank: done, laptop: done },
+        music: { workbench: done, laptop: done },
       },
     },
     conflicts: {},

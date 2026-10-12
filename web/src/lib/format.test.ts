@@ -13,11 +13,11 @@ describe("format", () => {
 
   it("describes devices", () => {
     const now = 1_000_000;
-    const [werkbank, , buero] = demoState(now).devices;
-    if (!werkbank || !buero) throw new Error("fixtures changed");
-    expect(deviceStatus(werkbank, now)).toBe("Online · Linux");
-    expect(deviceStatus(buero, now)).toBe("Offline · 3 Tage");
-    expect(deviceStatus({ ...werkbank, approved: false }, now)).toBe("Gesperrt");
+    const [workbench, , office] = demoState(now).devices;
+    if (!workbench || !office) throw new Error("fixtures changed");
+    expect(deviceStatus(workbench, now)).toBe("Online · Linux");
+    expect(deviceStatus(office, now)).toBe("Offline · 3 Tage");
+    expect(deviceStatus({ ...workbench, approved: false }, now)).toBe("Gesperrt");
     expect(duration(30)).toBe("1 Min.");
     expect(since(3 * 86400)).toBe("seit 3 Tagen");
     expect(since(86400)).toBe("seit 1 Tag");
@@ -29,13 +29,13 @@ describe("format", () => {
       kind,
       text,
       deviceId: "laptop",
-      folderId: "fotos",
+      folderId: "photos",
     });
     expect(describeEvent(event("changes", "18"), devices, folders)).toBe(
-      "laptop hat 18 Dateien in Fotos geändert",
+      "laptop hat 18 Dateien in Photos geändert",
     );
     expect(describeEvent(event("changes", "1"), devices, folders)).toBe(
-      "laptop hat 1 Datei in Fotos geändert",
+      "laptop hat 1 Datei in Photos geändert",
     );
     expect(describeEvent(event("offline"), devices, folders)).toBe("laptop ist offline");
   });

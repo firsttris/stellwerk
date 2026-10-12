@@ -11,7 +11,7 @@ import { m } from "../paraglide/messages.js";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 
-/** `dir/config.ts` + `werkbank` → `config.werkbank.ts`, as "keep both" names the copy. */
+/** `dir/config.ts` + `workbench` → `config.workbench.ts`, as "keep both" names the copy. */
 export function bothName(original: string, device: string): string {
   const file = original.split("/").pop() ?? original;
   const dot = file.lastIndexOf(".");

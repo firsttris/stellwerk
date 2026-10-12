@@ -11,22 +11,22 @@ test("pairing shows a command, waits for the device and sets it up", async ({ pa
   await expect(dialog.getByTestId("pair-command")).toContainText("stellwerk-agent.exe join");
 
   await expect(dialog.getByText("Neues Gerät verbunden")).toBeVisible({ timeout: 10_000 });
-  await dialog.getByLabel("Name").fill("werkstatt");
-  await dialog.getByRole("checkbox", { name: "Dokumente" }).check();
+  await dialog.getByLabel("Name").fill("workshop");
+  await dialog.getByRole("checkbox", { name: "Documents" }).check();
   await dialog.getByRole("button", { name: "Gerät mit 1 Ordner einrichten" }).click();
   await expect(dialog).toBeHidden();
 
-  await expect(page.getByRole("cell", { name: "werkstatt Linux" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "workshop Linux" })).toBeVisible();
   await page.getByRole("link", { name: "Übersicht" }).click();
   await expect(
-    page.getByRole("button", { name: /^Dokumente auf werkstatt: senden und empfangen/ }),
+    page.getByRole("button", { name: /^Documents auf workshop: senden und empfangen/ }),
   ).toBeVisible();
 });
 
 test("search and filter narrow the list", async ({ page }) => {
   await page.goto("/devices");
   await page.getByRole("button", { name: "Offline 1" }).click();
-  await expect(page.getByRole("cell", { name: "büro-pc Windows" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "office-pc Windows" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "laptop Windows" })).toBeHidden();
   await page.getByRole("button", { name: "Alle 4" }).click();
   await page.getByPlaceholder("Geräte durchsuchen").fill("mac");
@@ -44,13 +44,13 @@ test("a blocked device says so", async ({ page }) => {
 test("a device waiting in the LAN is approved with its fingerprint", async ({ page }) => {
   await page.goto("/");
   const attention = page.getByRole("region", { name: "Braucht Aufmerksamkeit" });
-  await expect(attention.getByText("wohnzimmer-pc wartet auf Freigabe")).toBeVisible();
+  await expect(attention.getByText("living-room-pc wartet auf Freigabe")).toBeVisible();
   await expect(attention.getByText("9C41-07AB-E2D5-3F18")).toBeVisible();
   await attention.getByRole("link", { name: "Prüfen" }).click();
 
   const waiting = page.getByRole("region", { name: "Wartende Geräte" });
   await expect(waiting.getByText("9C41-07AB-E2D5-3F18")).toBeVisible();
-  await waiting.getByRole("button", { name: "wohnzimmer-pc freigeben" }).click();
+  await waiting.getByRole("button", { name: "living-room-pc freigeben" }).click();
   await expect(waiting).toBeHidden();
-  await expect(page.getByRole("cell", { name: "wohnzimmer-pc Windows" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "living-room-pc Windows" })).toBeVisible();
 });

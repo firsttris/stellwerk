@@ -34,30 +34,30 @@ describe("matrix draft", () => {
   it("keeps only cells that differ from what is stored", () => {
     const o = overview();
     let draft: Draft = new Map();
-    // fotos on laptop is off; four clicks bring it back to off.
-    for (let i = 0; i < 3; i++) draft = cycleCell(o, draft, "fotos", "laptop");
-    expect(cellMode(o, draft, "fotos", "laptop")).toBe("receiveOnly");
+    // photos on laptop is off; four clicks bring it back to off.
+    for (let i = 0; i < 3; i++) draft = cycleCell(o, draft, "photos", "laptop");
+    expect(cellMode(o, draft, "photos", "laptop")).toBe("receiveOnly");
     expect(draft.size).toBe(1);
-    draft = cycleCell(o, draft, "fotos", "laptop");
+    draft = cycleCell(o, draft, "photos", "laptop");
     expect(draft.size).toBe(0);
   });
 
   it("turns the draft into API changes, off as null", () => {
     const o = overview();
-    let draft: Draft = setCell(o, new Map(), "projekte", "werkbank", "off");
-    draft = setCell(o, draft, "fotos", "laptop", "sendReceive");
+    let draft: Draft = setCell(o, new Map(), "projects", "workbench", "off");
+    draft = setCell(o, draft, "photos", "laptop", "sendReceive");
     expect(draftChanges(o, draft)).toEqual([
-      { folderId: "projekte", deviceId: "werkbank", mode: null },
-      { folderId: "fotos", deviceId: "laptop", mode: "sendReceive" },
+      { folderId: "projects", deviceId: "workbench", mode: null },
+      { folderId: "photos", deviceId: "laptop", mode: "sendReceive" },
     ]);
   });
 
   it("drops cells of folders that are gone and counts offline devices", () => {
     const o = overview();
     let draft: Draft = setCell(o, new Map(), "gone", "laptop", "sendOnly");
-    draft = setCell(o, draft, "musik", "buero", "receiveOnly");
+    draft = setCell(o, draft, "music", "office", "receiveOnly");
     expect(draftChanges(o, draft)).toEqual([
-      { folderId: "musik", deviceId: "buero", mode: "receiveOnly" },
+      { folderId: "music", deviceId: "office", mode: "receiveOnly" },
     ]);
     expect(offlineChanges(o, draft)).toBe(1);
   });

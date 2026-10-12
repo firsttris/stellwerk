@@ -47,7 +47,7 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
   });
 
   const newDevice = (
-    name = "werkstatt-pc",
+    name = "workshop-pc",
     os = "linux",
     fingerprint = "5E21-D0A7-88C3-41F9",
   ): Device => ({
@@ -154,7 +154,7 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
       const polls = (enrollments.get(code) ?? 0) + 1;
       enrollments.set(code, polls);
       if (polls < POLLS_UNTIL_PAIRED) return { device: null };
-      const existing = state.devices.find((d) => d.name === "werkstatt-pc");
+      const existing = state.devices.find((d) => d.name === "workshop-pc");
       if (existing) return { device: existing };
       const device = newDevice();
       state = { ...state, devices: [...state.devices, device] };
