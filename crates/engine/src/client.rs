@@ -4,8 +4,8 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use reqwest::{Method, RequestBuilder, Url};
-use serde::Deserialize;
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
 use crate::monitor::{CompletionReply, Event, FolderSummary};
@@ -36,7 +36,7 @@ impl std::fmt::Debug for Client {
 }
 
 /// One archived version of a file.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileVersion {
     /// When it was archived, RFC 3339; passed back as is to restore it.
@@ -47,7 +47,6 @@ pub struct FileVersion {
 
 #[derive(Deserialize)]
 struct Ignores {
-    #[serde(default)]
     ignore: Option<Vec<String>>,
 }
 
@@ -260,7 +259,7 @@ impl Client {
             return Ok(response);
         }
         Err(Error::Api {
-            method: method_name(&method),
+            method,
             path: url.path().to_string(),
             status,
             body: response.text().await.unwrap_or_default(),
@@ -275,16 +274,6 @@ impl Client {
             .pop_if_empty()
             .extend(segments);
         url
-    }
-}
-
-fn method_name(method: &Method) -> &'static str {
-    match *method {
-        Method::GET => "GET",
-        Method::PUT => "PUT",
-        Method::POST => "POST",
-        Method::DELETE => "DELETE",
-        _ => "request",
     }
 }
 
