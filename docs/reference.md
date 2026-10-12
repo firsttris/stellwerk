@@ -54,7 +54,8 @@ stellwerk-agent service uninstall            stop and remove the background serv
 
 `join` creates the device's Ed25519 key, stores it with the server and the code in `agent.json`
 and prints the key's fingerprint. Running `join` again replaces server and code but keeps the
-key.
+key. If `agent.json` exists but cannot be read, `join` stops instead of making a new key; delete
+the file to pair the device as a new one.
 
 `service install` sets up the service for the binary it is run from and the data directory it
 is given, and starts it. Run it again after moving the binary or to restart the agent.
