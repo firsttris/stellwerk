@@ -124,7 +124,7 @@ impl Store {
             ignore_patterns: Vec::new(),
             created_at: now,
         };
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.write().await?;
         sqlx::query(
             "INSERT INTO folders (id, label, syncthing_folder_id, versioning, created_at) \
              VALUES (?, ?, ?, ?, ?)",
@@ -160,7 +160,7 @@ impl Store {
                 .collect::<Vec<_>>()
                 .join("\n")
         });
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.write().await?;
         let found = sqlx::query(
             "UPDATE folders SET label = COALESCE(?, label), \
              ignore_patterns = COALESCE(?, ignore_patterns) WHERE id = ?",
@@ -180,7 +180,7 @@ impl Store {
 
     /// Stops the folder everywhere; the files on the devices and the hub stay.
     pub async fn delete_folder(&self, id: &str) -> Result<()> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.write().await?;
         let deleted = sqlx::query("DELETE FROM folders WHERE id = ?")
             .bind(id)
             .execute(&mut *tx)
@@ -196,7 +196,7 @@ impl Store {
     /// Applies a draft from the matrix as one new revision; nothing changes when the draft
     /// changes nothing. Returns the revision after it.
     pub async fn apply_shares(&self, changes: &[ShareChange]) -> Result<u64> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.write().await?;
         let mut seen = HashSet::new();
         let mut changed = false;
         for change in changes {

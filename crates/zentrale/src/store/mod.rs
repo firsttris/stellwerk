@@ -71,6 +71,15 @@ impl Store {
         })
     }
 
+    /// A transaction that will write. `BEGIN IMMEDIATE` takes the write lock up front: a
+    /// deferred transaction that reads first and writes later fails at once with "database is
+    /// locked" when another connection wrote in between, without waiting for the busy timeout
+    /// (https://sqlite.org/lang_transaction.html, "Read transactions versus write
+    /// transactions"). Found by the tests on macOS.
+    async fn write(&self) -> Result<Transaction<'static, Sqlite>> {
+        Ok(self.pool.begin_with("BEGIN IMMEDIATE").await?)
+    }
+
     pub async fn revision(&self) -> Result<u64> {
         let mut tx = self.pool.begin().await?;
         let revision = revision(&mut tx).await?;

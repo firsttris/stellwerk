@@ -104,7 +104,7 @@ impl Store {
         device: NewDevice,
         now: i64,
     ) -> Result<Option<Device>> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.write().await?;
         let used = sqlx::query(
             "UPDATE enrollments SET used_at = ? \
              WHERE code_hash = ? AND used_at IS NULL AND expires_at > ?",
@@ -130,7 +130,7 @@ impl Store {
 
     /// Adds a device approved in the UI without a code (LAN pairing).
     pub async fn add_device(&self, device: NewDevice, now: i64) -> Result<Device> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.write().await?;
         let id = insert_device(&mut tx, &device, now).await?;
         bump(&mut tx).await?;
         tx.commit().await?;
@@ -140,7 +140,7 @@ impl Store {
     /// Records what an agent reported on connecting. A new Syncthing ID (fresh Syncthing home)
     /// changes the hub's peers: new revision. Returns whether the revision was raised.
     pub async fn device_seen(&self, id: &str, report: &NewDevice, now: i64) -> Result<bool> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.write().await?;
         let (old_id,): (String,) = sqlx::query_as("SELECT syncthing_id FROM devices WHERE id = ?")
             .bind(id)
             .fetch_optional(&mut *tx)
@@ -187,7 +187,7 @@ impl Store {
 
     /// Renames, changes the icon or blocks/unblocks. Only blocking changes desired states.
     pub async fn update_device(&self, id: &str, update: &DeviceUpdate) -> Result<Device> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.write().await?;
         let found = sqlx::query(
             "UPDATE devices SET name = COALESCE(?, name), kind = COALESCE(?, kind), \
              approved = COALESCE(?, approved) WHERE id = ?",
@@ -210,7 +210,7 @@ impl Store {
 
     /// Removes the device and its shares; its files stay where they are.
     pub async fn delete_device(&self, id: &str) -> Result<()> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.write().await?;
         let deleted = sqlx::query("DELETE FROM devices WHERE id = ?")
             .bind(id)
             .execute(&mut *tx)

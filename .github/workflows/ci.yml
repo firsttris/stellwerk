@@ -22,8 +22,13 @@ jobs:
   rust:
     # Draft pull requests do not build; "Ready for review" starts the run
     if: ${{ !github.event.pull_request.draft }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The agent runs on all three, so the integration tests with real Syncthing do too
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -35,9 +40,10 @@ jobs:
         with:
           path: .syncthing-cache
           key: syncthing-${{ runner.os }}-${{ hashFiles('crates/engine/src/pin.rs') }}
-      - run: cargo fmt --all --check
+      - if: runner.os == 'Linux'
+        run: cargo fmt --all --check
       - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo test
+      - run: cargo test --no-fail-fast
 
   web:
     if: ${{ !github.event.pull_request.draft }}
@@ -96,3 +102,4 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+

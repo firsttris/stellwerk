@@ -22,7 +22,7 @@ impl Store {
 
     /// Sets the password and logs out every session.
     pub async fn set_admin_password_hash(&self, hash: &str) -> Result<()> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.write().await?;
         sqlx::query(
             "INSERT INTO admin (id, password_hash) VALUES (1, ?) \
              ON CONFLICT (id) DO UPDATE SET password_hash = excluded.password_hash",
