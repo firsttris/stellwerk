@@ -74,7 +74,6 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
     ));
 
     let connect = async {
-        let mut last_applied = None;
         let mut pause = MIN_PAUSE;
         loop {
             let result = session::run(
@@ -82,7 +81,6 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
                 &mut config,
                 syncthing.client(),
                 &report,
-                &mut last_applied,
                 &mut status,
             )
             .await;

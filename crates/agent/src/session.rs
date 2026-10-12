@@ -34,14 +34,13 @@ pub enum End {
     Rejected(String),
 }
 
-/// Runs one connection until it closes. `last_applied` carries the applied revision across
-/// reconnects; `status` is the monitor's latest snapshot, sent on connecting and on change.
+/// Runs one connection until it closes. `status` is the monitor's latest snapshot, sent on
+/// connecting and on change.
 pub async fn run(
     data_dir: &Path,
     config: &mut AgentConfig,
     syncthing: &Client,
     report: &Report,
-    last_applied: &mut Option<u64>,
     status: &mut watch::Receiver<Snapshot>,
 ) -> anyhow::Result<End> {
     let url = config::ws_url(&config.server)?;
@@ -65,7 +64,6 @@ pub async fn run(
         agent_version: env!("CARGO_PKG_VERSION").to_string(),
         syncthing_version: report.syncthing_version.clone(),
         syncthing_id: DeviceId::new(&report.syncthing_id),
-        applied_revision: *last_applied,
     };
     send(&mut sink, &AgentMessage::Hello(hello)).await?;
 
@@ -84,7 +82,6 @@ pub async fn run(
                 }
                 Some(ServerMessage::DesiredState(state)) => {
                     let applied = apply(syncthing, &state).await;
-                    *last_applied = Some(applied.revision);
                     send(&mut sink, &AgentMessage::Applied(applied)).await?;
                 }
                 Some(ServerMessage::Waiting { fingerprint }) => {

@@ -73,9 +73,6 @@ pub struct Hello {
     pub agent_version: String,
     pub syncthing_version: String,
     pub syncthing_id: DeviceId,
-    /// The revision the agent applied last, if any.
-    #[serde(default)]
-    pub applied_revision: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -135,6 +132,19 @@ mod tests {
         });
         let json = serde_json::to_string(&applied).unwrap();
         assert_eq!(json, r#"{"type":"applied","revision":3,"errors":[]}"#);
+    }
+
+    #[test]
+    fn a_hello_with_fields_unknown_here_still_reads() {
+        // Agents up to v0.1.1 sent `applied_revision`, which nothing read.
+        let json = r#"{"type":"hello","public_key":"k","signature":"s","name":"laptop",
+            "os":"linux","agent_version":"0.1.1","syncthing_version":"v2",
+            "syncthing_id":"ID","applied_revision":7}"#;
+        let AgentMessage::Hello(hello) = serde_json::from_str(json).unwrap() else {
+            panic!("not a hello");
+        };
+        assert_eq!(hello.name, "laptop");
+        assert_eq!(hello.enrollment_code, None);
     }
 
     #[test]
