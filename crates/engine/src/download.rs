@@ -39,9 +39,8 @@ pub async fn ensure_syncthing(cache_dir: &Path) -> Result<PathBuf> {
         .map_err(|err| Error::Archive(err.to_string()))??;
     std::fs::create_dir_all(&dir).map_err(io_at(&dir))?;
     for (name, contents) in files {
-        write_atomically(&dir.join(name), &contents)?;
+        write_atomically(&dir.join(name), &contents, name == asset.binary)?;
     }
-    make_executable(&binary)?;
     Ok(binary)
 }
 
@@ -135,10 +134,14 @@ fn wanted_name(path: &str, prefix: &str, wanted: &[&'static str]) -> Option<&'st
     wanted.iter().copied().find(|w| *w == name)
 }
 
-/// Writes next to the target and renames, so a parallel test never sees half a binary.
-fn write_atomically(path: &Path, contents: &[u8]) -> Result<()> {
+/// Writes next to the target and renames, so a parallel test never sees half a binary, nor
+/// one that is not executable yet.
+fn write_atomically(path: &Path, contents: &[u8], executable: bool) -> Result<()> {
     let tmp = path.with_extension(format!("part-{}", std::process::id()));
     std::fs::write(&tmp, contents).map_err(io_at(&tmp))?;
+    if executable {
+        make_executable(&tmp)?;
+    }
     std::fs::rename(&tmp, path).map_err(io_at(path))
 }
 
@@ -165,6 +168,22 @@ mod tests {
             check_sha256("x", b"x", empty),
             Err(Error::Checksum { .. })
         ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_binary_is_executable_as_soon_as_it_has_its_name() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let binary = dir.path().join("syncthing");
+        write_atomically(&binary, b"#!", true).unwrap();
+        let mode = std::fs::metadata(&binary).unwrap().permissions().mode();
+        assert_eq!(mode & 0o111, 0o111);
+        assert_eq!(
+            std::fs::read_dir(dir.path()).unwrap().count(),
+            1,
+            "no part file left"
+        );
     }
 
     #[test]
