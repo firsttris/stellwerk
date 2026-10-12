@@ -99,7 +99,7 @@ async fn serve(data_dir: PathBuf, serve: Serve) -> anyhow::Result<()> {
         lan_pairing: serve.lan_pairing,
     };
     let listener = tokio::net::TcpListener::bind(serve.listen).await?;
-    let running = start(&options, listener).await?;
+    let mut running = start(&options, listener).await?;
     let announced = serve
         .lan_pairing
         .then(|| announce(serve.listen.port(), serve.public_url.as_deref()))
@@ -113,12 +113,20 @@ async fn serve(data_dir: PathBuf, serve: Serve) -> anyhow::Result<()> {
     if running.app.store().admin_password_hash().await?.is_none() {
         tracing::warn!("no admin password yet: run `stellwerk set-password` to log in");
     }
-    shutdown_signal().await;
-    tracing::info!("shutting down");
+    let hub_exit = tokio::select! {
+        () = shutdown_signal() => None,
+        how = running.hub_exited() => Some(how),
+    };
     if let Some(daemon) = announced {
         let _ = daemon.shutdown();
     }
-    running.stop().await
+    match hub_exit {
+        None => {
+            tracing::info!("shutting down");
+            running.stop().await
+        }
+        Some(how) => anyhow::bail!("the hub Syncthing exited ({how})"),
+    }
 }
 
 async fn fetch_syncthing(dir: &std::path::Path) -> anyhow::Result<()> {

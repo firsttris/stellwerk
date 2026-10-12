@@ -113,6 +113,15 @@ pub async fn start(options: &Options, listener: TcpListener) -> anyhow::Result<R
 }
 
 impl Running {
+    /// Completes when the hub Syncthing has exited: it runs with `--no-restart`, so the Zentrale
+    /// should then exit too and leave the restart to its supervisor (Docker, systemd).
+    pub async fn hub_exited(&mut self) -> String {
+        self.hub
+            .exited()
+            .await
+            .map_or_else(|err| err.to_string(), |status| status.to_string())
+    }
+
     /// Stops serving (open requests get [`SHUTDOWN_GRACE`] to finish), then the hub Syncthing.
     /// WebSocket sessions are no longer requests once upgraded; they end with the process.
     pub async fn stop(self) -> anyhow::Result<()> {

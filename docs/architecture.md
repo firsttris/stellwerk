@@ -262,6 +262,9 @@ seconds and counts the connection as lost when nothing at all came back for 90 s
 link that died silently (suspend, NAT timeout) is noticed. A lost connection is retried after
 1 second, doubling up to 30 seconds; after `rejected` it waits a minute. Syncthing keeps running
 while the Zentrale is unreachable, so syncing with the hub goes on with the last applied state.
+Syncthing runs with `--no-restart`: if it exits (a crash, or a restart asked for over its API),
+the agent exits with an error and the service manager starts both again. The Zentrale does the
+same with the hub Syncthing and leaves the restart to Docker or systemd.
 
 Its Syncthing listens on a random port on all interfaces, with discovery, relays and NAT
 traversal off: the device dials the hub at the address from the desired state, and the hub,

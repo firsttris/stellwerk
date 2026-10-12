@@ -56,18 +56,19 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
             discovery: false,
         },
     };
-    let syncthing = start(&spawn).await?;
+    let mut syncthing = start(&spawn).await?;
+    let client = syncthing.client().clone();
     let report = Report {
         name: options.name.clone().unwrap_or_else(host_name),
         os: std::env::consts::OS.to_string(),
-        syncthing_id: syncthing.client().my_id().await?,
+        syncthing_id: client.my_id().await?,
         syncthing_version: SYNCTHING_VERSION.to_string(),
     };
     tracing::info!(id = %report.syncthing_id, "Syncthing running");
 
     let (snapshots, mut status) = watch::channel(Snapshot::default());
     let monitor = tokio::spawn(monitor::run(
-        syncthing.client().clone(),
+        client.clone(),
         monitor::Options::default(),
         snapshots,
         None,
@@ -80,7 +81,7 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
             let result = session::run(
                 data_dir,
                 &mut config,
-                syncthing.client(),
+                &client,
                 &report,
                 &mut status,
                 session::HEARTBEAT,
@@ -108,11 +109,19 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
             tokio::time::sleep(wait).await;
         }
     };
-    tokio::select! {
-        () = connect => {}
-        () = shutdown => {}
-    }
+    // Syncthing runs with --no-restart: when it exits, the agent exits with an error and the
+    // service manager (systemd Restart=on-failure, launchd KeepAlive, the task's
+    // RestartOnFailure) starts both again, instead of the agent reporting a dead Syncthing.
+    let exited = tokio::select! {
+        () = connect => None,
+        () = shutdown => None,
+        status = syncthing.exited() => Some(status),
+    };
     monitor.abort();
+    if let Some(status) = exited {
+        let how = status.map_or_else(|err| err.to_string(), |status| status.to_string());
+        anyhow::bail!("Syncthing exited ({how})");
+    }
     syncthing.stop().await?;
     Ok(())
 }
