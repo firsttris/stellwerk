@@ -21,7 +21,7 @@ how a release is made. The rules for changes are in
 
 ## Prerequisites
 
-- Rust stable (the workspace needs at least 1.85, edition 2024)
+- Rust stable (the workspace needs at least 1.94, edition 2024)
 - Node 22 and pnpm (`corepack enable`)
 - for the docs: Python and `pip install -r requirements-docs.txt`
 
