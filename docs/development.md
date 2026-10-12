@@ -94,7 +94,7 @@ discovery, no relays.
 |---|---|---|
 | `ci.yml` | every push to `main` and pull request (not for docs only) | Rust: fmt, clippy and tests on Linux, Windows and macOS; the service smoke test on all three; web checks; E2E in the Playwright image; the Docker image builds |
 | `agents.yml` | from `release.yml`, or by hand | the agent for every platform; on Windows also the installer and its silent install/uninstall test; `SHA256SUMS` |
-| `docs.yml` | pushes to `main` that touch `docs/`, `mkdocs.yml` or `requirements-docs.txt` | builds the docs and publishes them to GitHub Pages |
+| `docs.yml` | pushes to `main` and pull requests that touch `docs/`, `mkdocs.yml` or `requirements-docs.txt` | builds the docs with `mkdocs build --strict`; on `main` also publishes them to GitHub Pages |
 | `screenshots.yml` | by hand: **Actions → Update screenshots** | renders the pictures in `docs/` from the demo data and commits them |
 | `bump.yml` | by hand: **Actions → Bump version** | raises the version and tags it, which starts `release.yml` |
 | `release.yml` | a tag `vX.Y.Z`, or by hand | CI, agents, the multi-arch image on Docker Hub and GHCR, the GitHub release with the agents |
