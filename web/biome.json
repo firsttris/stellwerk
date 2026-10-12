@@ -1,7 +1,14 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["**", "!dist", "!dist-demo", "!src/routeTree.gen.ts"]
+    "includes": [
+      "**",
+      "!dist",
+      "!dist-demo",
+      "!src/routeTree.gen.ts",
+      "!src/paraglide",
+      "!project.inlang"
+    ]
   },
   "formatter": {
     "indentStyle": "space",

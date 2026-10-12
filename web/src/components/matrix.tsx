@@ -5,7 +5,8 @@ import { useState } from "react";
 import { api } from "../api";
 import { refresh } from "../api/queries";
 import type { Live, Overview } from "../api/types";
-import { deviceStatus, nowSeconds, plural } from "../lib/format";
+import { deviceStatus, nowSeconds } from "../lib/format";
+import { byCount } from "../lib/i18n";
 import { completion, folderBadge, folderSize } from "../lib/live";
 import {
   type CellMode,
@@ -15,12 +16,13 @@ import {
   type Draft,
   draftChanges,
   isWaiting,
-  MODE_LABEL,
-  MODE_LONG,
   matrixDevices,
+  modeLabel,
+  modeLong,
   offlineChanges,
 } from "../lib/matrix";
 import { cn } from "../lib/utils";
+import { m } from "../paraglide/messages.js";
 import { DeviceIcon, StatusDot } from "./device-icon";
 import { Button } from "./ui/button";
 import { Badge, Card } from "./ui/card";
@@ -54,10 +56,10 @@ export function Legend() {
             <ModeIcon mode={mode} />
           </span>
           {mode === "sendOnly"
-            ? "Nur senden"
+            ? m.mode_legend_send()
             : mode === "receiveOnly"
-              ? "Nur empfangen"
-              : MODE_LABEL[mode]}
+              ? m.mode_legend_receive()
+              : modeLabel(mode)}
         </span>
       ))}
     </div>
@@ -79,8 +81,13 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
     onSuccess: async () => {
       setToast(
         offline > 0
-          ? `Angewendet. ${changes.length - offline} sofort übertragen, ${offline} ${offline === 1 ? "wartet" : "warten"} auf Offline-Geräte.`
-          : "Angewendet. Alle Geräte haben die neue Konfiguration.",
+          ? byCount(
+              offline,
+              () => m.matrix_applied_waiting_one({ now: changes.length - offline }),
+              () =>
+                m.matrix_applied_waiting_other({ now: changes.length - offline, waiting: offline }),
+            )
+          : m.matrix_applied_all(),
       );
       await refresh(queryClient);
       setDraft(new Map());
@@ -92,12 +99,9 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
         <div className="flex flex-col gap-1">
           <h2 id="matrix-title" className="text-base font-semibold">
-            Freigaben
+            {m.matrix_title()}
           </h2>
-          <p className="text-[13px] text-muted-foreground">
-            Klick auf eine Zelle wechselt den Modus. Offline-Geräte bekommen die Änderung, sobald
-            sie wieder online sind.
-          </p>
+          <p className="text-[13px] text-muted-foreground">{m.matrix_hint()}</p>
         </div>
         <Legend />
       </div>
@@ -108,23 +112,23 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
             <span className="size-2 rounded-full bg-info-accent" />
             <span>
               <strong className="font-semibold">
-                {changes.length === 1
-                  ? "1 ungespeicherte Änderung."
-                  : `${changes.length} ungespeicherte Änderungen.`}
+                {byCount(changes.length, m.matrix_unsaved_one, () =>
+                  m.matrix_unsaved_other({ count: changes.length }),
+                )}
               </strong>{" "}
               {offline === 0
-                ? "Wird sofort auf allen betroffenen Geräten angewendet."
-                : offline === 1
-                  ? "1 davon betrifft ein Offline-Gerät und wird nachgeholt."
-                  : `${offline} davon betreffen Offline-Geräte und werden nachgeholt.`}
+                ? m.matrix_applies_now()
+                : byCount(offline, m.matrix_offline_one, () =>
+                    m.matrix_offline_other({ count: offline }),
+                  )}
             </span>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setDraft(new Map())}>
-              Verwerfen
+              {m.matrix_discard()}
             </Button>
             <Button size="sm" onClick={() => apply.mutate()} disabled={apply.isPending}>
-              Anwenden
+              {m.matrix_apply()}
             </Button>
           </div>
         </div>
@@ -142,14 +146,12 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
       )}
 
       {overview.folders.length === 0 ? (
-        <p className="px-5 py-10 text-center text-muted-foreground">
-          Noch keine Ordner. Leg mit „Neuer Ordner“ den ersten an.
-        </p>
+        <p className="px-5 py-10 text-center text-muted-foreground">{m.matrix_no_folders()}</p>
       ) : (
         <div className="overflow-x-auto">
           <table
             className="w-full min-w-fit border-collapse text-left"
-            aria-label="Freigabe-Matrix"
+            aria-label={m.matrix_label()}
           >
             <colgroup>
               <col className="min-w-[220px]" />
@@ -164,16 +166,16 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
                   scope="col"
                   className="px-5 py-3 align-bottom text-xs font-medium text-muted-foreground"
                 >
-                  Ordner
+                  {m.matrix_folder_column()}
                 </th>
                 <th scope="col" className="border-l border-muted px-2.5 py-3 font-normal">
                   <div className="flex items-center gap-1.5 font-medium">
                     <Database className="size-3.5" aria-hidden="true" />
-                    <span className="font-mono text-[13px]">Server</span>
+                    <span className="font-mono text-[13px]">{m.server()}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
                     <StatusDot online />
-                    Hub · immer online
+                    {m.matrix_hub_status()}
                   </div>
                 </th>
                 {devices.map((device) => (
@@ -214,17 +216,19 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
                         </div>
                         <span className="text-xs text-muted-foreground">
                           {folderSize(live, folder.id) ??
-                            `auf ${plural(holders, "Gerät", "Geräten")} und dem Server`}
+                            byCount(holders, m.matrix_on_devices_one, () =>
+                              m.matrix_on_devices_other({ count: holders }),
+                            )}
                         </span>
                       </div>
                     </th>
                     <td className="border-l border-muted p-2">
                       <div
                         className="flex h-11 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-muted text-[13px] font-medium"
-                        title={`${folder.label} auf dem Server: immer gespeichert`}
+                        title={m.matrix_hub_cell_title({ folder: folder.label })}
                       >
                         <Database className="size-3.5" aria-hidden="true" />
-                        Speichert
+                        {m.matrix_hub_cell()}
                       </div>
                     </td>
                     {devices.map((device) => {
@@ -237,7 +241,11 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
                         !changed && !waiting && mode !== "off" && device.online && percent < 100
                           ? Math.floor(percent)
                           : undefined;
-                      const label = `${folder.label} auf ${device.name}: ${MODE_LONG[mode]}. Klicken zum Ändern.`;
+                      const label = m.matrix_cell_label({
+                        folder: folder.label,
+                        device: device.name,
+                        mode: modeLong(mode),
+                      });
                       return (
                         <td key={device.id} className="border-l border-muted p-2">
                           <button
@@ -256,7 +264,7 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
                             )}
                           >
                             <ModeIcon mode={mode} />
-                            <span>{MODE_LABEL[mode]}</span>
+                            <span>{modeLabel(mode)}</span>
                             {progress !== undefined && (
                               <span className="absolute -top-2 -right-1.5 rounded-full border border-info-border bg-background px-1.5 text-[10px] font-medium text-info-foreground tabular-nums dark:text-info-accent">
                                 {progress} %
@@ -265,7 +273,7 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
                             {waiting && (
                               <span className="absolute -top-2 -right-1.5 inline-flex items-center gap-0.5 rounded-full border border-info-border bg-background px-1.5 text-[10px] font-medium text-info-foreground dark:text-info-accent">
                                 <Clock className="size-2.5" strokeWidth={2.6} aria-hidden="true" />
-                                wartet
+                                {m.matrix_waiting()}
                               </span>
                             )}
                           </button>
@@ -281,8 +289,7 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
       )}
       <div className="flex items-center gap-2 bg-subtle px-5 py-3 text-xs text-muted-foreground">
         <Database className="size-3.5" aria-hidden="true" />
-        Der Server hält von jedem Ordner eine vollständige Kopie mit Versionen. Darüber laufen
-        Geräte, die nie gleichzeitig online sind.
+        {m.matrix_footer()}
       </div>
     </Card>
   );

@@ -1,4 +1,5 @@
 import type { Device, Mode, Overview, ShareChange } from "../api/types";
+import { m } from "../paraglide/messages.js";
 
 // The folder × device matrix as data: what is stored, what the draft changes, what "Apply"
 // sends. Pure functions, tested without React.
@@ -8,19 +9,21 @@ export type CellMode = Mode | "off";
 /** A click moves a cell one step on. */
 export const CYCLE: readonly CellMode[] = ["off", "sendReceive", "sendOnly", "receiveOnly"];
 
-export const MODE_LABEL: Record<CellMode, string> = {
-  off: "Aus",
-  sendReceive: "Beides",
-  sendOnly: "Senden",
-  receiveOnly: "Empfangen",
-};
+export const modeLabel = (mode: CellMode): string =>
+  ({
+    off: m.mode_off,
+    sendReceive: m.mode_both,
+    sendOnly: m.mode_send,
+    receiveOnly: m.mode_receive,
+  })[mode]();
 
-export const MODE_LONG: Record<CellMode, string> = {
-  off: "aus",
-  sendReceive: "senden und empfangen",
-  sendOnly: "nur senden",
-  receiveOnly: "nur empfangen",
-};
+export const modeLong = (mode: CellMode): string =>
+  ({
+    off: m.mode_long_off,
+    sendReceive: m.mode_long_both,
+    sendOnly: m.mode_long_send,
+    receiveOnly: m.mode_long_receive,
+  })[mode]();
 
 /** Changed cells only, by [`cellKey`]. */
 export type Draft = ReadonlyMap<string, CellMode>;

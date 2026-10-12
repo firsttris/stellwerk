@@ -22,6 +22,7 @@ import { ago, nowSeconds, osLabel } from "../../lib/format";
 import { deviceSummary, waitingChanges } from "../../lib/live";
 import { isWaiting } from "../../lib/matrix";
 import { cn } from "../../lib/utils";
+import { m } from "../../paraglide/messages.js";
 
 export const Route = createFileRoute("/_app/devices")({ component: Devices });
 
@@ -48,27 +49,27 @@ function Devices() {
   return (
     <>
       <PageHeader
-        title="Geräte"
-        description="Jedes Gerät führt nur einen kleinen Agent aus. Alles andere stellst du hier ein."
+        title={m.devices_title()}
+        description={m.devices_description()}
         actions={<PairDialog variant="default" />}
       />
       <div className="flex flex-wrap items-center gap-3">
         <label className="relative flex min-w-[240px] flex-1 items-center">
-          <span className="sr-only">Geräte durchsuchen</span>
+          <span className="sr-only">{m.devices_search()}</span>
           <Search
             className="pointer-events-none absolute left-3 size-4 text-muted-foreground"
             aria-hidden="true"
           />
           <input
             type="search"
-            placeholder="Geräte durchsuchen"
+            placeholder={m.devices_search()}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-10 w-full rounded-md border border-border bg-background pr-3 pl-9"
           />
         </label>
         <fieldset className="flex gap-1 rounded-lg bg-muted p-1">
-          <legend className="sr-only">Filter</legend>
+          <legend className="sr-only">{m.devices_filter()}</legend>
           {(["all", "online", "offline"] as const).map((f) => (
             <button
               key={f}
@@ -82,7 +83,11 @@ function Devices() {
                   : "text-zinc-700 dark:text-zinc-300",
               )}
             >
-              {{ all: "Alle", online: "Online", offline: "Offline" }[f]} {counts[f]}
+              {{
+                all: m.devices_filter_all,
+                online: m.devices_filter_online,
+                offline: m.devices_filter_offline,
+              }[f]({ count: counts[f] })}
             </button>
           ))}
         </fieldset>
@@ -114,7 +119,7 @@ function DeviceTable({
     () => [
       {
         id: "device",
-        header: "Gerät",
+        header: () => m.devices_column_device(),
         accessorFn: (d) => `${d.name} ${osLabel(d.os)}`,
         cell: ({ row: { original: d } }) => (
           <div className="flex items-center gap-3">
@@ -130,16 +135,20 @@ function DeviceTable({
       },
       {
         id: "status",
-        header: "Status",
+        header: () => m.devices_column_status(),
         cell: ({ row: { original: d } }) => (
           <div className="flex flex-col gap-0.5">
             <span className="inline-flex items-center gap-2 font-medium">
               <StatusDot online={d.online} />
-              {!d.approved ? "Gesperrt" : d.online ? "Online" : "Offline"}
+              {!d.approved
+                ? m.device_blocked()
+                : d.online
+                  ? m.devices_online()
+                  : m.device_offline()}
             </span>
             <span className="text-xs text-muted-foreground">
               {isWaiting(d, overview.revision) && waitingChanges(overview, live, d.id) === 0
-                ? "Neue Konfiguration wartet"
+                ? m.devices_config_waiting()
                 : deviceSummary(overview, live, d)}
             </span>
           </div>
@@ -147,18 +156,22 @@ function DeviceTable({
       },
       {
         id: "folders",
-        header: "Ordner",
+        header: () => m.devices_column_folders(),
         cell: ({ row: { original: d } }) => folderCount(overview, d),
       },
       {
         id: "seen",
-        header: "Zuletzt gesehen",
+        header: () => m.devices_column_seen(),
         cell: ({ row: { original: d } }) =>
-          d.online ? "gerade eben" : d.lastSeen === null ? "nie" : ago(d.lastSeen, now),
+          d.online
+            ? m.time_ago_just_now()
+            : d.lastSeen === null
+              ? m.devices_never()
+              : ago(d.lastSeen, now),
       },
       {
         id: "agent",
-        header: "Agent",
+        header: () => m.devices_column_agent(),
         cell: ({ row: { original: d } }) => (
           <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{d.agentVersion}</span>
         ),
@@ -180,7 +193,7 @@ function DeviceTable({
   });
 
   return (
-    <Card aria-label="Geräteliste" className="overflow-x-auto">
+    <Card aria-label={m.devices_list()} className="overflow-x-auto">
       <table className="w-full min-w-[760px] text-left">
         <thead className="border-b border-border bg-subtle text-xs text-muted-foreground">
           {table.getHeaderGroups().map((group) => (
@@ -201,7 +214,7 @@ function DeviceTable({
                   <Database className="size-[18px]" aria-hidden="true" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-mono font-medium">Server</span>
+                  <span className="font-mono font-medium">{m.server()}</span>
                   <span className="text-xs text-muted-foreground">{overview.hub.address}</span>
                 </div>
               </div>
@@ -209,12 +222,12 @@ function DeviceTable({
             <td className="px-4 py-3">
               <span className="inline-flex items-center gap-2 font-medium">
                 <StatusDot online />
-                Online
+                {m.devices_online()}
               </span>
-              <div className="text-xs text-muted-foreground">Hub, hält alle Ordner</div>
+              <div className="text-xs text-muted-foreground">{m.devices_hub_holds_all()}</div>
             </td>
             <td className="px-4 py-3">{overview.folders.length}</td>
-            <td className="px-4 py-3">gerade eben</td>
+            <td className="px-4 py-3">{m.time_ago_just_now()}</td>
             <td className="px-4 py-3" />
             <td className="px-4 py-3" />
           </tr>
@@ -246,15 +259,11 @@ function DeviceActions({ device }: { device: Device }) {
   });
 
   const rename = () => {
-    const name = window.prompt("Neuer Name", device.name)?.trim();
+    const name = window.prompt(m.devices_new_name(), device.name)?.trim();
     if (name && name !== device.name) update.mutate({ name });
   };
   const confirmRemove = () => {
-    if (
-      window.confirm(
-        `${device.name} entfernen? Das Gerät verliert alle Ordner; seine Dateien bleiben erhalten.`,
-      )
-    ) {
+    if (window.confirm(m.devices_remove_confirm({ device: device.name }))) {
       remove.mutate();
     }
   };
@@ -264,7 +273,7 @@ function DeviceActions({ device }: { device: Device }) {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <Button variant="ghost" size="icon" aria-label={`Aktionen für ${device.name}`}>
+        <Button variant="ghost" size="icon" aria-label={m.devices_actions({ device: device.name })}>
           <Ellipsis aria-hidden="true" />
         </Button>
       </DropdownMenu.Trigger>
@@ -274,16 +283,16 @@ function DeviceActions({ device }: { device: Device }) {
           className="z-50 min-w-44 rounded-md border border-border bg-background p-1 shadow-lg"
         >
           <DropdownMenu.Item className={item} onSelect={rename}>
-            Umbenennen
+            {m.devices_rename()}
           </DropdownMenu.Item>
           <DropdownMenu.Item
             className={item}
             onSelect={() => update.mutate({ approved: !device.approved })}
           >
-            {device.approved ? "Sperren" : "Entsperren"}
+            {device.approved ? m.devices_block() : m.devices_unblock()}
           </DropdownMenu.Item>
           <DropdownMenu.Item className={cn(item, "text-danger")} onSelect={confirmRemove}>
-            Entfernen …
+            {m.remove()}
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>

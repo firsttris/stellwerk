@@ -5,7 +5,8 @@ import { overviewQuery } from "../../../api/queries";
 import { PageHeader } from "../../../components/layout";
 import { NewFolderDialog } from "../../../components/new-folder-dialog";
 import { Card } from "../../../components/ui/card";
-import { plural } from "../../../lib/format";
+import { byCount } from "../../../lib/i18n";
+import { m } from "../../../paraglide/messages.js";
 
 export const Route = createFileRoute("/_app/folders/")({ component: Folders });
 
@@ -14,13 +15,13 @@ function Folders() {
   return (
     <>
       <PageHeader
-        title="Ordner"
-        description="Jeder Ordner liegt vollständig auf dem Server und auf den Geräten, die ihn bekommen."
+        title={m.folders_title()}
+        description={m.folders_description()}
         actions={<NewFolderDialog />}
       />
       <Card className="divide-y divide-muted">
         {overview?.folders.length === 0 && (
-          <p className="px-5 py-10 text-center text-muted-foreground">Noch keine Ordner.</p>
+          <p className="px-5 py-10 text-center text-muted-foreground">{m.folders_none()}</p>
         )}
         {overview?.folders.map((folder) => {
           const holders = overview.shares.filter((s) => s.folderId === folder.id).length;
@@ -37,8 +38,10 @@ function Folders() {
               <div className="flex flex-1 flex-col">
                 <span className="font-medium">{folder.label}</span>
                 <span className="text-xs text-muted-foreground">
-                  auf {plural(holders, "Gerät", "Geräten")} ·{" "}
-                  <span className="font-mono">{folder.syncthingFolderId}</span>
+                  {byCount(holders, m.folders_on_devices_one, () =>
+                    m.folders_on_devices_other({ count: holders }),
+                  )}{" "}
+                  · <span className="font-mono">{folder.syncthingFolderId}</span>
                 </span>
               </div>
               <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />

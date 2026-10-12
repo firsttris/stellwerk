@@ -11,19 +11,22 @@ import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Field, Input, Select } from "../../../components/ui/input";
 import { VersionsList } from "../../../components/versions-list";
-import { deviceStatus, nowSeconds, plural } from "../../../lib/format";
+import { deviceStatus, nowSeconds } from "../../../lib/format";
+import { byCount } from "../../../lib/i18n";
 import { completion, folderSize, formatCount } from "../../../lib/live";
 import { type CellMode, isWaiting, matrixDevices, storedMode } from "../../../lib/matrix";
 import { cn } from "../../../lib/utils";
+import { m } from "../../../paraglide/messages.js";
 
 const TABS = ["devices", "versions", "conflicts", "settings"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_LABEL: Record<Tab, string> = {
-  devices: "Geräte",
-  versions: "Versionen",
-  conflicts: "Konflikte",
-  settings: "Einstellungen",
-};
+const tabLabel = (tab: Tab): string =>
+  ({
+    devices: m.folder_tab_devices,
+    versions: m.folder_tab_versions,
+    conflicts: m.folder_tab_conflicts,
+    settings: m.folder_tab_settings,
+  })[tab]();
 
 export const Route = createFileRoute("/_app/folders/$folderId")({
   validateSearch: (search: Record<string, unknown>): { tab?: Tab } => ({
@@ -32,11 +35,11 @@ export const Route = createFileRoute("/_app/folders/$folderId")({
   component: FolderPage,
 });
 
-const OPTIONS: { value: CellMode; label: string }[] = [
-  { value: "sendReceive", label: "Senden & empfangen" },
-  { value: "sendOnly", label: "Nur senden" },
-  { value: "receiveOnly", label: "Nur empfangen" },
-  { value: "off", label: "Aus" },
+const options = (): { value: CellMode; label: string }[] => [
+  { value: "sendReceive", label: m.folder_option_both() },
+  { value: "sendOnly", label: m.mode_legend_send() },
+  { value: "receiveOnly", label: m.mode_legend_receive() },
+  { value: "off", label: m.mode_off() },
 ];
 
 function FolderPage() {
@@ -52,9 +55,9 @@ function FolderPage() {
   if (!folder) {
     return (
       <p className="text-muted-foreground">
-        Diesen Ordner gibt es nicht mehr.{" "}
+        {m.folder_gone()}{" "}
         <Link to="/folders" className="underline">
-          Zu den Ordnern
+          {m.folder_back()}
         </Link>
       </p>
     );
@@ -64,9 +67,12 @@ function FolderPage() {
 
   return (
     <>
-      <nav aria-label="Pfad" className="flex items-center gap-2 text-[13px] text-muted-foreground">
+      <nav
+        aria-label={m.folder_breadcrumb()}
+        className="flex items-center gap-2 text-[13px] text-muted-foreground"
+      >
         <Link to="/folders" className="hover:underline">
-          Ordner
+          {m.folders_title()}
         </Link>
         <span>/</span>
         <span className="text-foreground">{folder.label}</span>
@@ -78,12 +84,16 @@ function FolderPage() {
         <div className="flex flex-col gap-0.5">
           <h1 className="text-2xl font-semibold tracking-tight">{folder.label}</h1>
           <span className="text-[13px] text-muted-foreground">
-            auf {plural(holders, "Gerät", "Geräten")} und dem Server · Syncthing-ID{" "}
+            {byCount(holders, m.folder_meta_one, () => m.folder_meta_other({ count: holders }))}{" "}
             <span className="font-mono">{folder.syncthingFolderId}</span>
           </span>
         </div>
       </div>
-      <div role="tablist" aria-label="Ordnerbereiche" className="flex gap-1 border-b border-border">
+      <div
+        role="tablist"
+        aria-label={m.folder_tabs()}
+        className="flex gap-1 border-b border-border"
+      >
         {TABS.map((t) => (
           <button
             key={t}
@@ -96,7 +106,7 @@ function FolderPage() {
               tab === t ? "border-primary font-medium" : "border-transparent text-muted-foreground",
             )}
           >
-            {TAB_LABEL[t]}
+            {tabLabel(t)}
             {t === "conflicts" && conflicts.length > 0 && (
               <span className="ml-1.5 rounded-full bg-warn px-1.5 text-xs text-warn-foreground">
                 {conflicts.length}
@@ -111,10 +121,7 @@ function FolderPage() {
       {tab === "versions" && <VersionsList folderId={folder.id} />}
       {tab === "conflicts" &&
         (conflicts.length === 0 ? (
-          <Card className="p-5 text-muted-foreground">
-            Keine Konflikte. Wenn zwei Geräte dieselbe Datei ändern, bevor sie voneinander wissen,
-            erscheint sie hier.
-          </Card>
+          <Card className="p-5 text-muted-foreground">{m.folder_no_conflicts()}</Card>
         ) : (
           conflicts.map((conflict) => (
             <ConflictCard
@@ -179,34 +186,39 @@ function FolderDevices({
     }));
 
   return (
-    <Card aria-label="Geräte in diesem Ordner" className="overflow-x-auto">
+    <Card aria-label={m.folder_devices_label()} className="overflow-x-auto">
       <div className="min-w-[760px]">
         <div className="grid grid-cols-[minmax(160px,1fr)_220px_minmax(240px,2fr)_minmax(160px,1fr)] gap-3 border-b border-border bg-subtle px-5 py-3 text-xs font-medium text-muted-foreground">
-          <div>Gerät</div>
-          <div>Modus</div>
-          <div>Lokaler Pfad</div>
-          <div>Status</div>
+          <div>{m.folder_column_device()}</div>
+          <div>{m.folder_column_mode()}</div>
+          <div>{m.folder_column_path()}</div>
+          <div>{m.folder_column_status()}</div>
         </div>
         <div className="grid grid-cols-[minmax(160px,1fr)_220px_minmax(240px,2fr)_minmax(160px,1fr)] items-center gap-3 border-b border-muted px-5 py-3">
           <div className="flex flex-col">
             <span className="inline-flex items-center gap-1.5 font-mono font-medium">
               <Database className="size-3.5" aria-hidden="true" />
-              Server
+              {m.server()}
             </span>
             <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
               <StatusDot online /> Online
             </span>
           </div>
-          <Select disabled aria-label="Modus für Server" value="hub" onChange={() => undefined}>
-            <option value="hub">Speichert (Hub)</option>
+          <Select
+            disabled
+            aria-label={m.folder_mode_for({ device: m.server() })}
+            value="hub"
+            onChange={() => undefined}
+          >
+            <option value="hub">{m.folder_hub_mode()}</option>
           </Select>
           <Input
             disabled
-            aria-label="Pfad auf Server"
+            aria-label={m.folder_path_for({ device: m.server() })}
             value={`folders/${folder.syncthingFolderId}`}
           />
           <span className="text-[13px] text-muted-foreground">
-            Vollständige Kopie mit Versionen
+            {m.folder_hub_copy()}
             {folderSize(live, folder.id) ? ` · ${folderSize(live, folder.id)}` : ""}
           </span>
         </div>
@@ -225,40 +237,37 @@ function FolderDevices({
                 </span>
               </div>
               <Select
-                aria-label={`Modus für ${device.name}`}
+                aria-label={m.folder_mode_for({ device: device.name })}
                 value={row.mode}
                 onChange={(e) => set(device.id, { mode: e.target.value as CellMode })}
               >
-                {OPTIONS.map((o) => (
+                {options().map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
                 ))}
               </Select>
               <Input
-                aria-label={`Pfad auf ${device.name}`}
+                aria-label={m.folder_path_for({ device: device.name })}
                 value={off ? "" : row.path}
-                placeholder={off ? "Nicht auf diesem Gerät" : `~/Stellwerk/${folder.label}`}
+                placeholder={off ? m.folder_not_here() : `~/Stellwerk/${folder.label}`}
                 disabled={off}
                 onChange={(e) => set(device.id, { path: e.target.value })}
               />
               <span className="text-[13px] text-muted-foreground">
                 {off
-                  ? "Nicht auf diesem Gerät"
+                  ? m.folder_not_here()
                   : shareStatus(device, live, folder.id, overview.revision)}
               </span>
             </div>
           );
         })}
         {devices.length === 0 && (
-          <p className="px-5 py-6 text-muted-foreground">Noch keine Geräte gekoppelt.</p>
+          <p className="px-5 py-6 text-muted-foreground">{m.folder_no_devices()}</p>
         )}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 bg-subtle px-5 py-3 text-xs text-muted-foreground">
-        <span>
-          Ein neuer Pfad richtet den Ordner auf dem Gerät neu ein; vorhandene Dateien am neuen Ort
-          werden abgeglichen.
-        </span>
+        <span>{m.folder_new_path_hint()}</span>
         <div className="flex items-center gap-3">
           {save.error && <span className="text-danger">{save.error.message}</span>}
           <Button
@@ -266,7 +275,7 @@ function FolderDevices({
             disabled={changes.length === 0 || save.isPending}
             onClick={() => save.mutate()}
           >
-            Speichern
+            {m.save()}
           </Button>
         </div>
       </div>
@@ -278,17 +287,26 @@ function FolderDevices({
 function shareStatus(device: Device, live: Live | undefined, folderId: string, revision: number) {
   const done = completion(live, folderId, device.id);
   const missing = done?.needItems ?? 0;
-  const changes = `${formatCount(missing)} ${missing === 1 ? "Änderung" : "Änderungen"}`;
+  const count = formatCount(missing);
   if (!device.online) {
-    if (missing > 0) return `Offline · ${changes} warten auf dem Server`;
-    return isWaiting(device, revision)
-      ? "Wartet, bis das Gerät online ist"
-      : "Offline · vollständig";
+    if (missing > 0) {
+      return byCount(missing, m.share_offline_waiting_one, () =>
+        m.share_offline_waiting_other({ count }),
+      );
+    }
+    return isWaiting(device, revision) ? m.share_waiting_online() : m.share_offline_complete();
   }
   const error = live?.devices[device.id]?.folders[folderId]?.error;
-  if (error) return `Fehler: ${error}`;
-  if (done && done.percent < 100) return `Lädt ${changes} · ${Math.floor(done.percent)} %`;
-  return "Synchron";
+  if (error) return m.share_error({ error });
+  if (done && done.percent < 100) {
+    const percent = Math.floor(done.percent);
+    return byCount(
+      missing,
+      () => m.share_loading_one({ percent }),
+      () => m.share_loading_other({ count, percent }),
+    );
+  }
+  return m.share_in_sync();
 }
 
 function FolderSettings({ folder }: { folder: Folder }) {
@@ -318,16 +336,16 @@ function FolderSettings({ folder }: { folder: Folder }) {
   const ignoresChanged = ignoreLines.join("\n") !== folder.ignorePatterns.join("\n");
   const keep =
     folder.versioning.type === "staggered"
-      ? `${folder.versioning.max_age_days} Tage, gestaffelt`
-      : "keine";
+      ? m.settings_keep_staggered({ days: folder.versioning.max_age_days })
+      : m.settings_keep_none();
 
   return (
     <div className="flex flex-col gap-4">
       <Card className="flex flex-col gap-4 p-5">
-        <h2 className="text-base font-semibold">Name</h2>
+        <h2 className="text-base font-semibold">{m.name()}</h2>
         <form onSubmit={rename} className="flex flex-wrap gap-2">
           <Input
-            aria-label="Name des Ordners"
+            aria-label={m.settings_name_label()}
             className="max-w-sm"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
@@ -337,14 +355,14 @@ function FolderSettings({ folder }: { folder: Folder }) {
             variant="outline"
             disabled={!label.trim() || label === folder.label}
           >
-            Umbenennen
+            {m.settings_rename()}
           </Button>
         </form>
-        <p className="text-[13px] text-muted-foreground">Versionen auf dem Server: {keep}.</p>
+        <p className="text-[13px] text-muted-foreground">{m.settings_versions({ keep })}</p>
       </Card>
       <Card className="flex flex-col gap-3 p-5">
-        <h2 className="text-base font-semibold">Ignorieren</h2>
-        <Field label="Ein Muster pro Zeile, gilt auf allen Geräten und dem Server.">
+        <h2 className="text-base font-semibold">{m.settings_ignore()}</h2>
+        <Field label={m.settings_ignore_label()}>
           {(id) => (
             <textarea
               id={id}
@@ -363,36 +381,32 @@ function FolderSettings({ folder }: { folder: Folder }) {
             rel="noreferrer"
             className="text-[13px] text-muted-foreground underline"
           >
-            Syntax der Muster
+            {m.settings_ignore_syntax()}
           </a>
           <Button
             variant="outline"
             disabled={!ignoresChanged || update.isPending}
             onClick={() => update.mutate({ ignorePatterns: ignoreLines })}
           >
-            Muster speichern
+            {m.settings_ignore_save()}
           </Button>
         </div>
         {update.error && <p className="text-sm text-danger">{update.error.message}</p>}
       </Card>
       <Card className="flex flex-wrap items-center justify-between gap-4 border-danger/30 p-5">
         <div className="flex flex-col gap-0.5">
-          <span className="font-medium">Ordner entfernen</span>
-          <span className="text-[13px] text-muted-foreground">
-            Stoppt den Sync überall. Dateien auf den Geräten und dem Server bleiben erhalten.
-          </span>
+          <span className="font-medium">{m.settings_remove()}</span>
+          <span className="text-[13px] text-muted-foreground">{m.settings_remove_hint()}</span>
         </div>
         <Button
           variant="destructive"
           onClick={() => {
-            if (
-              window.confirm(`„${folder.label}“ überall entfernen? Die Dateien bleiben erhalten.`)
-            ) {
+            if (window.confirm(m.settings_remove_confirm({ folder: folder.label }))) {
               remove.mutate();
             }
           }}
         >
-          Entfernen …
+          {m.remove()}
         </Button>
       </Card>
     </div>

@@ -6,6 +6,7 @@ import { api } from "../api";
 import { sessionQuery } from "../api/queries";
 import { Button } from "../components/ui/button";
 import { Field, Input } from "../components/ui/input";
+import { m } from "../paraglide/messages.js";
 
 export const Route = createFileRoute("/login")({ component: Login });
 
@@ -41,11 +42,11 @@ function Login() {
         </div>
         {session && !session.passwordSet ? (
           <p className="text-sm text-muted-foreground">
-            Noch kein Passwort gesetzt. Auf dem Server einmal{" "}
-            <code className="font-mono">stellwerk set-password</code> ausführen.
+            {m.login_no_password_before()} <code className="font-mono">stellwerk set-password</code>
+            {m.login_no_password_after()}
           </p>
         ) : (
-          <Field label="Passwort">
+          <Field label={m.login_password()}>
             {(id) => (
               <Input
                 id={id}
@@ -60,7 +61,7 @@ function Login() {
         )}
         {login.error && <p className="text-sm text-danger">{login.error.message}</p>}
         <Button type="submit" disabled={!password || login.isPending}>
-          Anmelden
+          {m.login_submit()}
         </Button>
       </form>
     </main>

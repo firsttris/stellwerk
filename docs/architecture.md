@@ -110,6 +110,10 @@ of the Zentrale embeds `web/dist`; paths outside `/api` fall back to `index.html
   side; rename, ignore patterns (one per line, on every device and the hub), remove.
 - **Konflikte**: every conflict of every folder in one list.
 
+German and English with Paraglide: messages in `web/messages/{de,en}.json`, compiled to typed
+functions; the language follows the browser and can be switched in the sidebar (kept in local
+storage).
+
 Live updates come through `/api/ws` (see above); polling every 30 seconds is only the fallback.
 `src/api/types.ts` checks every answer with Zod.
 `pnpm dev:demo` runs the UI on fixtures (`src/demo/`) without a Zentrale. The Playwright tests in
@@ -197,5 +201,5 @@ configuration; removing a folder leaves its files alone.
 |---|---|---|
 | 0 · Spike ✅ | engine starts Syncthing, reconciler applies a fixed desired state | integration test "file from A arrives on B" is green |
 | 1 · MVP ✅ | Zentrale with SQLite, agent over WebSocket, pairing with a one-time code, hub Syncthing, matrix and device list in the UI | 3-node test with an offline device green (`crates/zentrale/tests/phase1_gate.rs`), own devices one week in daily use (open) |
-| 2 · Comfort | live status, activity, conflicts on the hub, versions, ignore patterns, German and English | E2E green, conflict and restore in the integration test |
+| 2 · Comfort ✅ | live status, activity, conflicts on the hub, versions, ignore patterns, German and English | E2E green, conflict and restore in the integration test (`crates/zentrale/tests/phase2_gate.rs`) |
 | 3 · Distribution | installers, LAN discovery, self-update with signature, Docker image and Quadlet | v1.0 published through `release.yml` |

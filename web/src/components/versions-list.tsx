@@ -3,11 +3,16 @@ import { History, Search } from "lucide-react";
 import { useState } from "react";
 import { api } from "../api";
 import { eventsQuery } from "../api/queries";
+import { intlLocale } from "../lib/i18n";
 import { formatBytes } from "../lib/live";
+import { m } from "../paraglide/messages.js";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 
-const DATE = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" });
+const formatDate = (iso: string) =>
+  new Intl.DateTimeFormat(intlLocale(), { dateStyle: "medium", timeStyle: "short" }).format(
+    new Date(iso),
+  );
 
 /** Archived versions on the server, per file; restoring keeps the current file as a version. */
 export function VersionsList({ folderId }: { folderId: string }) {
@@ -35,19 +40,16 @@ export function VersionsList({ folderId }: { folderId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-[13px] text-muted-foreground">
-        Wenn ein Gerät eine Datei ändert oder löscht, hebt der Server die vorige Fassung auf.
-        Wiederherstellen legt die aktuelle Fassung vorher ebenfalls dort ab.
-      </p>
+      <p className="text-[13px] text-muted-foreground">{m.versions_explained()}</p>
       <label className="relative flex items-center">
-        <span className="sr-only">Versionen durchsuchen</span>
+        <span className="sr-only">{m.versions_search_label()}</span>
         <Search
           className="pointer-events-none absolute left-3 size-4 text-muted-foreground"
           aria-hidden="true"
         />
         <input
           type="search"
-          placeholder="Datei suchen"
+          placeholder={m.versions_search()}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="h-10 w-full rounded-md border border-border bg-background pr-3 pl-9"
@@ -55,13 +57,15 @@ export function VersionsList({ folderId }: { folderId: string }) {
       </label>
       {restored && (
         <p className="rounded-md border border-ok-border bg-ok-surface px-3 py-2 text-ok-foreground">
-          {restored} wiederhergestellt. Die Geräte bekommen die Datei beim nächsten Abgleich.
+          {m.versions_restored({ path: restored })}
         </p>
       )}
       {restore.error && <p className="text-sm text-danger">{restore.error.message}</p>}
       {versions.error && <p className="text-sm text-danger">{versions.error.message}</p>}
       {versions.data && files.length === 0 && (
-        <p className="text-muted-foreground">Keine Versionen{search ? " zu dieser Suche" : ""}.</p>
+        <p className="text-muted-foreground">
+          {search ? m.versions_none_search() : m.versions_none()}
+        </p>
       )}
       <Card className="divide-y divide-muted">
         {files.map((file) => (
@@ -77,21 +81,24 @@ export function VersionsList({ folderId }: { folderId: string }) {
                   className="flex flex-wrap items-center justify-between gap-2 pl-6 text-[13px]"
                 >
                   <span>
-                    {DATE.format(new Date(version.versionTime))}
+                    {formatDate(version.versionTime)}
                     <span className="text-muted-foreground"> · {formatBytes(version.size)}</span>
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
                     disabled={restore.isPending}
-                    aria-label={`${file.path} vom ${DATE.format(new Date(version.versionTime))} wiederherstellen`}
+                    aria-label={m.versions_restore_label({
+                      path: file.path,
+                      date: formatDate(version.versionTime),
+                    })}
                     onClick={() => {
-                      if (window.confirm(`${file.path} auf diese Fassung zurücksetzen?`)) {
+                      if (window.confirm(m.versions_restore_confirm({ path: file.path }))) {
                         restore.mutate({ path: file.path, versionTime: version.versionTime });
                       }
                     }}
                   >
-                    Wiederherstellen
+                    {m.versions_restore()}
                   </Button>
                 </li>
               ))}

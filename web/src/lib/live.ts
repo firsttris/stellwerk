@@ -1,14 +1,13 @@
 import type { Device, Live, Overview } from "../api/types";
+import { m } from "../paraglide/messages.js";
+import { byCount, intlLocale } from "./i18n";
 
 // What the live state means for a folder or a device, in the UI's words. Pure functions.
 
 export type Tone = "neutral" | "ok" | "info" | "warn";
 export type Badge = { tone: Tone; text: string };
 
-const NUMBER = new Intl.NumberFormat("de-DE");
-const ONE_DECIMAL = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
-
-export const formatCount = (n: number) => NUMBER.format(n);
+export const formatCount = (n: number) => new Intl.NumberFormat(intlLocale()).format(n);
 
 /** "18,4 GB", "512 KB", "0 B". */
 export function formatBytes(bytes: number): string {
@@ -19,7 +18,8 @@ export function formatBytes(bytes: number): string {
     value /= 1000;
     unit++;
   }
-  return `${unit === 0 ? value : ONE_DECIMAL.format(value)} ${units[unit]}`;
+  const decimal = new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: 1 });
+  return `${unit === 0 ? value : decimal.format(value)} ${units[unit]}`;
 }
 
 /** How much of a folder a device has, from the hub's view; `undefined` if unknown. */
@@ -39,13 +39,13 @@ function holders(overview: Overview, folderId: string): Device[] {
 export function folderErrors(overview: Overview, live: Live | undefined, folderId: string) {
   const found: { device: string; message: string }[] = [];
   const hub = live?.hub.folders[folderId];
-  if (hub?.error) found.push({ device: "Server", message: hub.error });
+  if (hub?.error) found.push({ device: m.server(), message: hub.error });
   for (const device of holders(overview, folderId)) {
     const status = live?.devices[device.id]?.folders[folderId];
     if (!device.online || !status) continue;
     if (status.error) found.push({ device: device.name, message: status.error });
     else if (status.errors > 0)
-      found.push({ device: device.name, message: `${status.errors} Dateien nicht synchronisiert` });
+      found.push({ device: device.name, message: m.error_files_failed({ count: status.errors }) });
   }
   return found;
 }
@@ -55,29 +55,46 @@ export function folderBadge(overview: Overview, live: Live | undefined, folderId
   if (!live) return { tone: "neutral", text: "…" };
   const conflicts = live.conflicts[folderId]?.length ?? 0;
   if (conflicts > 0) {
-    return { tone: "warn", text: conflicts === 1 ? "1 Konflikt" : `${conflicts} Konflikte` };
+    return {
+      tone: "warn",
+      text: byCount(conflicts, m.badge_conflicts_one, () =>
+        m.badge_conflicts_other({ count: conflicts }),
+      ),
+    };
   }
-  if (folderErrors(overview, live, folderId).length > 0) return { tone: "warn", text: "Fehler" };
+  if (folderErrors(overview, live, folderId).length > 0) {
+    return { tone: "warn", text: m.badge_error() };
+  }
   const running = holders(overview, folderId)
     .filter((d) => d.online)
     .map((d) => completion(live, folderId, d.id)?.percent ?? 100)
     .filter((p) => p < 100);
   const hub = live.hub.folders[folderId];
   if (running.length > 0) {
-    return { tone: "info", text: `Läuft · ${Math.floor(Math.min(...running))} %` };
+    return {
+      tone: "info",
+      text: m.badge_running_percent({ percent: Math.floor(Math.min(...running)) }),
+    };
   }
   if (hub && (hub.state === "syncing" || hub.state === "scanning")) {
-    return { tone: "info", text: "Läuft" };
+    return { tone: "info", text: m.badge_running() };
   }
-  if (holders(overview, folderId).length === 0) return { tone: "neutral", text: "Nur Server" };
-  return { tone: "ok", text: "Synchron" };
+  if (holders(overview, folderId).length === 0) {
+    return { tone: "neutral", text: m.badge_server_only() };
+  }
+  return { tone: "ok", text: m.badge_in_sync() };
 }
 
 /** "48.210 Dateien · 18,4 GB" from the hub, which has every folder in full. */
 export function folderSize(live: Live | undefined, folderId: string): string | undefined {
   const hub = live?.hub.folders[folderId];
   if (!hub) return undefined;
-  return `${formatCount(hub.globalFiles)} ${hub.globalFiles === 1 ? "Datei" : "Dateien"} · ${formatBytes(hub.globalBytes)}`;
+  const size = formatBytes(hub.globalBytes);
+  return byCount(
+    hub.globalFiles,
+    () => m.folder_size_one({ size }),
+    () => m.folder_size_other({ count: formatCount(hub.globalFiles), size }),
+  );
 }
 
 /** Changes the hub holds for a device that it does not have yet, over all its folders. */
@@ -98,14 +115,18 @@ export function deviceProgress(overview: Overview, live: Live | undefined, devic
 
 /** The second line of a device's status. */
 export function deviceSummary(overview: Overview, live: Live | undefined, device: Device): string {
-  if (!device.approved) return "Bekommt keine Ordner";
+  if (!device.approved) return m.device_gets_no_folders();
   const waiting = waitingChanges(overview, live, device.id);
+  const count = formatCount(waiting);
   if (!device.online) {
-    return waiting > 0
-      ? `${formatCount(waiting)} ${waiting === 1 ? "Änderung wartet" : "Änderungen warten"} auf dem Server`
-      : "Alles liegt auf dem Server";
+    if (waiting === 0) return m.device_all_on_server();
+    return byCount(waiting, m.device_waiting_one, () => m.device_waiting_other({ count }));
   }
-  const progress = deviceProgress(overview, live, device.id);
-  if (progress === undefined) return "Synchron";
-  return `Lädt ${formatCount(waiting)} ${waiting === 1 ? "Änderung" : "Änderungen"} · ${progress} %`;
+  const percent = deviceProgress(overview, live, device.id);
+  if (percent === undefined) return m.device_in_sync();
+  return byCount(
+    waiting,
+    () => m.device_loading_one({ percent }),
+    () => m.device_loading_other({ count, percent }),
+  );
 }

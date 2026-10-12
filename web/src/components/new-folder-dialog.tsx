@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { api } from "../api";
 import { refresh } from "../api/queries";
+import { m } from "../paraglide/messages.js";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { Field, Input } from "./ui/input";
@@ -30,21 +31,18 @@ export function NewFolderDialog() {
       <DialogTrigger asChild>
         <Button>
           <Plus aria-hidden="true" />
-          Neuer Ordner
+          {m.new_folder()}
         </Button>
       </DialogTrigger>
-      <DialogContent
-        title="Neuer Ordner"
-        description="Der Server hält von jedem Ordner eine Kopie. Welche Geräte ihn bekommen, legst du danach in der Übersicht fest."
-      >
+      <DialogContent title={m.new_folder()} description={m.new_folder_description()}>
         <form onSubmit={submit} className="flex flex-col gap-4">
-          <Field label="Name">
+          <Field label={m.name()}>
             {(id) => (
               <Input
                 id={id}
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="z. B. Fotos"
+                placeholder={m.new_folder_placeholder()}
                 autoFocus
               />
             )}
@@ -52,10 +50,10 @@ export function NewFolderDialog() {
           {create.error && <p className="text-sm text-danger">{create.error.message}</p>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Abbrechen
+              {m.cancel()}
             </Button>
             <Button type="submit" disabled={!label.trim() || create.isPending}>
-              Anlegen
+              {m.create()}
             </Button>
           </div>
         </form>

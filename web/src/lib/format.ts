@@ -1,6 +1,8 @@
 import type { Device } from "../api/types";
+import { m } from "../paraglide/messages.js";
+import { byCount } from "./i18n";
 
-// Texts the UI builds from data. German for now; English comes with Paraglide.
+// Texts the UI builds from data, in the current language.
 
 const OS_LABEL: Record<string, string> = {
   linux: "Linux",
@@ -11,50 +13,50 @@ const OS_LABEL: Record<string, string> = {
 
 export const osLabel = (os: string) => OS_LABEL[os] ?? os;
 
+/** Splits seconds into the unit a person would use. */
+function unit(seconds: number): { unit: "minutes" | "hours" | "days"; count: number } {
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return { unit: "minutes", count: Math.max(1, minutes) };
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return { unit: "hours", count: hours };
+  return { unit: "days", count: Math.floor(hours / 24) };
+}
+
 /** "gerade eben", "vor 5 Min.", "vor 3 Std.", "vor 2 Tagen". */
 export function ago(at: number, now: number): string {
   const seconds = Math.max(0, now - at);
-  if (seconds < 60) return "gerade eben";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `vor ${minutes} Min.`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `vor ${hours} Std.`;
-  const days = Math.floor(hours / 24);
-  return days === 1 ? "vor 1 Tag" : `vor ${days} Tagen`;
+  if (seconds < 60) return m.time_ago_just_now();
+  const { unit: u, count } = unit(seconds);
+  if (u === "minutes") return m.time_ago_minutes({ count });
+  if (u === "hours") return m.time_ago_hours({ count });
+  return byCount(count, m.time_ago_day, () => m.time_ago_days({ count }));
 }
 
-/** "3 Tage", "5 Std.", for "offline for …". */
+/** "3 Tage", "5 Std.", for "offline · …". */
 export function duration(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${Math.max(1, minutes)} Min.`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} Std.`;
-  const days = Math.floor(hours / 24);
-  return days === 1 ? "1 Tag" : `${days} Tage`;
+  const { unit: u, count } = unit(seconds);
+  if (u === "minutes") return m.duration_minutes({ count });
+  if (u === "hours") return m.duration_hours({ count });
+  return byCount(count, m.duration_day, () => m.duration_days({ count }));
 }
 
-/** "seit 3 Tagen", "seit 1 Tag", "seit 5 Std.": dative after "seit". */
+/** "seit 3 Tagen", "seit 1 Tag", "seit 5 Std.". */
 export function since(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `seit ${Math.max(1, minutes)} Min.`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `seit ${hours} Std.`;
-  const days = Math.floor(hours / 24);
-  return days === 1 ? "seit 1 Tag" : `seit ${days} Tagen`;
+  const { unit: u, count } = unit(seconds);
+  if (u === "minutes") return m.since_minutes({ count });
+  if (u === "hours") return m.since_hours({ count });
+  return byCount(count, m.since_day, () => m.since_days({ count }));
 }
 
 /** The short status under a device's name. */
 export function deviceStatus(device: Device, now: number): string {
-  if (!device.approved) return "Gesperrt";
-  if (device.online) return `Online · ${osLabel(device.os)}`;
-  if (device.lastSeen === null) return "Offline";
-  return `Offline · ${duration(now - device.lastSeen)}`;
+  if (!device.approved) return m.device_blocked();
+  if (device.online) return m.device_online_os({ os: osLabel(device.os) });
+  if (device.lastSeen === null) return m.device_offline();
+  return m.device_offline_for({ duration: duration(now - device.lastSeen) });
 }
 
 export const nowSeconds = () => Math.floor(Date.now() / 1000);
-
-export const plural = (count: number, one: string, many: string) =>
-  `${count} ${count === 1 ? one : many}`;
 
 /** An activity entry in the UI's language; the stored text is the fallback. */
 export function describeEvent(
@@ -62,27 +64,31 @@ export function describeEvent(
   devices: readonly Device[],
   folders: readonly { id: string; label: string }[],
 ): string {
-  const name = devices.find((d) => d.id === event.deviceId)?.name ?? "Ein Gerät";
-  const folder = folders.find((f) => f.id === event.folderId)?.label ?? "einem Ordner";
+  const device = devices.find((d) => d.id === event.deviceId)?.name ?? m.event_someone();
+  const folder = folders.find((f) => f.id === event.folderId)?.label ?? m.event_some_folder();
   switch (event.kind) {
     case "paired":
-      return `${name} wurde gekoppelt`;
+      return m.event_paired({ device });
     case "online":
-      return `${name} ist online`;
+      return m.event_online({ device });
     case "offline":
-      return `${name} ist offline`;
+      return m.event_offline({ device });
     case "changes": {
       const count = Number(event.text);
-      return `${name} hat ${count === 1 ? "1 Datei" : `${count} Dateien`} in ${folder} geändert`;
+      return byCount(
+        count,
+        () => m.event_changes_one({ device, folder }),
+        () => m.event_changes_other({ device, folder, count }),
+      );
     }
     case "error":
-      return `Fehler auf ${name}: ${event.text}`;
+      return m.event_error({ device, text: event.text });
     case "conflict":
-      return `Konflikt in ${folder}: ${event.text}`;
+      return m.event_conflict({ folder, text: event.text });
     case "resolved":
-      return `Konflikt in ${folder} gelöst`;
+      return m.event_resolved({ folder });
     case "restored":
-      return `${event.text} in ${folder} wiederhergestellt`;
+      return m.event_restored({ folder, path: event.text });
     default:
       return event.text;
   }

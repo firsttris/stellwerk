@@ -2,6 +2,7 @@ import { X } from "lucide-react";
 import { Dialog as Primitive } from "radix-ui";
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "../../lib/utils";
+import { m } from "../../paraglide/messages.js";
 
 export const Dialog = Primitive.Root;
 export const DialogTrigger = Primitive.Trigger;
@@ -37,7 +38,7 @@ export function DialogContent({
           </div>
           <Primitive.Close
             className="-mt-1 -mr-2 grid size-10 cursor-pointer place-items-center rounded-md hover:bg-muted"
-            aria-label="Dialog schließen"
+            aria-label={m.dialog_close()}
           >
             <X className="size-4" />
           </Primitive.Close>

@@ -5,7 +5,9 @@ import { api } from "../api";
 import { overviewQuery, refresh } from "../api/queries";
 import type { Device } from "../api/types";
 import { osLabel } from "../lib/format";
+import { byCount } from "../lib/i18n";
 import { cn } from "../lib/utils";
+import { m } from "../paraglide/messages.js";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { Field, Input } from "./ui/input";
@@ -31,7 +33,7 @@ export function PairDialog({ variant = "outline" }: { variant?: "outline" | "def
       <DialogTrigger asChild>
         <Button variant={variant}>
           <Link2 aria-hidden="true" />
-          Gerät koppeln
+          {m.pair_device()}
         </Button>
       </DialogTrigger>
       {open && <PairDialogContent onDone={() => setOpen(false)} />}
@@ -59,10 +61,7 @@ function PairDialogContent({ onDone }: { onDone: () => void }) {
   const device = status.data?.device;
 
   return (
-    <DialogContent
-      title="Gerät koppeln"
-      description="Einmal auf dem neuen Gerät ausführen. Danach wird es nur noch hier verwaltet."
-    >
+    <DialogContent title={m.pair_device()} description={m.pair_description()}>
       {device ? (
         <NewDevice device={device} onDone={onDone} />
       ) : (
@@ -83,7 +82,7 @@ function Waiting({
 }) {
   const [os, setOs] = useState<Os>("linux");
   const [copied, setCopied] = useState(false);
-  const command = code ? pairCommand(os, window.location.origin, code) : "Code wird erzeugt …";
+  const command = code ? pairCommand(os, window.location.origin, code) : m.pair_code_pending();
 
   const copy = async () => {
     await navigator.clipboard?.writeText(command).catch(() => undefined);
@@ -94,11 +93,7 @@ function Waiting({
   return (
     <>
       <div className="flex flex-col gap-4">
-        <div
-          role="tablist"
-          aria-label="Betriebssystem"
-          className="flex gap-1 rounded-lg bg-muted p-1"
-        >
+        <div role="tablist" aria-label={m.pair_os()} className="flex gap-1 rounded-lg bg-muted p-1">
           {OS_TABS.map((tab) => (
             <button
               key={tab.id}
@@ -118,7 +113,7 @@ function Waiting({
           ))}
         </div>
         <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium">1. Agent installieren und koppeln</span>
+          <span className="text-sm font-medium">{m.pair_step_install()}</span>
           <div className="flex items-stretch gap-2 rounded-lg border border-border bg-subtle p-2 pl-3">
             <code
               className="min-w-0 flex-1 self-center font-mono text-[13px] break-all"
@@ -131,30 +126,26 @@ function Waiting({
               size="sm"
               onClick={copy}
               disabled={!code}
-              aria-label="Befehl kopieren"
+              aria-label={m.pair_copy_command()}
             >
               <Copy aria-hidden="true" />
-              {copied ? "Kopiert" : "Kopieren"}
+              {copied ? m.pair_copied() : m.pair_copy()}
             </Button>
           </div>
-          <span className="text-xs text-muted-foreground">
-            Der Code im Befehl ist 15 Minuten gültig und nur einmal verwendbar.
-          </span>
+          <span className="text-xs text-muted-foreground">{m.pair_code_valid()}</span>
           {error && <span className="text-sm text-danger">{error}</span>}
         </div>
         <div className="flex items-center gap-3 rounded-lg border border-dashed border-border-strong p-3">
           <span className="size-2.5 animate-pulse rounded-full bg-info-accent" />
           <div className="flex flex-col">
-            <span className="font-medium">2. Warte auf das Gerät …</span>
-            <span className="text-[13px] text-muted-foreground">
-              Es taucht hier automatisch auf, sobald der Befehl gelaufen ist.
-            </span>
+            <span className="font-medium">{m.pair_step_wait()}</span>
+            <span className="text-[13px] text-muted-foreground">{m.pair_wait_hint()}</span>
           </div>
         </div>
       </div>
       <div className="flex justify-end">
         <Button variant="outline" onClick={onCancel}>
-          Abbrechen
+          {m.cancel()}
         </Button>
       </div>
     </>
@@ -197,18 +188,18 @@ function NewDevice({ device, onDone }: { device: Device; onDone: () => void }) {
         <div className="flex items-center gap-3 rounded-lg border border-ok-border bg-ok-surface p-3 text-ok-foreground">
           <CircleCheck className="size-5 shrink-0" aria-hidden="true" />
           <div className="flex flex-col">
-            <span className="font-medium">Neues Gerät verbunden</span>
+            <span className="font-medium">{m.pair_connected()}</span>
             <span className="text-[13px]">
-              {osLabel(device.os)} · Agent {device.agentVersion} · Fingerprint{" "}
+              {m.pair_details({ os: osLabel(device.os), version: device.agentVersion })}{" "}
               <span className="font-mono">{device.fingerprint}</span>
             </span>
           </div>
         </div>
-        <Field label="Name">
+        <Field label={m.name()}>
           {(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} />}
         </Field>
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-medium">Welche Ordner soll es bekommen?</legend>
+          <legend className="mb-1 text-sm font-medium">{m.pair_which_folders()}</legend>
           {overview?.folders.map((folder) => (
             <label
               key={folder.id}
@@ -223,20 +214,20 @@ function NewDevice({ device, onDone }: { device: Device; onDone: () => void }) {
               <span className="flex-1">{folder.label}</span>
             </label>
           ))}
-          <span className="text-xs text-muted-foreground">
-            Standardmodus: Beides. Pfade und Modus kannst du danach pro Ordner ändern.
-          </span>
+          <span className="text-xs text-muted-foreground">{m.pair_default_mode()}</span>
         </fieldset>
         {save.error && <p className="text-sm text-danger">{save.error.message}</p>}
       </div>
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onDone}>
-          Später
+          {m.pair_later()}
         </Button>
         <Button onClick={() => save.mutate()} disabled={save.isPending}>
           {picked.size === 0
-            ? "Fertig"
-            : `Gerät mit ${picked.size} ${picked.size === 1 ? "Ordner" : "Ordnern"} einrichten`}
+            ? m.pair_done()
+            : byCount(picked.size, m.pair_setup_one, () =>
+                m.pair_setup_other({ count: picked.size }),
+              )}
         </Button>
       </div>
     </>

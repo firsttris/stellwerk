@@ -7,6 +7,7 @@ import { type DiffLine, diffLines } from "../lib/diff";
 import { ago, nowSeconds } from "../lib/format";
 import { formatBytes } from "../lib/live";
 import { cn } from "../lib/utils";
+import { m } from "../paraglide/messages.js";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 
@@ -39,7 +40,7 @@ function Side({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="font-mono text-[13px] font-medium">{title}</span>
         <span className="text-xs text-muted-foreground">
-          {file ? `${ago(file.modified, now)} · ${formatBytes(file.size)}` : "gelöscht"}
+          {file ? `${ago(file.modified, now)} · ${formatBytes(file.size)}` : m.conflict_deleted()}
         </span>
       </div>
       {lines ? (
@@ -62,7 +63,7 @@ function Side({
         </pre>
       ) : (
         <p className="rounded-md bg-subtle p-3 text-[13px] text-muted-foreground">
-          Keine Textvorschau (Binärdatei oder größer als 256 KB).
+          {m.conflict_no_preview()}
         </p>
       )}
       <Button variant="outline" size="sm" onClick={onKeep} disabled={disabled || !file}>
@@ -95,53 +96,53 @@ export function ConflictCard({
         queryClient.invalidateQueries({ queryKey: eventsQuery.queryKey }),
       ]),
   });
-  const device = devices.find((d) => d.id === conflict.deviceId)?.name ?? "einem anderen Gerät";
+  const device = devices.find((d) => d.id === conflict.deviceId)?.name ?? m.conflict_other_device();
   const original = content.data?.original;
   const copy = content.data?.copy;
   const text = original?.text != null && copy?.text != null;
   const lines = text ? diffLines(original?.text ?? "", copy?.text ?? "") : undefined;
 
   return (
-    <Card aria-label={`Konflikt in ${conflict.original}`} className="flex flex-col gap-4 p-5">
+    <Card
+      aria-label={m.conflict_label({ path: conflict.original })}
+      className="flex flex-col gap-4 p-5"
+    >
       <div className="flex items-start gap-3">
         <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-warn text-warn-foreground">
           <TriangleAlert className="size-4" aria-hidden="true" />
         </div>
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="font-mono font-medium break-all">{conflict.original}</span>
-          <span className="text-[13px] text-muted-foreground">
-            Auf zwei Geräten geändert, bevor die erste Änderung angekommen ist. Beide Fassungen
-            liegen sicher auf dem Server.
-          </span>
+          <span className="text-[13px] text-muted-foreground">{m.conflict_explained()}</span>
         </div>
       </div>
       {content.error && <p className="text-sm text-danger">{content.error.message}</p>}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-3">
         <Side
-          title="Aktuelle Fassung"
+          title={m.conflict_current()}
           file={original}
           lines={lines?.filter((l) => l.kind !== "added")}
-          keepLabel="Diese Fassung behalten"
+          keepLabel={m.conflict_keep_this()}
           onKeep={() => resolve.mutate("original")}
           disabled={resolve.isPending}
         />
         <Side
-          title={`Fassung von ${device}`}
+          title={m.conflict_from_device({ device })}
           file={copy}
           lines={lines?.filter((l) => l.kind !== "removed")}
-          keepLabel="Diese Fassung behalten"
+          keepLabel={m.conflict_keep_this()}
           onKeep={() => resolve.mutate("copy")}
           disabled={resolve.isPending}
         />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-[13px] text-muted-foreground">
-          Unsicher? „Beide behalten“ legt die andere Fassung als{" "}
-          <span className="font-mono">{bothName(conflict.original, device)}</span> daneben. Die
-          verworfene Fassung bleibt in den Versionen.
+          {m.conflict_both_before()}{" "}
+          <span className="font-mono">{bothName(conflict.original, device)}</span>
+          {m.conflict_both_after()}
         </span>
         <Button onClick={() => resolve.mutate("both")} disabled={resolve.isPending}>
-          Beide behalten
+          {m.conflict_keep_both()}
         </Button>
       </div>
       {resolve.error && <p className="text-sm text-danger">{resolve.error.message}</p>}

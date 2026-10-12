@@ -25,11 +25,12 @@ Open source, no cloud, no clicking "accept" on every machine.
 
 ## 🚧 Status
 
-Early development. Phase 1 works: Zentrale with web UI and hub Syncthing, agent, pairing with a
+Early development. Phases 1 and 2 work: Zentrale with web UI and hub Syncthing, agent, pairing with a
 one-time code and the folder × device matrix, tested with three real Syncthing instances and a
-device that is offline while things change. There are no packages yet; it is built from source
+device that is offline while things change; live status, conflicts, versions and ignore patterns
+on top. There are no packages yet; it is built from source
 ([installation](https://firsttris.github.io/stellwerk/installation.html)). Next: a week of daily
-use, then live status, conflicts and versions. The
+use, then installers, self-update and the Docker image. The
 [roadmap](https://firsttris.github.io/stellwerk/architecture.html#roadmap) has the details.
 
 ## 💡 Why Stellwerk?
@@ -71,6 +72,7 @@ Server: Linux with Docker or Podman. Devices: Linux, Windows and macOS.
   activity feed ("laptop changed 18 files in Projekte").
 - **Conflicts solved in one place**: both versions side by side with a diff; keep one or both,
   the other stays in the versions. Any older version of a file can be restored.
+- **German and English**, following the browser or switched in the sidebar.
 - **Your Syncthing stays yours**: the agent brings its own Syncthing on its own ports and never
   touches a Syncthing you already run.
 

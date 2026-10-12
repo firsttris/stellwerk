@@ -4,6 +4,7 @@ import { overviewQuery, statusQuery } from "../../api/queries";
 import { ConflictCard } from "../../components/conflict-card";
 import { PageHeader } from "../../components/layout";
 import { Card } from "../../components/ui/card";
+import { m } from "../../paraglide/messages.js";
 
 export const Route = createFileRoute("/_app/conflicts")({ component: Conflicts });
 
@@ -14,12 +15,9 @@ function Conflicts() {
   const folders = (overview?.folders ?? []).filter((f) => (live?.conflicts[f.id]?.length ?? 0) > 0);
   return (
     <>
-      <PageHeader
-        title="Konflikte"
-        description="Wenn zwei Geräte dieselbe Datei ändern, bevor sie voneinander wissen, hebt der Server beide Fassungen auf. Hier entscheidest du, welche bleibt."
-      />
+      <PageHeader title={m.conflicts_title()} description={m.conflicts_description()} />
       {live && folders.length === 0 && (
-        <Card className="p-5 text-muted-foreground">Keine Konflikte. Alles ist eindeutig.</Card>
+        <Card className="p-5 text-muted-foreground">{m.conflicts_none()}</Card>
       )}
       {overview &&
         folders.map((folder) => (

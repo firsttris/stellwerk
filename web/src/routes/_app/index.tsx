@@ -9,7 +9,8 @@ import { NewFolderDialog } from "../../components/new-folder-dialog";
 import { PairDialog } from "../../components/pair-dialog";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
-import { ago, describeEvent, nowSeconds, plural, since } from "../../lib/format";
+import { ago, describeEvent, nowSeconds, since } from "../../lib/format";
+import { byCount } from "../../lib/i18n";
 import {
   folderBadge,
   folderErrors,
@@ -18,6 +19,7 @@ import {
   waitingChanges,
 } from "../../lib/live";
 import { isWaiting } from "../../lib/matrix";
+import { m } from "../../paraglide/messages.js";
 
 export const Route = createFileRoute("/_app/")({ component: Overview });
 
@@ -27,8 +29,8 @@ function Overview() {
   return (
     <>
       <PageHeader
-        title="Übersicht"
-        description="Wer synchronisiert was mit wem – zentral festgelegt, auf allen Geräten automatisch angewendet."
+        title={m.overview_title()}
+        description={m.overview_description()}
         actions={
           <>
             <PairDialog />
@@ -77,47 +79,56 @@ function Stats({ overview, live }: { overview: OverviewData; live: Live | undefi
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
       <Stat
-        label="Geräte"
+        label={m.stat_devices()}
         value={
           <>
             {online}{" "}
             <span className="text-sm font-normal text-muted-foreground">
-              von {devices.length} online
+              {m.stat_devices_online({ count: devices.length })}
             </span>
           </>
         }
         note={
           longestOffline
-            ? `${longestOffline.name} ${since(now - (longestOffline.lastSeen ?? now))} offline`
-            : "Alle Geräte erreichbar"
+            ? m.stat_offline_since({
+                device: longestOffline.name,
+                since: since(now - (longestOffline.lastSeen ?? now)),
+              })
+            : m.stat_all_reachable()
         }
       />
       <Stat
-        label="Ordner"
+        label={m.stat_folders()}
         value={
           <>
             {overview.folders.length}{" "}
-            <span className="text-sm font-normal text-muted-foreground">verwaltet</span>
+            <span className="text-sm font-normal text-muted-foreground">
+              {m.stat_folders_managed()}
+            </span>
           </>
         }
         note={
           live
-            ? `${count("ok") + count("neutral")} synchron · ${count("info")} läuft · ${count("warn")} mit Fehler`
-            : "Status wird geladen …"
+            ? m.stat_folders_note({
+                ok: count("ok") + count("neutral"),
+                running: count("info"),
+                errors: count("warn"),
+              })
+            : m.stat_loading()
         }
       />
       <Stat
-        label="Auf dem Server"
+        label={m.stat_server()}
         value={formatBytes(bytes)}
-        note={`${formatCount(files)} Dateien, mit Versionen`}
+        note={m.stat_server_files({ count: formatCount(files) })}
       />
       <Stat
-        label="Konfiguration"
-        value={`Revision ${overview.revision}`}
+        label={m.stat_configuration()}
+        value={m.stat_revision({ revision: overview.revision })}
         note={
           waiting === 0
-            ? "Alle Geräte sind auf dem neuesten Stand"
-            : `${plural(waiting, "Gerät wartet", "Geräte warten")} auf die neue Konfiguration`
+            ? m.stat_all_current()
+            : byCount(waiting, m.stat_waiting_one, () => m.stat_waiting_other({ count: waiting }))
         }
       />
     </div>
@@ -136,7 +147,7 @@ function Attention({ overview, live }: { overview: OverviewData; live: Live | un
   return (
     <Card aria-labelledby="attention-title" className="flex flex-col gap-3.5 px-5 py-4">
       <h2 id="attention-title" className="text-base font-semibold">
-        Braucht Aufmerksamkeit
+        {m.attention_title()}
       </h2>
       {conflicts.map(({ folder, conflict }) => (
         <div key={`${folder.id}-${conflict.path}`} className="flex items-start gap-3">
@@ -144,10 +155,10 @@ function Attention({ overview, live }: { overview: OverviewData; live: Live | un
             <TriangleAlert className="size-4" aria-hidden="true" />
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="font-medium">Konflikt in {folder.label}</span>
+            <span className="font-medium">{m.attention_conflict({ folder: folder.label })}</span>
             <span className="text-[13px] text-muted-foreground">
-              <span className="font-mono">{conflict.original}</span> wurde auf zwei Geräten
-              gleichzeitig geändert.
+              <span className="font-mono">{conflict.original}</span>
+              {m.attention_conflict_text()}
             </span>
           </div>
           <Button variant="outline" size="sm" asChild>
@@ -156,15 +167,13 @@ function Attention({ overview, live }: { overview: OverviewData; live: Live | un
               params={{ folderId: folder.id }}
               search={{ tab: "conflicts" }}
             >
-              Lösen
+              {m.attention_resolve()}
             </Link>
           </Button>
         </div>
       ))}
       {offline.length === 0 && errors.length === 0 && conflicts.length === 0 && (
-        <p className="text-muted-foreground">
-          Nichts zu tun. Alle Geräte sind online und synchron.
-        </p>
+        <p className="text-muted-foreground">{m.attention_nothing()}</p>
       )}
       {errors.map(({ folder, device, message }) => (
         <div key={`${folder.id}-${device}`} className="flex items-start gap-3">
@@ -173,7 +182,7 @@ function Attention({ overview, live }: { overview: OverviewData; live: Live | un
           </div>
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="font-medium">
-              Fehler in {folder.label} auf {device}
+              {m.attention_error({ folder: folder.label, device })}
             </span>
             <span className="text-[13px] text-muted-foreground">{message}</span>
           </div>
@@ -188,15 +197,19 @@ function Attention({ overview, live }: { overview: OverviewData; live: Live | un
             </div>
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="font-medium">
-                {device.name}{" "}
                 {device.lastSeen !== null
-                  ? `${since(now - device.lastSeen)} offline`
-                  : "noch nie verbunden"}
+                  ? m.attention_offline({
+                      device: device.name,
+                      since: since(now - device.lastSeen),
+                    })
+                  : m.attention_never_connected({ device: device.name })}
               </span>
               <span className="text-[13px] text-muted-foreground">
                 {waiting > 0
-                  ? `${formatCount(waiting)} ${waiting === 1 ? "Änderung liegt" : "Änderungen liegen"} auf dem Server bereit und ${waiting === 1 ? "wird" : "werden"} übertragen, sobald das Gerät wieder da ist. Nichts zu tun.`
-                  : "Alles liegt auf dem Server bereit. Nichts zu tun."}
+                  ? byCount(waiting, m.attention_waiting_one, () =>
+                      m.attention_waiting_other({ count: formatCount(waiting) }),
+                    )
+                  : m.attention_all_ready()}
               </span>
             </div>
           </div>
@@ -212,9 +225,9 @@ function Activity({ overview }: { overview: OverviewData }) {
   return (
     <Card aria-labelledby="activity-title" className="flex flex-col gap-3 px-5 py-4">
       <h2 id="activity-title" className="text-base font-semibold">
-        Aktivität
+        {m.activity_title()}
       </h2>
-      {events?.length === 0 && <p className="text-muted-foreground">Noch nichts passiert.</p>}
+      {events?.length === 0 && <p className="text-muted-foreground">{m.activity_nothing()}</p>}
       {events?.map((event) => (
         <div key={event.id} className="grid grid-cols-[88px_minmax(0,1fr)] gap-2.5 text-[13px]">
           <span className="font-mono text-xs text-muted-foreground tabular-nums">
