@@ -133,25 +133,22 @@ fn plan_folders<'a>(actual: &Actual, desired: &'a DesiredState) -> FolderCalls<'
     FolderCalls { delete, put, fresh }
 }
 
-/// Ignores live in the folder (.stignore), so a new or re-created folder needs them set
-/// after it exists; an empty list on a new folder is what Syncthing has anyway.
+/// Ignores live in the folder (.stignore), so a new or re-created folder always gets them set
+/// after it exists: its directory may already hold a `.stignore` (a folder added again, a
+/// directory left from a removed one) that Syncthing would load, and an empty list removes it
+/// (lib/ignore/ignore.go, `WriteIgnores`).
 fn plan_ignores(actual: &Actual, desired: &DesiredState, fresh: &BTreeSet<&str>) -> Vec<ApiCall> {
     desired
         .folders
         .iter()
         .filter_map(|folder| {
             let want = ignore_lines(&folder.ignore_patterns);
-            let have = if fresh.contains(folder.id.as_str()) {
-                Vec::new()
-            } else {
-                ignore_lines(
-                    actual
-                        .ignores
-                        .get(&folder.id)
-                        .map_or(&[][..], Vec::as_slice),
-                )
-            };
-            (want != have).then(|| ApiCall::SetIgnores {
+            let have = actual
+                .ignores
+                .get(&folder.id)
+                .map_or(&[][..], Vec::as_slice);
+            let differs = fresh.contains(folder.id.as_str()) || want != ignore_lines(have);
+            differs.then(|| ApiCall::SetIgnores {
                 folder: folder.id.clone(),
                 lines: want,
             })
@@ -227,11 +224,13 @@ fn folder_config(my_id: &str, folder: &Folder) -> FolderConfig {
     }
 }
 
-/// Ignore lines as compared and written: without trailing spaces and empty lines.
+/// Ignore lines as compared and written: trimmed and without empty lines, as Syncthing reads
+/// `.stignore` and returns it from `GET /rest/db/ignores` (lib/ignore/ignore.go,
+/// `parseIgnoreFile`: `strings.TrimSpace`).
 fn ignore_lines(lines: &[String]) -> Vec<String> {
     lines
         .iter()
-        .map(|line| line.trim_end().to_string())
+        .map(|line| line.trim().to_string())
         .filter(|line| !line.is_empty())
         .collect()
 }

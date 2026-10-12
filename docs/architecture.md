@@ -285,7 +285,9 @@ leftover from an interrupted uninstall cannot stop a new agent.
 3. Write the changes with `PUT`/`DELETE` on `/rest/config/devices/{id}` and
    `/rest/config/folders/{id}`, devices before the folders that name them; then the ignore
    patterns with `POST /rest/db/ignores?folder={id}` where they differ from `GET` (empty lines
-   and trailing spaces do not count).
+   and surrounding spaces do not count, as Syncthing trims them too). A new folder always gets
+   its patterns written, even none, so a `.stignore` left in its directory does not stay in
+   force.
 
 A folder with a new path is removed and added again, so Syncthing starts with a fresh index
 instead of treating the files at the old path as deleted. The reconciler only changes
