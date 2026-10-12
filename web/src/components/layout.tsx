@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 import { api } from "../api";
 import { useLiveUpdates } from "../api/live";
 import { overviewQuery, sessionQuery, statusQuery } from "../api/queries";
+import { cn } from "../lib/utils";
 import { m } from "../paraglide/messages.js";
 import { getLocale, type Locale, setLocale } from "../paraglide/runtime.js";
 import { Button } from "./ui/button";
@@ -34,7 +35,7 @@ export function Layout({ children }: { children: ReactNode }) {
   );
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  useLiveUpdates();
+  const link = useLiveUpdates();
 
   // Out in any case: a failed logout (session already gone, server down) must not keep the
   // admin on a page that no longer works.
@@ -97,9 +98,18 @@ export function Layout({ children }: { children: ReactNode }) {
         </nav>
         <div className="mt-auto flex flex-col gap-3">
           <div className="flex flex-col gap-1 rounded-lg border border-border bg-background p-3">
-            <div className="flex items-center gap-2 font-medium">
-              <span className="size-2 rounded-full bg-ok" />
-              {m.server_online()}
+            <div className="flex items-center gap-2 font-medium" role="status">
+              <span
+                className={cn(
+                  "size-2 rounded-full",
+                  link === "open" ? "bg-ok" : link === "closed" ? "bg-danger" : "bg-offline",
+                )}
+              />
+              {link === "open"
+                ? m.server_online()
+                : link === "closed"
+                  ? m.server_offline()
+                  : m.server_connecting()}
             </div>
             <span className="text-xs text-muted-foreground">
               {m.server_revision({ revision: overview?.revision ?? "…" })}

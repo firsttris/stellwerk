@@ -211,6 +211,8 @@
   "remove": "Remove …",
   "save": "Save",
   "server": "Server",
+  "server_connecting": "Connecting to the server …",
+  "server_offline": "Server not reachable",
   "server_online": "Server online",
   "server_revision": "Hub holds every folder, revision {revision}",
   "settings_ignore": "Ignore",
