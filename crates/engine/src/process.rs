@@ -116,8 +116,10 @@ pub async fn start(options: &SpawnOptions) -> Result<Instance> {
         .arg("--home")
         .arg(home)
         .args(["--no-browser", "--no-restart", "--no-upgrade"])
-        .arg(format!("--gui-address={gui}"))
-        .arg(format!("--gui-apikey={api_key}"))
+        // In the environment, not in argv, which every local user can read (`ps`); same
+        // options as --gui-address/--gui-apikey (cmd/syncthing/main.go, `serveCmd`).
+        .env("STGUIADDRESS", &gui)
+        .env("STGUIAPIKEY", &api_key)
         .env("STNOUPGRADE", "1")
         .stdin(Stdio::null())
         .stdout(log)

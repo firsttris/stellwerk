@@ -11,11 +11,20 @@ use crate::monitor::{CompletionReply, Event, FolderSummary};
 use crate::syncthing_config::{Actual, Config, DeviceConfig, FolderConfig};
 
 /// Where a Syncthing listens and the key that opens it.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Client {
     http: reqwest::Client,
     base: Url,
     api_key: String,
+}
+
+/// Without the API key, so that no log shows it.
+impl std::fmt::Debug for Client {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Client")
+            .field("base", &self.base.as_str())
+            .finish_non_exhaustive()
+    }
 }
 
 /// One archived version of a file.
@@ -272,5 +281,12 @@ mod tests {
             url.as_str(),
             "http://127.0.0.1:41384/rest/config/folders/a%20b%2Fc"
         );
+    }
+
+    #[test]
+    fn debug_output_leaves_the_key_out() {
+        let client = Client::new("http://127.0.0.1:41384".parse().unwrap(), "s3cr3t");
+        let shown = format!("{client:?}");
+        assert!(shown.contains("127.0.0.1:41384") && !shown.contains("s3cr3t"));
     }
 }
