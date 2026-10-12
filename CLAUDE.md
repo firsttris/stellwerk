@@ -21,9 +21,9 @@ where it settles a detail.
 
 Update what the change affects, in the same pull request, and only that:
 
-- the tests for what changed (unit tests for pure functions such as the reconciler, integration
-  tests in `crates/engine/tests` against the pinned Syncthing; later Vitest and Playwright for
-  `web/`);
+- the tests for what changed (unit tests for pure functions such as the reconciler and the
+  desired-state derivation, integration tests in `crates/*/tests` against the pinned Syncthing,
+  Vitest for UI logic, Playwright in `e2e/` for what a user does in the UI);
 - the docs in `docs/` that describe it;
 - the README when a feature a user sees is added, changed or removed;
 - the screenshots after a change to the look: **Actions → Update screenshots → Run workflow**, then
@@ -38,6 +38,7 @@ cargo fmt --all --check
 cargo clippy --all-targets -- -D warnings
 cargo test                # downloads the pinned Syncthing once into .syncthing-cache/
 pnpm --filter web check   # Biome, tsc --noEmit, Vitest, vite build
+pnpm e2e                  # Playwright on the demo build; PW_CHROMIUM=/path/to/chrome outside the image
 mkdocs build --strict     # when docs/ or mkdocs.yml changed
 ```
 

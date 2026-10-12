@@ -13,18 +13,24 @@ Open source, no cloud, no clicking "accept" on every machine.
 
 [Status](#-status) •
 [Why](#-why-stellwerk) •
+[Features](#-features) •
+[Screenshots](#-screenshots) •
 [Alternatives](#-stellwerk-and-the-alternatives) •
 [FAQ](#-faq) •
 [Documentation](https://firsttris.github.io/stellwerk/)
+
+<img src="docs/screenshot.png" alt="Stellwerk overview: a folder by device matrix showing which device sends, receives or does not hold each Syncthing folder, with a draft of two changes waiting to be applied" width="900">
 
 </div>
 
 ## 🚧 Status
 
-Early development, not usable yet. Phase 0 is done: the engine downloads a pinned Syncthing,
-starts it on its own ports and brings its configuration to a desired state, tested with two real
-Syncthing instances. Next is phase 1: Zentrale, agent, pairing and the folder × device matrix.
-The [roadmap](https://firsttris.github.io/stellwerk/architecture.html#roadmap) has the details.
+Early development. Phase 1 works: Zentrale with web UI and hub Syncthing, agent, pairing with a
+one-time code and the folder × device matrix, tested with three real Syncthing instances and a
+device that is offline while things change. There are no packages yet; it is built from source
+([installation](https://firsttris.github.io/stellwerk/installation.html)). Next: a week of daily
+use, then live status, conflicts and versions. The
+[roadmap](https://firsttris.github.io/stellwerk/architecture.html#roadmap) has the details.
 
 ## 💡 Why Stellwerk?
 
@@ -41,6 +47,42 @@ commercially and closed source.
 
 Server: Linux with Docker or Podman. Devices: Linux, Windows and macOS.
 
+## ✨ Features
+
+### 🗺️ One matrix for everything
+
+- **Folders × devices**: one click per cell switches between both directions, send only, receive
+  only and off.
+- **Drafts**: changes collect until you apply them, then go out as one numbered revision.
+- **Offline devices catch up**: a device that is off gets the new configuration and the files as
+  soon as it is back; the cell says "wartet" until then.
+
+### 🔗 Pairing without clicking on every PC
+
+- **One-time code**: "Gerät koppeln" shows a command with a code valid for 15 minutes; the device
+  appears in the UI by itself.
+- **Signed sign-in**: after pairing, the agent signs in with its own Ed25519 key; a device can be
+  blocked or removed in the UI.
+
+### 🗄️ The server holds everything
+
+- **Hub in every folder**: the server keeps a full copy of each folder, with versions for a year.
+- **Your Syncthing stays yours**: the agent brings its own Syncthing on its own ports and never
+  touches a Syncthing you already run.
+
+## 📸 Screenshots
+
+<table>
+  <tr>
+    <td><img src="docs/screenshot-devices.png" alt="Device list with online and offline devices, the folders each holds and the agent version"></td>
+    <td><img src="docs/screenshot-pairing.png" alt="Pairing dialog with the agent command and a one-time code, waiting for the new device"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshot-folder.png" alt="Folder page with the mode and the local path of the folder on every device"></td>
+    <td><img src="docs/screenshot-dark.png" alt="The overview with the folder by device matrix in dark mode"></td>
+  </tr>
+</table>
+
 ## 🔀 Stellwerk and the alternatives
 
 Stellwerk is made for one admin who wants all their own devices synced through their own server.
@@ -56,7 +98,8 @@ Stellwerk is made for one admin who wants all their own devices synced through t
 ## ❓ FAQ
 
 ### Is there a central management UI for Syncthing?
-That is what Stellwerk is for. It is not released yet; see [Status](#-status).
+That is what Stellwerk is for. There is no release yet, but it can be built from source; see
+[Status](#-status).
 
 ### Does it change my existing Syncthing?
 No. The agent brings its own Syncthing with its own configuration and ports and leaves a
@@ -68,7 +111,8 @@ The documentation is at **[firsttris.github.io/stellwerk](https://firsttris.gith
 
 | | |
 |---|---|
-| [Architecture](https://firsttris.github.io/stellwerk/architecture.html) | Zentrale, hub, agent and engine; reconciler; roadmap |
+| [Installation](https://firsttris.github.io/stellwerk/installation.html) | building, running the Zentrale, pairing a device |
+| [Architecture](https://firsttris.github.io/stellwerk/architecture.html) | Zentrale, hub, agent and engine; protocol; reconciler; roadmap |
 
 ## 🛠️ Development
 
@@ -78,6 +122,7 @@ Requires Rust (stable), Node 22 and pnpm.
 git clone https://github.com/firsttris/stellwerk && cd stellwerk
 pnpm install && pnpm dev:demo   # the UI on demo data, no server needed
 cargo test                      # downloads the pinned Syncthing once and runs real instances
+pnpm e2e                        # Playwright against the UI in demo mode
 ```
 
 Rust workspace: `protocol` (messages, desired state), `engine` (Syncthing control and
@@ -87,7 +132,8 @@ reconciler), `agent`, `zentrale` (axum, SQLite); React UI in `web/`, embedded in
 
 Issues and pull requests are welcome. A good bug report names the OS, the Stellwerk and Syncthing
 versions and what the Zentrale showed. Please run `cargo fmt --all --check`,
-`cargo clippy --all-targets -- -D warnings` and `cargo test` before opening a pull request.
+`cargo clippy --all-targets -- -D warnings`, `cargo test` and `pnpm check` before opening a pull
+request.
 
 ---
 

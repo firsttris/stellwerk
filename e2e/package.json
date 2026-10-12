@@ -1,0 +1,16 @@
+{
+  "name": "e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "test": "playwright test --grep-invert @screenshots",
+    "screenshots": "playwright test --grep @screenshots",
+    "lint": "biome check ."
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@biomejs/biome": "^2.5.15"
+  }
+}

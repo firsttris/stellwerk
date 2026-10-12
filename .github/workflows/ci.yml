@@ -55,3 +55,28 @@ jobs:
       - run: pnpm --filter web typecheck
       - run: pnpm --filter web test
       - run: pnpm --filter web build
+
+  # The UI in demo mode in the official Playwright image of the version in the lockfile
+  e2e-image:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.playwright.outputs.image }}
+    steps:
+      - id: playwright
+        uses: firsttris/workflows/actions/playwright-image@v1
+        with:
+          lockfile: pnpm-lock.yaml
+
+  e2e:
+    needs: e2e-image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: ${{ needs.e2e-image.outputs.image }}
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable && pnpm install --frozen-lockfile
+      - run: pnpm --filter e2e lint
+      - run: pnpm --filter e2e test
