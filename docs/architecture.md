@@ -32,6 +32,33 @@ field (`crates/protocol/src/messages.rs`).
 The desired state is always complete, never a diff: an agent that was offline for three days just
 gets the current state when it connects.
 
+## Zentrale
+
+### Data model
+
+SQLite with migrations embedded in the binary (`crates/zentrale/migrations`).
+
+| Table | Columns |
+|---|---|
+| `devices` | id, name, kind, os, public_key, syncthing_id, agent_version, syncthing_version, approved, created_at, last_seen, applied_rev |
+| `folders` | id, label, syncthing_folder_id, ignore_patterns, versioning, encrypted_on_hub, created_at |
+| `shares` | folder_id, device_id, mode, path (no row = "off") |
+| `enrollments` | code_hash, expires_at, used_at, device_id |
+| `config_rev` | one revision number, raised in the same transaction as every change |
+| `events` | at, device, folder, kind, text (activity feed) |
+| `admin`, `sessions` | login |
+
+### Desired states
+
+`crates/zentrale/src/desired.rs` turns the stored configuration into one desired state per
+device and one for the hub, as pure functions. The topology is a star:
+
+- a device has the hub as its only peer and shares each of its folders with the hub;
+- the hub has every approved device as a peer and holds every folder under
+  `<data>/folders/<syncthing folder id>`, in mode "both", with staggered versioning (one year by
+  default), shared with every device that has the folder;
+- a blocked device gets no desired state and disappears from the hub's peers and folders.
+
 ## Engine
 
 | Module | Does |

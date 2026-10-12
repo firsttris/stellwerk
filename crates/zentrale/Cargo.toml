@@ -9,12 +9,28 @@ authors.workspace = true
 repository.workspace = true
 publish = false
 
+[lib]
+path = "src/lib.rs"
+
 [[bin]]
 name = "stellwerk"
 path = "src/main.rs"
 
 [dependencies]
 stellwerk-engine.workspace = true
+stellwerk-protocol.workspace = true
+rand.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true
