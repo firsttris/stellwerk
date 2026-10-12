@@ -11,9 +11,30 @@ import {
   folderSchema,
   liveSchema,
   overviewSchema,
+  revisionSchema,
   type Session,
   sessionSchema,
 } from "./types";
+
+/**
+ * The body as JSON, or `undefined` when it is not JSON: a proxy's HTML error page, a plain-text
+ * 404. The status decides what happened, not whether the body parses.
+ */
+function parseJson(text: string): unknown {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+/** The Zentrale's `{"error": "…"}`, if that is what came back. */
+function errorText(json: unknown): string | undefined {
+  return json && typeof json === "object" && "error" in json && typeof json.error === "string"
+    ? json.error
+    : undefined;
+}
 
 /** The real Zentrale. Remembers the CSRF token from the session for every change. */
 export function httpApi(): Api {
@@ -29,15 +50,8 @@ export function httpApi(): Api {
       credentials: "same-origin",
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    const text = await response.text();
-    const json: unknown = text ? JSON.parse(text) : null;
-    if (!response.ok) {
-      const message =
-        json && typeof json === "object" && "error" in json && typeof json.error === "string"
-          ? json.error
-          : response.statusText;
-      throw new ApiError(response.status, message);
-    }
+    const json = parseJson(await response.text());
+    if (!response.ok) throw new ApiError(response.status, errorText(json) ?? response.statusText);
     return json;
   };
 
@@ -67,10 +81,8 @@ export function httpApi(): Api {
     deleteFolder: async (id) => {
       await request("DELETE", `/api/folders/${encodeURIComponent(id)}`);
     },
-    applyShares: async (changes) => {
-      const json = await request("POST", "/api/shares", { changes });
-      return json as { revision: number };
-    },
+    applyShares: (changes) =>
+      request("POST", "/api/shares", { changes }).then(parsed(revisionSchema)),
     updateDevice: (id, patch) =>
       request("PATCH", `/api/devices/${encodeURIComponent(id)}`, patch).then(parsed(deviceSchema)),
     deleteDevice: async (id) => {
