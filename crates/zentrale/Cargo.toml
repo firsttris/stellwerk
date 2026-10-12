@@ -1,0 +1,20 @@
+[package]
+name = "stellwerk-zentrale"
+description = "Stellwerk Zentrale: web UI, database and agent hub on the server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "stellwerk"
+path = "src/main.rs"
+
+[dependencies]
+stellwerk-engine.workspace = true
+
+[lints]
+workspace = true

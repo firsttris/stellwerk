@@ -1,0 +1,25 @@
+Stellwerk
+Copyright (C) 2026 Tristan Teufel and contributors
+https://github.com/firsttris/stellwerk
+
+This program is free software: you can redistribute it and/or modify it under the terms of
+the GNU Affero General Public License, version 3 only, as published by the Free Software
+Foundation. It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See the LICENSE file for the full license text.
+
+Additional term under section 7(b) of the GNU AGPL
+--------------------------------------------------
+Modified versions must keep the attribution "Stellwerk by Tristan Teufel" together with a
+link to https://github.com/firsttris/stellwerk in the legal notices they display.
+
+Commercial license
+------------------
+A license without the obligations of the AGPL is available via https://teufel-it.de.
+
+Third-party software
+--------------------
+Stellwerk downloads and runs an unmodified Syncthing binary (https://syncthing.net,
+source: https://github.com/syncthing/syncthing), licensed under the Mozilla Public
+License 2.0. Its license text (LICENSE.txt) is kept next to the binary and shipped with
+every release that contains it. Stellwerk is not affiliated with the Syncthing Foundation.

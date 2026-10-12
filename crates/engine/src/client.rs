@@ -1,0 +1,178 @@
+//! A small client for Syncthing's REST API (<https://docs.syncthing.net/dev/rest.html>).
+
+use reqwest::{Method, RequestBuilder, Url};
+use serde::Deserialize;
+use serde::de::DeserializeOwned;
+
+use crate::error::{Error, Result};
+use crate::syncthing_config::{Actual, Config, DeviceConfig, FolderConfig};
+
+/// Where a Syncthing listens and the key that opens it.
+#[derive(Debug, Clone)]
+pub struct Client {
+    http: reqwest::Client,
+    base: Url,
+    api_key: String,
+}
+
+#[derive(Deserialize)]
+struct SystemStatus {
+    #[serde(rename = "myID")]
+    my_id: String,
+}
+
+impl Client {
+    /// `base` is the GUI address, e.g. `http://127.0.0.1:41384`.
+    pub fn new(base: Url, api_key: impl Into<String>) -> Self {
+        Self {
+            http: reqwest::Client::new(),
+            base,
+            api_key: api_key.into(),
+        }
+    }
+
+    /// `GET /rest/system/ping`
+    pub async fn ping(&self) -> Result<()> {
+        self.send(Method::GET, &["rest", "system", "ping"], |r| r)
+            .await
+            .map(drop)
+    }
+
+    /// The device ID from `GET /rest/system/status`.
+    pub async fn my_id(&self) -> Result<String> {
+        let status: SystemStatus = self.get_json(&["rest", "system", "status"]).await?;
+        Ok(status.my_id)
+    }
+
+    /// The managed part of `GET /rest/config`.
+    pub async fn config(&self) -> Result<Config> {
+        self.get_json(&["rest", "config"]).await
+    }
+
+    /// The whole of `GET /rest/config`, untyped.
+    pub async fn config_raw(&self) -> Result<serde_json::Value> {
+        self.get_json(&["rest", "config"]).await
+    }
+
+    /// Own device ID and configuration, the input of [`crate::plan`].
+    pub async fn actual(&self) -> Result<Actual> {
+        Ok(Actual {
+            my_id: self.my_id().await?,
+            config: self.config().await?,
+        })
+    }
+
+    /// `PUT /rest/config/devices/{id}`
+    pub async fn put_device(&self, device: &DeviceConfig) -> Result<()> {
+        let path = ["rest", "config", "devices", &device.device_id];
+        self.send(Method::PUT, &path, |r| r.json(device))
+            .await
+            .map(drop)
+    }
+
+    /// `DELETE /rest/config/devices/{id}`
+    pub async fn delete_device(&self, id: &str) -> Result<()> {
+        let path = ["rest", "config", "devices", id];
+        self.send(Method::DELETE, &path, |r| r).await.map(drop)
+    }
+
+    /// `PUT /rest/config/folders/{id}`
+    pub async fn put_folder(&self, folder: &FolderConfig) -> Result<()> {
+        let path = ["rest", "config", "folders", &folder.id];
+        self.send(Method::PUT, &path, |r| r.json(folder))
+            .await
+            .map(drop)
+    }
+
+    /// `DELETE /rest/config/folders/{id}`
+    pub async fn delete_folder(&self, id: &str) -> Result<()> {
+        let path = ["rest", "config", "folders", id];
+        self.send(Method::DELETE, &path, |r| r).await.map(drop)
+    }
+
+    /// `POST /rest/db/scan?folder={id}`: rescan a folder now instead of waiting for the watcher.
+    pub async fn scan(&self, folder: &str) -> Result<()> {
+        let mut url = self.url(&["rest", "db", "scan"]);
+        url.query_pairs_mut().append_pair("folder", folder);
+        self.send_to(Method::POST, url, |r| r).await.map(drop)
+    }
+
+    /// `POST /rest/system/shutdown`
+    pub async fn shutdown(&self) -> Result<()> {
+        self.send(Method::POST, &["rest", "system", "shutdown"], |r| r)
+            .await
+            .map(drop)
+    }
+
+    async fn get_json<T: DeserializeOwned>(&self, path: &[&str]) -> Result<T> {
+        let response = self.send(Method::GET, path, |r| r).await?;
+        Ok(response.json().await?)
+    }
+
+    async fn send(
+        &self,
+        method: Method,
+        path: &[&str],
+        build: impl FnOnce(RequestBuilder) -> RequestBuilder,
+    ) -> Result<reqwest::Response> {
+        self.send_to(method, self.url(path), build).await
+    }
+
+    async fn send_to(
+        &self,
+        method: Method,
+        url: Url,
+        build: impl FnOnce(RequestBuilder) -> RequestBuilder,
+    ) -> Result<reqwest::Response> {
+        let request = self
+            .http
+            .request(method.clone(), url.clone())
+            .header("X-API-Key", &self.api_key);
+        let response = build(request).send().await?;
+        let status = response.status();
+        if status.is_success() {
+            return Ok(response);
+        }
+        Err(Error::Api {
+            method: method_name(&method),
+            path: url.path().to_string(),
+            status,
+            body: response.text().await.unwrap_or_default(),
+        })
+    }
+
+    /// Joins the segments onto the base, percent-encoding each (folder IDs are free text).
+    fn url(&self, segments: &[&str]) -> Url {
+        let mut url = self.base.clone();
+        url.path_segments_mut()
+            .expect("an http base URL has path segments")
+            .pop_if_empty()
+            .extend(segments);
+        url
+    }
+}
+
+fn method_name(method: &Method) -> &'static str {
+    match *method {
+        Method::GET => "GET",
+        Method::PUT => "PUT",
+        Method::POST => "POST",
+        Method::DELETE => "DELETE",
+        _ => "request",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn folder_ids_are_one_encoded_path_segment() {
+        let client = Client::new("http://127.0.0.1:41384".parse().unwrap(), "key");
+        let url = client.url(&["rest", "config", "folders", "a b/c"]);
+        assert_eq!(
+            url.as_str(),
+            "http://127.0.0.1:41384/rest/config/folders/a%20b%2Fc"
+        );
+    }
+}

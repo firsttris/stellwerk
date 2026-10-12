@@ -1,0 +1,11 @@
+site_name: Stellwerk
+site_description: Central web UI to manage Syncthing on all your devices
+site_url: https://firsttris.github.io/stellwerk/
+repo_url: https://github.com/firsttris/stellwerk
+copyright: AGPL-3.0 · © Tristan Teufel and contributors
+use_directory_urls: false
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
