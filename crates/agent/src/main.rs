@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use stellwerk_agent::{Network, Options};
+use stellwerk_engine::process::shutdown_signal;
 
 /// Stellwerk agent: runs its own Syncthing and keeps it at the state the Zentrale sets.
 #[derive(Parser)]
@@ -62,10 +63,7 @@ async fn main() -> anyhow::Result<()> {
                 network: Network::Lan,
                 name,
             };
-            stellwerk_agent::run(options, async {
-                let _ = tokio::signal::ctrl_c().await;
-            })
-            .await
+            stellwerk_agent::run(options, shutdown_signal()).await
         }
     }
 }

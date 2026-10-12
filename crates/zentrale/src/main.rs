@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::io::BufRead;
 
 use clap::{Parser, Subcommand};
+use stellwerk_engine::process::shutdown_signal;
 use stellwerk_zentrale::auth::hash_password;
 use stellwerk_zentrale::server::{Options, start};
 use stellwerk_zentrale::store::Store;
@@ -25,6 +26,12 @@ struct Cli {
 enum Command {
     /// Set the admin password, read from standard input; logs out every session.
     SetPassword,
+    /// Download the pinned Syncthing, check it, and put binary and license into a directory
+    /// (used when building the Docker image).
+    FetchSyncthing {
+        /// Target directory, e.g. /opt/syncthing
+        dir: PathBuf,
+    },
 }
 
 /// Running the Zentrale (the default).
@@ -59,6 +66,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Some(Command::SetPassword) => set_password(&cli.data_dir).await,
+        Some(Command::FetchSyncthing { dir }) => fetch_syncthing(&dir).await,
         None => serve(cli.data_dir, cli.serve).await,
     }
 }
@@ -80,8 +88,23 @@ async fn serve(data_dir: PathBuf, serve: Serve) -> anyhow::Result<()> {
     if running.app.store().admin_password_hash().await?.is_none() {
         tracing::warn!("no admin password yet: run `stellwerk set-password` to log in");
     }
-    tokio::signal::ctrl_c().await?;
+    shutdown_signal().await;
+    tracing::info!("shutting down");
     running.stop().await
+}
+
+async fn fetch_syncthing(dir: &std::path::Path) -> anyhow::Result<()> {
+    let cache = dir.join(".download");
+    let binary = stellwerk_engine::download::ensure_syncthing(&cache).await?;
+    std::fs::create_dir_all(dir)?;
+    let name = binary.file_name().expect("the binary has a name");
+    std::fs::copy(&binary, dir.join(name))?;
+    if let Some(release) = binary.parent() {
+        std::fs::copy(release.join("LICENSE.txt"), dir.join("LICENSE.txt"))?;
+    }
+    std::fs::remove_dir_all(&cache)?;
+    println!("{}", dir.join(name).display());
+    Ok(())
 }
 
 async fn set_password(data_dir: &std::path::Path) -> anyhow::Result<()> {

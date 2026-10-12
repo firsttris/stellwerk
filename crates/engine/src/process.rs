@@ -155,6 +155,30 @@ fn log_tail(home: &Path) -> String {
     log.get(start..).unwrap_or(&log).to_string()
 }
 
+/// Completes on Ctrl-C, and on SIGTERM where there is one (Docker, systemd), so that
+/// Syncthing is shut down cleanly instead of being killed.
+pub async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+        match signal(SignalKind::terminate()) {
+            Ok(mut terminate) => {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {}
+                    _ = terminate.recv() => {}
+                }
+            }
+            Err(_) => {
+                let _ = tokio::signal::ctrl_c().await;
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
+}
+
 /// The first `config.xml`. Syncthing fills in defaults for everything left out
 /// (lib/config/config.go, `ReadXML`) and creates keys on first start.
 pub fn seed_config(listen_address: &str, discovery: bool) -> String {

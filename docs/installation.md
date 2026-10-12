@@ -1,7 +1,70 @@
 # Installation
 
-Until v1.0 there are no packages yet: Zentrale and agent are built from source. The Docker image,
-installers and self-update come in phase 3.
+The Zentrale runs as a container (Docker or Podman) or as a single binary; the agent is a single
+binary per device. Until v1.0 is released, build the image and the binaries from source; from
+v1.0 on the image is `tristanteu/stellwerk` on Docker Hub and `ghcr.io/firsttris/stellwerk`.
+
+## Zentrale as a container
+
+The image holds the Zentrale with the UI and the pinned Syncthing, runs as an unprivileged user
+and keeps everything under `/data`. Build it locally with
+`docker build -f docker/Dockerfile -t stellwerk .`.
+
+### Docker Compose
+
+```yaml
+services:
+  stellwerk:
+    image: tristanteu/stellwerk:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"   # web UI and agents, behind a TLS proxy
+      - "22001:22001"           # sync port of the hub, reachable from the devices
+    environment:
+      STELLWERK_HUB_ADDRESS: tcp://sync.example.org:22001
+    volumes:
+      - stellwerk:/data
+volumes:
+  stellwerk:
+```
+
+```bash
+docker compose up -d
+docker compose exec -T stellwerk stellwerk set-password <<< 'a long password'
+```
+
+### Podman Quadlet
+
+`/etc/containers/systemd/stellwerk.container`:
+
+```ini
+[Unit]
+Description=Stellwerk Zentrale
+
+[Container]
+Image=docker.io/tristanteu/stellwerk:latest
+PublishPort=127.0.0.1:8080:8080
+PublishPort=22001:22001
+Environment=STELLWERK_HUB_ADDRESS=tcp://sync.example.org:22001
+Volume=stellwerk.volume:/data
+AutoUpdate=registry
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+`/etc/containers/systemd/stellwerk.volume` holds only `[Volume]`. Then:
+
+```bash
+systemctl daemon-reload && systemctl start stellwerk
+podman exec -i systemd-stellwerk stellwerk set-password <<< 'a long password'
+```
+
+Set `STELLWERK_HUB_ADDRESS` in either case: inside a container the host name is the container's.
+The container stops cleanly on `SIGTERM`; the hub Syncthing is shut down with it.
 
 ## Build
 
@@ -13,7 +76,7 @@ pnpm install && pnpm --filter web build      # the UI, embedded into the Zentral
 cargo build --release                        # target/release/stellwerk and stellwerk-agent
 ```
 
-## Zentrale on the server
+## Zentrale as a binary
 
 ```bash
 stellwerk --data-dir /srv/stellwerk set-password      # once; reads the password from stdin

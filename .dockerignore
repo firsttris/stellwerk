@@ -1,0 +1,9 @@
+target/
+**/node_modules/
+**/dist/
+**/dist-demo/
+.syncthing-cache/
+web/src/paraglide/
+web/project.inlang/cache/
+e2e/test-results/
+.git/

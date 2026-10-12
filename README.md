@@ -28,9 +28,10 @@ Open source, no cloud, no clicking "accept" on every machine.
 Early development. Phases 1 and 2 work: Zentrale with web UI and hub Syncthing, agent, pairing with a
 one-time code and the folder × device matrix, tested with three real Syncthing instances and a
 device that is offline while things change; live status, conflicts, versions and ignore patterns
-on top. There are no packages yet; it is built from source
+on top. The Zentrale runs as a container (Docker Compose or Podman Quadlet); until v1.0 the image
+and the agent are built from source
 ([installation](https://firsttris.github.io/stellwerk/installation.html)). Next: a week of daily
-use, then installers, self-update and the Docker image. The
+use, then installers and self-update. The
 [roadmap](https://firsttris.github.io/stellwerk/architecture.html#roadmap) has the details.
 
 ## 💡 Why Stellwerk?
