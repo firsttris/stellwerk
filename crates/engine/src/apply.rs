@@ -31,6 +31,7 @@ pub async fn apply(client: &Client, calls: &[ApiCall]) -> Vec<Failure> {
             ApiCall::PutFolder(folder) => client.put_folder(folder).await,
             ApiCall::DeleteFolder(id) => client.delete_folder(id).await,
             ApiCall::DeleteDevice(id) => client.delete_device(id).await,
+            ApiCall::SetIgnores { folder, lines } => client.set_ignores(folder, lines).await,
         };
         if let Err(error) = result {
             tracing::warn!(?call, %error, "Syncthing refused a change");

@@ -25,7 +25,7 @@ field (`crates/protocol/src/messages.rs`).
 | Zentrale → agent | `challenge` | a fresh nonce |
 | agent → Zentrale | `hello` | public key, signature over the nonce, on first contact the one-time code; host name, OS, agent and Syncthing version, Syncthing device ID, last applied revision |
 | Zentrale → agent | `welcome` | the device's ID at the Zentrale |
-| Zentrale → agent | `desiredState` | revision, peers (device IDs and addresses), folders with ID, label, mode, path, versioning, peers |
+| Zentrale → agent | `desiredState` | revision, peers (device IDs and addresses), folders with ID, label, mode, path, versioning, ignore patterns, peers |
 | agent → Zentrale | `applied` | revision, errors per folder |
 | Zentrale → agent | `rejected` | why; the socket closes |
 
@@ -105,7 +105,8 @@ of the Zentrale embeds `web/dist`; paths outside `/api` fall back to `index.html
 - **Geräte**: list with search and filter, rename, block, remove; "Gerät koppeln" creates a code,
   shows the command per OS and waits until the device shows up, then asks for its name and
   folders.
-- **Ordner**: mode and local path per device, rename, remove.
+- **Ordner**: mode and local path per device, rename, ignore patterns (one per line, on every
+  device and the hub), remove.
 
 The overview is polled every five seconds. `src/api/types.ts` checks every answer with Zod.
 `pnpm dev:demo` runs the UI on fixtures (`src/demo/`) without a Zentrale. The Playwright tests in
@@ -129,7 +130,9 @@ demo mode, so they need neither Rust nor Syncthing.
 2. Compare with the desired state: add missing devices and folders, change differing ones,
    remove those no longer wanted. The own device is never removed.
 3. Write the changes with `PUT`/`DELETE` on `/rest/config/devices/{id}` and
-   `/rest/config/folders/{id}`, devices before the folders that name them.
+   `/rest/config/folders/{id}`, devices before the folders that name them; then the ignore
+   patterns with `POST /rest/db/ignores?folder={id}` where they differ from `GET` (empty lines
+   and trailing spaces do not count).
 
 A folder with a new path is removed and added again, so Syncthing starts with a fresh index
 instead of treating the files at the old path as deleted. The reconciler only changes

@@ -1,5 +1,7 @@
 //! A small client for Syncthing's REST API (<https://docs.syncthing.net/dev/rest.html>).
 
+use std::collections::BTreeMap;
+
 use reqwest::{Method, RequestBuilder, Url};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
@@ -13,6 +15,12 @@ pub struct Client {
     http: reqwest::Client,
     base: Url,
     api_key: String,
+}
+
+#[derive(Deserialize)]
+struct Ignores {
+    #[serde(default)]
+    ignore: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -56,10 +64,35 @@ impl Client {
 
     /// Own device ID and configuration, the input of [`crate::plan`].
     pub async fn actual(&self) -> Result<Actual> {
+        let config = self.config().await?;
+        let mut ignores = BTreeMap::new();
+        for folder in &config.folders {
+            ignores.insert(folder.id.clone(), self.ignores(&folder.id).await?);
+        }
         Ok(Actual {
             my_id: self.my_id().await?,
-            config: self.config().await?,
+            config,
+            ignores,
         })
+    }
+
+    /// `GET /rest/db/ignores?folder={id}`: the lines of `.stignore`, empty without one.
+    pub async fn ignores(&self, folder: &str) -> Result<Vec<String>> {
+        let mut url = self.url(&["rest", "db", "ignores"]);
+        url.query_pairs_mut().append_pair("folder", folder);
+        let response = self.send_to(Method::GET, url, |r| r).await?;
+        let ignores: Ignores = response.json().await?;
+        Ok(ignores.ignore.unwrap_or_default())
+    }
+
+    /// `POST /rest/db/ignores?folder={id}`: replaces the folder's `.stignore`.
+    pub async fn set_ignores(&self, folder: &str, lines: &[String]) -> Result<()> {
+        let mut url = self.url(&["rest", "db", "ignores"]);
+        url.query_pairs_mut().append_pair("folder", folder);
+        let body = serde_json::json!({ "ignore": lines });
+        self.send_to(Method::POST, url, |r| r.json(&body))
+            .await
+            .map(drop)
     }
 
     /// `PUT /rest/config/devices/{id}`

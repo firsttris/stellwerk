@@ -20,7 +20,7 @@ pub fn router() -> Router<App> {
         .route("/api/folders", post(routes::create_folder))
         .route(
             "/api/folders/{id}",
-            patch(routes::rename_folder).delete(routes::delete_folder),
+            patch(routes::update_folder).delete(routes::delete_folder),
         )
         .route("/api/shares", post(routes::apply_shares))
         .route(

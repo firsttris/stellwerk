@@ -104,6 +104,8 @@ pub struct Config {
 pub struct Actual {
     pub my_id: String,
     pub config: Config,
+    /// Ignore patterns per existing folder (`GET /rest/db/ignores`); missing means none.
+    pub ignores: BTreeMap<String, Vec<String>>,
 }
 
 #[cfg(test)]

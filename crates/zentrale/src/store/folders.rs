@@ -28,6 +28,7 @@ struct FolderRow {
     label: String,
     syncthing_folder_id: String,
     versioning: String,
+    ignore_patterns: String,
     created_at: i64,
 }
 
@@ -46,6 +47,7 @@ impl From<FolderRow> for Folder {
             label: row.label,
             syncthing_folder_id: row.syncthing_folder_id,
             versioning: serde_json::from_str(&row.versioning).unwrap_or(DEFAULT_HUB_VERSIONING),
+            ignore_patterns: row.ignore_patterns.lines().map(str::to_string).collect(),
             created_at: row.created_at,
         }
     }
@@ -53,7 +55,7 @@ impl From<FolderRow> for Folder {
 
 pub(super) async fn all(tx: &mut Transaction<'_, Sqlite>) -> Result<(Vec<Folder>, Vec<Share>)> {
     let folders: Vec<FolderRow> = sqlx::query_as(
-        "SELECT id, label, syncthing_folder_id, versioning, created_at \
+        "SELECT id, label, syncthing_folder_id, versioning, ignore_patterns, created_at \
          FROM folders ORDER BY label COLLATE NOCASE, id",
     )
     .fetch_all(&mut **tx)
@@ -119,6 +121,7 @@ impl Store {
             label: label.to_string(),
             syncthing_folder_id: syncthing_folder_id(),
             versioning: DEFAULT_HUB_VERSIONING,
+            ignore_patterns: Vec::new(),
             created_at: now,
         };
         let mut tx = self.pool.begin().await?;
@@ -138,17 +141,35 @@ impl Store {
         Ok(folder)
     }
 
-    pub async fn rename_folder(&self, id: &str, label: &str) -> Result<()> {
-        let label = label.trim();
-        if label.is_empty() {
+    /// Renames and/or sets the ignore patterns; `None` leaves a field as it is.
+    pub async fn update_folder(
+        &self,
+        id: &str,
+        label: Option<&str>,
+        ignore_patterns: Option<&[String]>,
+    ) -> Result<()> {
+        let label = label.map(str::trim);
+        if label.is_some_and(str::is_empty) {
             return Err(StoreError::Invalid("a folder needs a name".into()));
         }
+        let patterns = ignore_patterns.map(|lines| {
+            lines
+                .iter()
+                .map(|line| line.trim_end())
+                .filter(|line| !line.is_empty())
+                .collect::<Vec<_>>()
+                .join("\n")
+        });
         let mut tx = self.pool.begin().await?;
-        let found = sqlx::query("UPDATE folders SET label = ? WHERE id = ?")
-            .bind(label)
-            .bind(id)
-            .execute(&mut *tx)
-            .await?;
+        let found = sqlx::query(
+            "UPDATE folders SET label = COALESCE(?, label), \
+             ignore_patterns = COALESCE(?, ignore_patterns) WHERE id = ?",
+        )
+        .bind(label)
+        .bind(patterns)
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
         if found.rows_affected() == 0 {
             return Err(StoreError::NotFound("folder"));
         }
@@ -339,6 +360,28 @@ mod tests {
             Err(StoreError::Invalid(_))
         ));
         assert_eq!(store.revision().await.unwrap(), start);
+    }
+
+    #[tokio::test]
+    async fn folders_keep_their_ignore_patterns() {
+        let (store, _dir) = test_store().await;
+        let folder = store.create_folder("Code", 1).await.unwrap();
+        let lines = vec!["target/".to_string(), "".to_string(), "*.log ".to_string()];
+        store
+            .update_folder(&folder.id, None, Some(&lines))
+            .await
+            .unwrap();
+        store
+            .update_folder(&folder.id, Some("Quellcode"), None)
+            .await
+            .unwrap();
+        let config = store.config().await.unwrap();
+        assert_eq!(config.folders[0].label, "Quellcode");
+        assert_eq!(config.folders[0].ignore_patterns, ["target/", "*.log"]);
+        assert!(matches!(
+            store.update_folder(&folder.id, Some(" "), None).await,
+            Err(StoreError::Invalid(_))
+        ));
     }
 
     #[tokio::test]

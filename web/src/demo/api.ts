@@ -75,18 +75,22 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
         label: label.trim(),
         syncthingFolderId: `demo${state.folders.length}-xxxxx`,
         versioning: { type: "staggered", max_age_days: 365 },
+        ignorePatterns: [],
         createdAt: nowSeconds(),
       };
       state = { ...state, folders: [...state.folders, folder] };
       bump();
       return folder;
     },
-    renameFolder: async (id, label) => {
-      findFolder(id);
-      state = {
-        ...state,
-        folders: state.folders.map((f) => (f.id === id ? { ...f, label: label.trim() } : f)),
+    updateFolder: async (id, patch) => {
+      const folder = findFolder(id);
+      const updated = {
+        ...folder,
+        label: patch.label?.trim() || folder.label,
+        ignorePatterns:
+          patch.ignorePatterns?.map((l) => l.trimEnd()).filter(Boolean) ?? folder.ignorePatterns,
       };
+      state = { ...state, folders: state.folders.map((f) => (f.id === id ? updated : f)) };
       bump();
     },
     deleteFolder: async (id) => {

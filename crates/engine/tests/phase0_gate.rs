@@ -49,6 +49,7 @@ fn desired(
             mode,
             shared_with: vec![other.clone()],
             versioning,
+            ignore_patterns: vec!["*.tmp".into(), "build/".into()],
         }],
     }
 }
@@ -107,9 +108,13 @@ async fn file_from_a_arrives_in_b_and_reapplying_changes_nothing() {
         Versioning::Staggered { max_age_days: 30 },
     );
 
-    // First apply: device and folder are created, the folder type is set.
-    assert_eq!(calls_made(a.client(), &want_a).await, 2);
-    assert_eq!(calls_made(b.client(), &want_b).await, 2);
+    // First apply: device and folder are created, folder type and ignores are set.
+    assert_eq!(calls_made(a.client(), &want_a).await, 3);
+    assert_eq!(calls_made(b.client(), &want_b).await, 3);
+    assert_eq!(
+        a.client().ignores(FOLDER).await.unwrap(),
+        ["*.tmp", "build/"]
+    );
     assert_eq!(folder_type(a.client()).await, FolderType::SendOnly);
     assert_eq!(folder_type(b.client()).await, FolderType::ReceiveOnly);
 
@@ -130,8 +135,13 @@ async fn file_from_a_arrives_in_b_and_reapplying_changes_nothing() {
     std::fs::create_dir_all(&a_data).unwrap();
     let contents = "Stellwerk phase 0\n";
     std::fs::write(a_data.join("hello.txt"), contents).unwrap();
+    std::fs::write(a_data.join("scratch.tmp"), "ignored").unwrap();
     a.client().scan(FOLDER).await.unwrap();
     wait_for_file(&b_data.join("hello.txt"), contents).await;
+    assert!(
+        !b_data.join("scratch.tmp").exists(),
+        "ignored files stay where they are"
+    );
 
     a.stop().await.unwrap();
     b.stop().await.unwrap();

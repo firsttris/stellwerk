@@ -211,8 +211,15 @@ async fn folders_drafts_and_pairing_codes() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(pending["device"], Value::Null);
 
+    let patterns = json!({ "ignorePatterns": ["*.tmp", "", "cache/ "] });
+    let (status, _) = browser
+        .send(&router, "PATCH", &format!("/api/folders/{id}"), Some(patterns))
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
     let (_, overview) = browser.send(&router, "GET", "/api/overview", None).await;
     assert_eq!(overview["folders"][0]["label"], "Bilder");
+    assert_eq!(overview["folders"][0]["ignorePatterns"], json!(["*.tmp", "cache/"]));
     assert_eq!(overview["folders"][0]["versioning"]["type"], "staggered");
 
     let (status, _) = browser

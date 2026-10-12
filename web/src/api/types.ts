@@ -36,6 +36,7 @@ export const folderSchema = z.object({
   label: z.string(),
   syncthingFolderId: z.string(),
   versioning: versioningSchema,
+  ignorePatterns: z.array(z.string()),
   createdAt: z.number(),
 });
 export type Folder = z.infer<typeof folderSchema>;
@@ -87,6 +88,8 @@ export type ShareChange = {
   path?: string;
 };
 
+export type FolderPatch = { label?: string; ignorePatterns?: string[] };
+
 export type DevicePatch = { name?: string; kind?: DeviceKind; approved?: boolean };
 
 export type Api = {
@@ -95,7 +98,7 @@ export type Api = {
   logout(): Promise<void>;
   overview(): Promise<Overview>;
   createFolder(label: string): Promise<Folder>;
-  renameFolder(id: string, label: string): Promise<void>;
+  updateFolder(id: string, patch: FolderPatch): Promise<void>;
   deleteFolder(id: string): Promise<void>;
   applyShares(changes: ShareChange[]): Promise<{ revision: number }>;
   updateDevice(id: string, patch: DevicePatch): Promise<Device>;

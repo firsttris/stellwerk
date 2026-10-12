@@ -83,13 +83,26 @@ pub async fn create_folder(
     Ok((StatusCode::CREATED, Json(folder)))
 }
 
-pub async fn rename_folder(
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderPatch {
+    label: Option<String>,
+    ignore_patterns: Option<Vec<String>>,
+}
+
+pub async fn update_folder(
     State(app): State<App>,
     _: Admin,
     Path(id): Path<String>,
-    Json(body): Json<NewFolder>,
+    Json(patch): Json<FolderPatch>,
 ) -> ApiResult<StatusCode> {
-    app.store().rename_folder(&id, &body.label).await?;
+    app.store()
+        .update_folder(
+            &id,
+            patch.label.as_deref(),
+            patch.ignore_patterns.as_deref(),
+        )
+        .await?;
     app.changed().await?;
     Ok(StatusCode::NO_CONTENT)
 }

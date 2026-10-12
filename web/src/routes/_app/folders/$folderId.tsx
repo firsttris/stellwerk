@@ -4,11 +4,11 @@ import { Database, Folder as FolderIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { api } from "../../../api";
 import { overviewQuery, refresh } from "../../../api/queries";
-import type { Folder, Overview, ShareChange } from "../../../api/types";
+import type { Folder, FolderPatch, Overview, ShareChange } from "../../../api/types";
 import { StatusDot } from "../../../components/device-icon";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
-import { Input, Select } from "../../../components/ui/input";
+import { Field, Input, Select } from "../../../components/ui/input";
 import { deviceStatus, nowSeconds, plural } from "../../../lib/format";
 import { type CellMode, isWaiting, matrixDevices, storedMode } from "../../../lib/matrix";
 import { cn } from "../../../lib/utils";
@@ -229,10 +229,11 @@ function FolderDevices({ overview, folder }: { overview: Overview; folder: Folde
 
 function FolderSettings({ folder }: { folder: Folder }) {
   const [label, setLabel] = useState(folder.label);
+  const [ignores, setIgnores] = useState(folder.ignorePatterns.join("\n"));
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const rename = useMutation({
-    mutationFn: () => api.renameFolder(folder.id, label),
+  const update = useMutation({
+    mutationFn: (patch: FolderPatch) => api.updateFolder(folder.id, patch),
     onSuccess: () => refresh(queryClient),
   });
   const remove = useMutation({
@@ -242,10 +243,15 @@ function FolderSettings({ folder }: { folder: Folder }) {
       await navigate({ to: "/folders" });
     },
   });
-  const submit = (event: FormEvent) => {
+  const rename = (event: FormEvent) => {
     event.preventDefault();
-    rename.mutate();
+    update.mutate({ label });
   };
+  const ignoreLines = ignores
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter(Boolean);
+  const ignoresChanged = ignoreLines.join("\n") !== folder.ignorePatterns.join("\n");
   const keep =
     folder.versioning.type === "staggered"
       ? `${folder.versioning.max_age_days} Tage, gestaffelt`
@@ -255,7 +261,7 @@ function FolderSettings({ folder }: { folder: Folder }) {
     <div className="flex flex-col gap-4">
       <Card className="flex flex-col gap-4 p-5">
         <h2 className="text-base font-semibold">Name</h2>
-        <form onSubmit={submit} className="flex flex-wrap gap-2">
+        <form onSubmit={rename} className="flex flex-wrap gap-2">
           <Input
             aria-label="Name des Ordners"
             className="max-w-sm"
@@ -271,6 +277,39 @@ function FolderSettings({ folder }: { folder: Folder }) {
           </Button>
         </form>
         <p className="text-[13px] text-muted-foreground">Versionen auf dem Server: {keep}.</p>
+      </Card>
+      <Card className="flex flex-col gap-3 p-5">
+        <h2 className="text-base font-semibold">Ignorieren</h2>
+        <Field label="Ein Muster pro Zeile, gilt auf allen Geräten und dem Server.">
+          {(id) => (
+            <textarea
+              id={id}
+              rows={6}
+              value={ignores}
+              onChange={(e) => setIgnores(e.target.value)}
+              placeholder={"node_modules/\n*.log"}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-[13px]"
+            />
+          )}
+        </Field>
+        <div className="flex items-center justify-between gap-3">
+          <a
+            href="https://docs.syncthing.net/users/ignoring.html"
+            target="_blank"
+            rel="noreferrer"
+            className="text-[13px] text-muted-foreground underline"
+          >
+            Syntax der Muster
+          </a>
+          <Button
+            variant="outline"
+            disabled={!ignoresChanged || update.isPending}
+            onClick={() => update.mutate({ ignorePatterns: ignoreLines })}
+          >
+            Muster speichern
+          </Button>
+        </div>
+        {update.error && <p className="text-sm text-danger">{update.error.message}</p>}
       </Card>
       <Card className="flex flex-wrap items-center justify-between gap-4 border-danger/30 p-5">
         <div className="flex flex-col gap-0.5">

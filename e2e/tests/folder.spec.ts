@@ -31,3 +31,21 @@ test("a folder can be renamed and removed", async ({ page }) => {
   await expect(page).toHaveURL(/\/folders$/);
   await expect(page.getByRole("link", { name: /Hörbücher/ })).toHaveCount(0);
 });
+
+test("ignore patterns are kept per folder", async ({ page }) => {
+  await page.goto("/folders");
+  await page.getByRole("link", { name: /Projekte/ }).click();
+  await page.getByRole("tab", { name: "Einstellungen" }).click();
+  const patterns = page.getByLabel("Ein Muster pro Zeile");
+  await expect(patterns).toHaveValue(/node_modules\//);
+  const save = page.getByRole("button", { name: "Muster speichern" });
+  await expect(save).toBeDisabled();
+  await patterns.fill("node_modules/\n.cache/");
+  await save.click();
+  await expect(save).toBeDisabled();
+  // The demo API lives in the page, so navigate inside the app instead of reloading.
+  await page.getByRole("link", { name: "Ordner", exact: true }).click();
+  await page.getByRole("link", { name: /Projekte/ }).click();
+  await page.getByRole("tab", { name: "Einstellungen" }).click();
+  await expect(page.getByLabel("Ein Muster pro Zeile")).toHaveValue("node_modules/\n.cache/");
+});

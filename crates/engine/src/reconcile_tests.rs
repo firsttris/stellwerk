@@ -23,6 +23,7 @@ fn folder(id: &str, mode: FolderMode, shared_with: &[&str]) -> Folder {
         mode,
         shared_with: shared_with.iter().map(|id| DeviceId::new(*id)).collect(),
         versioning: Versioning::None,
+        ignore_patterns: vec![],
     }
 }
 
@@ -46,14 +47,15 @@ fn fresh() -> Actual {
             }],
             folders: vec![],
         },
+        ignores: Default::default(),
     }
 }
 
 /// What Syncthing does with the calls, as far as the reconciler looks at it:
 /// lib/config/config.go `SetDevice`/`SetFolder`/`RemoveFolder`/`RemoveDevice` and `prepare`.
 fn simulate(mut actual: Actual, calls: &[ApiCall]) -> Actual {
-    let config = &mut actual.config;
     for call in calls {
+        let config = &mut actual.config;
         match call {
             ApiCall::PutDevice(device) => {
                 config.devices.retain(|d| d.device_id != device.device_id);
@@ -70,7 +72,13 @@ fn simulate(mut actual: Actual, calls: &[ApiCall]) -> Actual {
                 config.folders.retain(|f| f.id != folder.id);
                 config.folders.push(folder);
             }
-            ApiCall::DeleteFolder(id) => config.folders.retain(|f| &f.id != id),
+            ApiCall::DeleteFolder(id) => {
+                config.folders.retain(|f| &f.id != id);
+                actual.ignores.remove(id);
+            }
+            ApiCall::SetIgnores { folder, lines } => {
+                actual.ignores.insert(folder.clone(), lines.clone());
+            }
             ApiCall::DeleteDevice(id) => {
                 config.devices.retain(|d| &d.device_id != id);
                 for folder in &mut config.folders {
@@ -79,7 +87,7 @@ fn simulate(mut actual: Actual, calls: &[ApiCall]) -> Actual {
             }
         }
     }
-    config.folders.sort_by(|a, b| a.id.cmp(&b.id));
+    actual.config.folders.sort_by(|a, b| a.id.cmp(&b.id));
     actual
 }
 
@@ -167,6 +175,39 @@ fn changed_versioning_is_one_folder_put() {
 
     assert!(
         matches!(&calls[..], [ApiCall::PutFolder(f)] if f.versioning.kind == "staggered"),
+        "{calls:?}"
+    );
+}
+
+#[test]
+fn ignore_patterns_follow_the_folder_and_only_change_when_they_differ() {
+    let mut state = desired(&[HUB], vec![folder("dev", FolderMode::SendReceive, &[HUB])]);
+    state.folders[0].ignore_patterns = vec!["node_modules/".into(), "".into(), "*.log  ".into()];
+
+    let (first, second) = apply_twice(fresh(), &state);
+    assert!(
+        matches!(&first[..], [ApiCall::PutDevice(_), ApiCall::PutFolder(_), ApiCall::SetIgnores { folder, lines }]
+            if folder == "dev" && lines == &["node_modules/", "*.log"]),
+        "{first:?}"
+    );
+    assert_eq!(second, []);
+
+    let actual = simulate(fresh(), &first);
+    let mut fewer = state.clone();
+    fewer.folders[0].ignore_patterns = vec!["node_modules/".into()];
+    assert!(
+        matches!(&plan(&actual, &fewer).unwrap()[..], [ApiCall::SetIgnores { lines, .. }] if lines == &["node_modules/"])
+    );
+}
+
+#[test]
+fn a_new_folder_without_patterns_needs_no_ignore_call() {
+    let state = desired(&[HUB], vec![folder("dev", FolderMode::SendReceive, &[HUB])]);
+    let calls = plan(&fresh(), &state).unwrap();
+    assert!(
+        !calls
+            .iter()
+            .any(|c| matches!(c, ApiCall::SetIgnores { .. })),
         "{calls:?}"
     );
 }

@@ -20,6 +20,8 @@ pub enum ApiCall {
     DeleteFolder(String),
     /// `DELETE /rest/config/devices/{id}`
     DeleteDevice(String),
+    /// `POST /rest/db/ignores?folder={id}`, after the folder exists.
+    SetIgnores { folder: String, lines: Vec<String> },
 }
 
 impl ApiCall {
@@ -27,7 +29,7 @@ impl ApiCall {
     pub fn folder(&self) -> Option<&str> {
         match self {
             Self::PutFolder(folder) => Some(&folder.id),
-            Self::DeleteFolder(id) => Some(id),
+            Self::DeleteFolder(id) | Self::SetIgnores { folder: id, .. } => Some(id),
             Self::PutDevice(_) | Self::DeleteDevice(_) => None,
         }
     }
@@ -106,6 +108,28 @@ pub fn plan(actual: &Actual, desired: &DesiredState) -> Result<Vec<ApiCall>, Pla
         })
         .map(|(_, want)| ApiCall::PutFolder(want.clone()));
 
+    // Ignores live in the folder (.stignore), so a new or re-created folder needs them set
+    // after it exists; an empty list on a new folder is what Syncthing has anyway.
+    let set_ignores = desired.folders.iter().filter_map(|folder| {
+        let want = ignore_lines(&folder.ignore_patterns);
+        let fresh =
+            moved.contains(folder.id.as_str()) || !have_folders.contains_key(folder.id.as_str());
+        let have = if fresh {
+            Vec::new()
+        } else {
+            ignore_lines(
+                actual
+                    .ignores
+                    .get(&folder.id)
+                    .map_or(&[][..], Vec::as_slice),
+            )
+        };
+        (want != have).then(|| ApiCall::SetIgnores {
+            folder: folder.id.clone(),
+            lines: want,
+        })
+    });
+
     let delete_devices = have_devices
         .keys()
         .filter(|id| !want_devices.contains_key(*id))
@@ -114,6 +138,7 @@ pub fn plan(actual: &Actual, desired: &DesiredState) -> Result<Vec<ApiCall>, Pla
     Ok(put_devices
         .chain(delete_folders)
         .chain(put_folders)
+        .chain(set_ignores)
         .chain(delete_devices)
         .collect())
 }
@@ -184,6 +209,15 @@ fn folder_config(my_id: &str, folder: &Folder) -> FolderConfig {
             })
             .collect(),
     }
+}
+
+/// Ignore lines as compared and written: without trailing spaces and empty lines.
+fn ignore_lines(lines: &[String]) -> Vec<String> {
+    lines
+        .iter()
+        .map(|line| line.trim_end().to_string())
+        .filter(|line| !line.is_empty())
+        .collect()
 }
 
 fn same_folder(have: &FolderConfig, want: &FolderConfig) -> bool {

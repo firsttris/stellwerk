@@ -29,11 +29,18 @@ const device = (now: number, d: Partial<Device> & Pick<Device, "id" | "name">): 
   ...d,
 });
 
-const folder = (now: number, id: string, label: string, syncthingFolderId: string): Folder => ({
+const folder = (
+  now: number,
+  id: string,
+  label: string,
+  syncthingFolderId: string,
+  ignorePatterns: string[] = [],
+): Folder => ({
   id,
   label,
   syncthingFolderId,
   versioning: { type: "staggered", max_age_days: 365 },
+  ignorePatterns,
   createdAt: now - 20 * DAY,
 });
 
@@ -66,7 +73,13 @@ export function demoState(now: number): DemoState {
     }),
   ];
   const folders = [
-    folder(now, "projekte", "Projekte", "k3j9x-2mwqa"),
+    folder(now, "projekte", "Projekte", "k3j9x-2mwqa", [
+      "node_modules/",
+      "dist/",
+      "target/",
+      "*.log",
+      ".DS_Store",
+    ]),
     folder(now, "dokumente", "Dokumente", "p8rte-4nq2c"),
     folder(now, "fotos", "Fotos", "b7wz4-hh3ke"),
     folder(now, "musik", "Musik", "m2xc9-q7tpa"),

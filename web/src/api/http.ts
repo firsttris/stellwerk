@@ -58,8 +58,8 @@ export function httpApi(): Api {
     },
     overview: () => request("GET", "/api/overview").then(parsed(overviewSchema)),
     createFolder: (label) => request("POST", "/api/folders", { label }).then(parsed(folderSchema)),
-    renameFolder: async (id, label) => {
-      await request("PATCH", `/api/folders/${encodeURIComponent(id)}`, { label });
+    updateFolder: async (id, patch) => {
+      await request("PATCH", `/api/folders/${encodeURIComponent(id)}`, patch);
     },
     deleteFolder: async (id) => {
       await request("DELETE", `/api/folders/${encodeURIComponent(id)}`);

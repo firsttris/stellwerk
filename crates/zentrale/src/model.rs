@@ -60,6 +60,8 @@ pub struct Folder {
     /// The folder ID inside Syncthing, the same on every device.
     pub syncthing_folder_id: String,
     pub versioning: Versioning,
+    /// Syncthing ignore patterns, applied on every device and the hub.
+    pub ignore_patterns: Vec<String>,
     pub created_at: i64,
 }
 

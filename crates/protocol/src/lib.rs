@@ -68,6 +68,9 @@ pub struct Folder {
     pub shared_with: Vec<DeviceId>,
     #[serde(default)]
     pub versioning: Versioning,
+    /// Syncthing ignore patterns, one per entry, the same on every device.
+    #[serde(default)]
+    pub ignore_patterns: Vec<String>,
 }
 
 /// The complete configuration a device should have, never a diff.
@@ -98,6 +101,7 @@ mod tests {
                 mode: FolderMode::ReceiveOnly,
                 shared_with: vec![DeviceId::new("AAAAAAA")],
                 versioning: Versioning::Staggered { max_age_days: 30 },
+                ignore_patterns: vec!["*.tmp".into()],
             }],
         };
 

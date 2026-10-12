@@ -30,6 +30,7 @@ pub fn for_device(config: &Config, hub: &Hub, device_id: &str) -> Option<Desired
                 mode: share.mode,
                 shared_with: vec![hub_id.clone()],
                 versioning: Versioning::None,
+                ignore_patterns: folder.ignore_patterns.clone(),
             })
         })
         .collect();
@@ -77,6 +78,7 @@ pub fn for_hub(config: &Config, hub: &Hub) -> DesiredState {
                 mode: FolderMode::SendReceive,
                 shared_with: shared_with.into_iter().map(DeviceId::new).collect(),
                 versioning: folder.versioning,
+                ignore_patterns: folder.ignore_patterns.clone(),
             }
         })
         .collect();
@@ -121,6 +123,7 @@ mod tests {
             label: id.to_uppercase(),
             syncthing_folder_id: format!("st-{id}"),
             versioning: DEFAULT_HUB_VERSIONING,
+            ignore_patterns: vec!["*.tmp".into()],
             created_at: 0,
         }
     }
@@ -175,6 +178,7 @@ mod tests {
         assert_eq!(docs.mode, FolderMode::ReceiveOnly);
         assert_eq!(docs.shared_with, [DeviceId::new("ST-HUB")]);
         assert_eq!(docs.versioning, Versioning::None);
+        assert_eq!(docs.ignore_patterns, ["*.tmp"]);
     }
 
     #[test]
@@ -211,6 +215,7 @@ mod tests {
         let empty = |id: &str| Actual {
             my_id: id.into(),
             config: StConfig::default(),
+            ignores: Default::default(),
         };
         assert!(stellwerk_engine::plan(&empty("ST-HUB"), &for_hub(&config, &hub())).is_ok());
         let device = for_device(&config, &hub(), "a").unwrap();
