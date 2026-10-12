@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { createQueryClient } from "./api/client";
 import { sessionQuery } from "./api/queries";
 import { NotFound, RouteError } from "./components/route-error";
+import { getLocale } from "./paraglide/runtime.js";
 import { routeTree } from "./routeTree.gen";
 import "./styles.css";
 
@@ -26,6 +27,10 @@ declare module "@tanstack/react-router" {
     router: typeof router;
   }
 }
+
+// index.html says "de"; screen readers need the language actually shown. setLocale reloads the
+// page, so setting it once here is enough.
+document.documentElement.lang = getLocale();
 
 const root = document.getElementById("root");
 if (root) {
