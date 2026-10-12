@@ -152,7 +152,8 @@ impl Store {
     }
 
     /// Records what an agent reported on connecting. A new Syncthing ID (fresh Syncthing home)
-    /// changes the hub's peers: new revision. Returns whether the revision was raised.
+    /// changes the hub's peers: new revision. Returns whether the revision was raised. Refuses
+    /// a Syncthing ID that belongs to another device.
     pub async fn device_seen(&self, id: &str, report: &NewDevice, now: i64) -> Result<bool> {
         let mut tx = self.write().await?;
         let (old_id,): (String,) = sqlx::query_as("SELECT syncthing_id FROM devices WHERE id = ?")
@@ -160,6 +161,7 @@ impl Store {
             .fetch_optional(&mut *tx)
             .await?
             .ok_or(StoreError::NotFound("device"))?;
+        refuse_taken_syncthing_id(&mut tx, &report.syncthing_id, Some(id)).await?;
         sqlx::query(
             "UPDATE devices SET os = ?, syncthing_id = ?, agent_version = ?, \
              syncthing_version = ?, last_seen = ? WHERE id = ?",
@@ -252,6 +254,28 @@ async fn take_code(tx: &mut Transaction<'_, Sqlite>, code_hash: &str, now: i64) 
     Ok(used.rows_affected() > 0)
 }
 
+/// Two devices with one Syncthing ID (a Syncthing home copied to another machine) would be
+/// one peer for the hub; the second is turned away with a reason the agent logs.
+async fn refuse_taken_syncthing_id(
+    tx: &mut Transaction<'_, Sqlite>,
+    syncthing_id: &str,
+    except: Option<&str>,
+) -> Result<()> {
+    let owner: Option<(String,)> =
+        sqlx::query_as("SELECT name FROM devices WHERE syncthing_id = ? AND id IS NOT ?")
+            .bind(syncthing_id)
+            .bind(except)
+            .fetch_optional(&mut **tx)
+            .await?;
+    match owner {
+        Some((name,)) => Err(StoreError::Invalid(format!(
+            "this Syncthing device ID is already used by the device \"{name}\"; \
+             give this device its own Syncthing (a fresh agent data directory)"
+        ))),
+        None => Ok(()),
+    }
+}
+
 /// A new, approved device; refuses a key that is already known.
 async fn insert_device(
     tx: &mut Transaction<'_, Sqlite>,
@@ -265,6 +289,7 @@ async fn insert_device(
     if known.is_some() {
         return Err(StoreError::Invalid("this key is already enrolled".into()));
     }
+    refuse_taken_syncthing_id(tx, &device.syncthing_id, None).await?;
     let id = new_id();
     sqlx::query(
         "INSERT INTO devices (id, name, kind, os, public_key, syncthing_id, agent_version, \
@@ -357,6 +382,41 @@ mod tests {
         store.create_enrollment("third", 100).await.unwrap();
         assert_eq!(store.enroll("third", laptop(), 3).await.unwrap(), None);
         assert_eq!(store.enrolled_device("third").await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn a_syncthing_id_belongs_to_one_device() {
+        let (store, _dir) = test_store().await;
+        for code in ["first", "second", "third"] {
+            store.create_enrollment(code, 100).await.unwrap();
+        }
+        store.enroll("first", laptop(), 1).await.unwrap().unwrap();
+
+        let mut copy = laptop();
+        copy.public_key = "COPY".into();
+        let refused = store.enroll("second", copy.clone(), 2).await;
+        assert!(
+            matches!(refused, Err(StoreError::Invalid(_))),
+            "{refused:?}"
+        );
+        assert_eq!(store.config().await.unwrap().devices.len(), 1);
+
+        copy.syncthing_id = "ST-2".into();
+        let other = store
+            .enroll("second", copy.clone(), 3)
+            .await
+            .unwrap()
+            .unwrap();
+        copy.syncthing_id = "ST-1".into();
+        let refused = store.device_seen(&other.device.id, &copy, 4).await;
+        assert!(
+            matches!(refused, Err(StoreError::Invalid(_))),
+            "{refused:?}"
+        );
+        assert_eq!(
+            store.device(&other.device.id).await.unwrap().syncthing_id,
+            "ST-2"
+        );
     }
 
     #[tokio::test]
