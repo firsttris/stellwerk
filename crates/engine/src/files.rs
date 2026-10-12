@@ -25,7 +25,8 @@ const TEMP_PREFIXES: [&str; 2] = [".syncthing.", "~syncthing~"];
 pub struct Conflict {
     pub path: String,
     pub original: String,
-    /// When Syncthing made the copy, seconds since the epoch (UTC).
+    /// When Syncthing made the copy: the time in its name read as UTC. Syncthing writes local
+    /// time there, so outside a UTC zone (the Docker image is UTC) this is off by the offset.
     pub at: i64,
     /// Short ID of the device whose version the copy holds.
     pub modified_by: String,

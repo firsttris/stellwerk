@@ -232,9 +232,13 @@ to every device (`crates/engine/src/files.rs`, `crates/zentrale/src/files.rs`).
   - keep both: the copy becomes `name.<device>.ext` next to the original.
 
   The discarded side is moved into `.stversions` under Syncthing's own naming
-  (`name~YYYYMMDD-HHMMSS.ext`, lib/versioner/util.go), so it shows up among the versions. The
-  time in that name is UTC; Syncthing reads it as local time, which is the same in the Docker
-  image.
+  (`name~YYYYMMDD-HHMMSS.ext`, lib/versioner/util.go), so it shows up among the versions.
+
+  Both names carry a time without a zone. Syncthing writes and reads it as local time
+  (`conflictName`; `ParseInLocation(…, time.Local)` in lib/versioner/util.go), Stellwerk as
+  UTC. In the Docker image both are UTC; on a server in another time zone the conflict time
+  shown and the time of a version archived by resolving are off by the zone's offset, and the
+  staggered cleanup ages such a version by that much.
 - **Versions.** The hub keeps staggered versions (a year by default). The UI lists them through
   `GET /rest/folder/versions` and restores one with `POST /rest/folder/versions`, which archives
   the current file first.
