@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TriangleAlert } from "lucide-react";
+import { useMemo } from "react";
 import { api } from "../api";
 import { eventsQuery, statusQuery } from "../api/queries";
 import type { Conflict, Device, FileContent, Keep } from "../api/types";
-import { type DiffLine, diffLines } from "../lib/diff";
+import { conflictLines, type DiffLine } from "../lib/diff";
 import { ago, nowSeconds } from "../lib/format";
 import { formatBytes } from "../lib/live";
 import { cn } from "../lib/utils";
@@ -43,7 +44,7 @@ function Side({
           {file ? `${ago(file.modified, now)} · ${formatBytes(file.size)}` : m.conflict_deleted()}
         </span>
       </div>
-      {lines ? (
+      {!file ? null : lines ? (
         <pre className="max-h-72 overflow-auto rounded-md bg-subtle p-2 font-mono text-xs leading-5">
           {lines.map((line, index) => (
             <span
@@ -99,8 +100,8 @@ export function ConflictCard({
   const device = devices.find((d) => d.id === conflict.deviceId)?.name ?? m.conflict_other_device();
   const original = content.data?.original;
   const copy = content.data?.copy;
-  const text = original?.text != null && copy?.text != null;
-  const lines = text ? diffLines(original?.text ?? "", copy?.text ?? "") : undefined;
+  // The diff is the expensive part of the page; every live update re-renders the route.
+  const lines = useMemo(() => conflictLines(original, copy), [original, copy]);
 
   return (
     <Card

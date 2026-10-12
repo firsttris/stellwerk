@@ -33,7 +33,7 @@
   "conflict_keep_both": "Beide behalten",
   "conflict_keep_this": "Diese Fassung behalten",
   "conflict_label": "Konflikt in {path}",
-  "conflict_no_preview": "Keine Textvorschau (Binärdatei oder größer als 256 KB).",
+  "conflict_no_preview": "Keine Textvorschau (Binärdatei, größer als 256 KB oder mehr als 2.000 Zeilen).",
   "conflict_other_device": "einem anderen Gerät",
   "conflicts_description": "Wenn zwei Geräte dieselbe Datei ändern, bevor sie voneinander wissen, hebt der Server beide Fassungen auf. Hier entscheidest du, welche bleibt.",
   "conflicts_none": "Keine Konflikte. Alles ist eindeutig.",

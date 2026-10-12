@@ -33,7 +33,7 @@
   "conflict_keep_both": "Keep both",
   "conflict_keep_this": "Keep this version",
   "conflict_label": "Conflict in {path}",
-  "conflict_no_preview": "No text preview (binary file or larger than 256 KB).",
+  "conflict_no_preview": "No text preview (binary file, larger than 256 KB or more than 2,000 lines).",
   "conflict_other_device": "another device",
   "conflicts_description": "When two devices change the same file before they know of each other, the server keeps both versions. Here you decide which one stays.",
   "conflicts_none": "No conflicts. Everything is clear.",

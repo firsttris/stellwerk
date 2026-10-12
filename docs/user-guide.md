@@ -205,7 +205,8 @@ A conflict happens when two devices change the same file before either has seen 
 change. Syncthing then keeps both: the version that won keeps the name, the other becomes a
 *conflict copy* (`config.sync-conflict-20261012-103112-WORKBEN.ts`). Stellwerk finds those copies
 on the server and lists them here, grouped by folder, with both sides next to each other and a
-line diff for text files up to 256 KB.
+line diff for text files up to 256 KB and 2,000 lines. When the current file was deleted, the
+copy is shown in full.
 
 | Choice | Result |
 |---|---|
