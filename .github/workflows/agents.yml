@@ -37,10 +37,32 @@ jobs:
         shell: bash
         run: |
           cargo ${{ matrix.zig && 'zigbuild' || 'build' }} --release --locked \
-            --target ${{ matrix.target }} -p stellwerk-agent
+            --target ${{ matrix.target }} -p stellwerk-agent --bins
           mkdir dist
-          cp target/${{ matrix.target }}/release/stellwerk-agent${{ matrix.ext }} \
-            dist/stellwerk-agent-${{ matrix.name }}${{ matrix.ext }}
+          release=target/${{ matrix.target }}/release
+          if [ "${{ matrix.ext }}" = .exe ]; then
+            # Both programs under their own names: the service starts the windowless one
+            7z a dist/stellwerk-agent-${{ matrix.name }}.zip \
+              ./$release/stellwerk-agent.exe ./$release/stellwerk-agent-background.exe
+          else
+            cp $release/stellwerk-agent dist/stellwerk-agent-${{ matrix.name }}
+          fi
+      # The installer, then a silent install and uninstall on this runner
+      - if: matrix.ext == '.exe'
+        name: Windows installer
+        shell: bash
+        run: |
+          command -v makensis || choco install nsis -y --no-progress
+          export PATH="$PATH:/c/Program Files (x86)/NSIS"
+          version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          release=$(cygpath -w "$PWD/target/${{ matrix.target }}/release")
+          makensis -V3 -DVERSION="$version" -DBIN="$release" -DLICENSE="$(cygpath -w "$PWD/LICENSE")" \
+            -DOUT="$(cygpath -w "$PWD/dist/stellwerk-agent-setup-${{ matrix.name }}.exe")" \
+            installer/windows/stellwerk-agent.nsi
+      - if: matrix.ext == '.exe'
+        name: Installer test
+        shell: bash
+        run: scripts/installer-smoke.sh "dist/stellwerk-agent-setup-${{ matrix.name }}.exe"
       - uses: actions/upload-artifact@v4
         with:
           name: agent-${{ matrix.name }}

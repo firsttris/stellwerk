@@ -65,6 +65,8 @@ Server: Linux with Docker or Podman. Devices: Linux, Windows and macOS.
   appears in the UI by itself.
 - **In the LAN without a code**: `stellwerk-agent join` finds the Zentrale over mDNS; the device
   waits under "Wartende Geräte" until you approve it, after comparing its fingerprint.
+- **Runs in the background**: `stellwerk-agent service install` (or the Windows installer) starts
+  the agent at login as the current user, without admin rights, on Linux, macOS and Windows.
 - **Signed sign-in**: after pairing, the agent signs in with its own Ed25519 key; a device can be
   blocked or removed in the UI.
 

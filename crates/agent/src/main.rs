@@ -2,13 +2,13 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use stellwerk_agent::discover::discover;
-use stellwerk_agent::{Network, Options};
-use stellwerk_engine::process::shutdown_signal;
+use stellwerk_agent::service::{self, Service};
+use stellwerk_agent::{Network, Options, default_data_dir, run_until_stopped};
 
-/// Stellwerk agent: runs its own Syncthing and keeps it at the state the Zentrale sets.
 /// How long `join` listens for a Zentrale in the LAN.
 const DISCOVERY_TIME: std::time::Duration = std::time::Duration::from_secs(4);
 
+/// Stellwerk agent: runs its own Syncthing and keeps it at the state the Zentrale sets.
 #[derive(Parser)]
 #[command(version)]
 struct Cli {
@@ -39,6 +39,18 @@ enum Command {
         #[arg(long)]
         name: Option<String>,
     },
+    /// Run in the background from login on: a systemd user service, a launchd agent or a
+    /// task at logon. Needs no admin rights.
+    #[command(subcommand)]
+    Service(ServiceCommand),
+}
+
+#[derive(Subcommand)]
+enum ServiceCommand {
+    /// Set up the service for this binary and data directory, and start it.
+    Install,
+    /// Stop the agent and remove the service; the data directory stays.
+    Uninstall,
 }
 
 #[tokio::main]
@@ -51,9 +63,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let data_dir = match cli.data_dir {
         Some(dir) => dir,
-        None => dirs::data_local_dir()
-            .ok_or_else(|| anyhow::anyhow!("no data directory; pass --data-dir"))?
-            .join("stellwerk-agent"),
+        None => default_data_dir()?,
     };
     match cli.command {
         Command::Join { server, code } => {
@@ -62,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
                 None => find_zentrale().await?,
             };
             let fingerprint = stellwerk_agent::join(&data_dir, &server, code.as_deref())?;
-            println!("Saved. Start the agent with: stellwerk-agent run");
+            println!("Saved. Start the agent with: stellwerk-agent service install");
             if code.is_none() {
                 println!(
                     "Then approve this device in the Zentrale's UI under Devices; it shows the fingerprint {fingerprint}."
@@ -77,7 +87,20 @@ async fn main() -> anyhow::Result<()> {
                 network: Network::Lan,
                 name,
             };
-            stellwerk_agent::run(options, shutdown_signal()).await
+            run_until_stopped(options).await
+        }
+        Command::Service(ServiceCommand::Install) => {
+            let service = Service {
+                exe: std::env::current_exe()?,
+                data_dir: std::path::absolute(&data_dir)?,
+            };
+            println!("{}", service::install(&service)?);
+            Ok(())
+        }
+        Command::Service(ServiceCommand::Uninstall) => {
+            service::uninstall(&data_dir)?;
+            println!("Stopped the agent and removed the service.");
+            Ok(())
         }
     }
 }

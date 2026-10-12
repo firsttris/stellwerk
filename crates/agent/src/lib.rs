@@ -5,10 +5,31 @@ pub mod config;
 pub mod discover;
 pub mod identity;
 pub mod run;
+pub mod service;
 pub mod session;
 
 pub use config::AgentConfig;
 pub use run::{Network, Options, run};
+
+/// The data directory when none is given: `~/.local/share/stellwerk-agent` on Linux, the
+/// platform's local application data elsewhere.
+pub fn default_data_dir() -> anyhow::Result<std::path::PathBuf> {
+    Ok(dirs::data_local_dir()
+        .ok_or_else(|| anyhow::anyhow!("no data directory; pass --data-dir"))?
+        .join("stellwerk-agent"))
+}
+
+/// Runs until Ctrl-C, SIGTERM or the stop file of `service uninstall`.
+pub async fn run_until_stopped(options: Options) -> anyhow::Result<()> {
+    let stop = service::stop_requested(options.data_dir.clone());
+    run(options, async {
+        tokio::select! {
+            () = stellwerk_engine::process::shutdown_signal() => {}
+            () = stop => {}
+        }
+    })
+    .await
+}
 
 /// Stores what pairing needs: the Zentrale's URL, the device's key (kept if it has one) and
 /// the one-time code, used on the first connection. Without a code the device waits for

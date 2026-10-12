@@ -23,7 +23,8 @@ const OS_TABS: { id: Os; label: string }[] = [
 export function pairCommand(os: Os, origin: string, code: string): string {
   const agent = os === "windows" ? "stellwerk-agent.exe" : "stellwerk-agent";
   const join = `${agent} join --server ${origin} ${code}`;
-  return os === "windows" ? `${join}; ${agent} run` : `${join} && ${agent} run`;
+  const service = `${agent} service install`;
+  return os === "windows" ? `${join}; ${service}` : `${join} && ${service}`;
 }
 
 export function PairDialog({ variant = "outline" }: { variant?: "outline" | "default" }) {

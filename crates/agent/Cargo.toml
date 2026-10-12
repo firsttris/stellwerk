@@ -16,6 +16,11 @@ path = "src/lib.rs"
 name = "stellwerk-agent"
 path = "src/main.rs"
 
+# Without a console window on Windows, for the task at logon (src/service).
+[[bin]]
+name = "stellwerk-agent-background"
+path = "src/bin/background.rs"
+
 [dependencies]
 stellwerk-engine.workspace = true
 stellwerk-protocol.workspace = true

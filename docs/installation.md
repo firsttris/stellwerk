@@ -100,21 +100,23 @@ The hub port must be reachable from the devices; the web port only through the p
 
 ## Agent on a device
 
-Every release carries the agent as a single file per platform (`stellwerk-agent-linux-x86_64`,
-`-linux-aarch64`, `-windows-x86_64.exe`, `-macos-aarch64`, `-macos-x86_64`) and their
-`SHA256SUMS`; the Linux builds are static and run on any distribution. Before v1.0, build it with
-`cargo build --release -p stellwerk-agent`.
+Every release carries the agent per platform (`stellwerk-agent-linux-x86_64`, `-linux-aarch64`,
+`-macos-aarch64`, `-macos-x86_64`, and `stellwerk-agent-windows-x86_64.zip` with both Windows
+programs) and their `SHA256SUMS`; the Linux builds are static and run on any distribution.
+Before v1.0, build it with `cargo build --release -p stellwerk-agent`. Put it somewhere it can
+stay, e.g. `~/.local/bin` or `%LOCALAPPDATA%\Programs\Stellwerk`: the service starts it from
+there.
 
 In the UI, **Gerät koppeln** shows the command with a one-time code:
 
 ```bash
 stellwerk-agent join --server https://sync.example.org K7Q2-MX9P-41TZ
-stellwerk-agent run
+stellwerk-agent service install
 ```
 
 In the same network it also works without a code: `stellwerk-agent join` finds the Zentrale over
 mDNS (or pass `--server`), prints the device's fingerprint and saves the address. After
-`stellwerk-agent run` the device shows up under **Geräte → Wartende Geräte**; approve it there if
+`stellwerk-agent service install` the device shows up under **Geräte → Wartende Geräte**; approve it there if
 the fingerprint matches.
 
 mDNS needs the Zentrale in the same network segment: in a container that means host networking
@@ -123,8 +125,31 @@ to `join`; waiting for approval works the same.
 
 The agent keeps its key, its own Syncthing and Syncthing's database in its data directory
 (`~/.local/share/stellwerk-agent` on Linux, `--data-dir` to change it). It downloads the pinned
-Syncthing on first start and never touches a Syncthing that is already installed. Running it as a
-service (systemd, Windows service, launchd) comes with the installers in phase 3.
+Syncthing on first start and never touches a Syncthing that is already installed.
+
+### Running in the background
+
+`stellwerk-agent service install` starts the agent now and from every login on, as the current
+user and without admin rights; `service uninstall` stops it (and its Syncthing) and removes the
+service, the data directory stays. `stellwerk-agent run` runs it in the foreground instead.
+
+| System | Service | Log |
+|---|---|---|
+| Linux | systemd user unit `~/.config/systemd/user/stellwerk-agent.service` | `journalctl --user -u stellwerk-agent` |
+| macOS | launchd agent `~/Library/LaunchAgents/io.github.firsttris.stellwerk.agent.plist` | `agent.log` in the data directory |
+| Windows | task `Stellwerk\Agent` at logon, running `stellwerk-agent-background.exe` (no window) | `agent.log` in the data directory |
+
+On Windows the release also carries `stellwerk-agent-setup-windows-x86_64.exe`: it installs both
+programs for the current user into `%LOCALAPPDATA%\Programs\Stellwerk` (no admin rights), asks
+for the Zentrale's address and the code (empty for pairing in the LAN), pairs and installs the
+task; **Apps → Stellwerk Agent → Uninstall** stops and removes it, the data directory stays.
+Without questions: `stellwerk-agent-setup-windows-x86_64.exe /S /SERVER=https://… /CODE=…`.
+
+On Linux a user service stops when the user logs out; `loginctl enable-linger $USER` keeps it
+running (on some distributions with `sudo`). On Windows the agent runs while the user is logged
+in. CI installs, checks and removes the service on all three systems
+(`scripts/service-smoke.sh`), and the Windows installer on every agent build
+(`scripts/installer-smoke.sh`).
 
 ## Releases
 
