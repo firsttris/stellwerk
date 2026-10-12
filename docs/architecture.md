@@ -28,6 +28,7 @@ field (`crates/protocol/src/messages.rs`).
 | Zentrale → agent | `desiredState` | revision, peers (device IDs and addresses), folders with ID, label, mode, path, versioning, ignore patterns, peers |
 | agent → Zentrale | `applied` | revision, errors per folder |
 | agent → Zentrale | `status` | per folder: state, files and bytes in total and still needed, errors; on change, at most about once per second |
+| Zentrale → agent | `waiting` | LAN pairing: the agent is unknown and came without a code; its key's fingerprint. The socket stays open until the UI decides |
 | Zentrale → agent | `rejected` | why; the socket closes |
 
 The desired state is always complete, never a diff: an agent that was offline for three days just
@@ -42,6 +43,17 @@ gets the current state when it connects.
 3. The agent answers the Zentrale's challenge with a hello signed by its key and carrying the
    code. The Zentrale uses the code up and creates the device; the agent drops the code.
 4. From then on the agent signs in with its key only. A blocked device is turned away.
+
+**LAN pairing, without a code.** The Zentrale announces itself over mDNS as `_stellwerk._tcp`
+(`crates/zentrale/src/discovery.rs`), with the TXT entry `url` when `--public-url` is set.
+`stellwerk-agent join` without `--server` listens for four seconds and takes the one Zentrale
+it finds (`crates/agent/src/discover.rs`); without a code it prints its key's fingerprint, the
+first 8 bytes of the SHA-256 of the public key (`3F2A-91BC-04DE-77A1`). Its hello carries no
+code, so the Zentrale answers `waiting` and lists it under **Devices → Waiting devices**
+(`crates/zentrale/src/waiting.rs`). Approving creates the device and the connection goes on as
+after a code; rejecting turns the key away until the Zentrale restarts. The list lives in
+memory, holds at most 20 agents and forgets an agent that disconnects. `--lan-pairing false`
+turns announcing and waiting off; agents without a code are then rejected.
 
 The hub Syncthing listens on its own port (22001 by default, `--hub-listen`), so a Syncthing
 already running on the server keeps 22000. Devices dial the hub at `--hub-address`; the hub

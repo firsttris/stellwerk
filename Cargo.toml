@@ -23,6 +23,7 @@ dirs = "7"
 ed25519-dalek = "3"
 flate2 = "1"
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+mdns-sd = "0.21"
 hostname = "0.4"
 rand = "0.9"
 rust-embed = { version = "8", features = ["mime-guess"] }

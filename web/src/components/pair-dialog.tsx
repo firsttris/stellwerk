@@ -133,6 +133,7 @@ function Waiting({
             </Button>
           </div>
           <span className="text-xs text-muted-foreground">{m.pair_code_valid()}</span>
+          <span className="text-xs text-muted-foreground">{m.pair_lan_hint()}</span>
           {error && <span className="text-sm text-danger">{error}</span>}
         </div>
         <div className="flex items-center gap-3 rounded-lg border border-dashed border-border-strong p-3">

@@ -1,4 +1,6 @@
 //! The agents' WebSocket: challenge, signed hello, then the desired state on every change.
+//! An unknown agent without a code waits on the open socket until it is approved or rejected
+//! in the UI (LAN pairing).
 
 use std::time::Duration;
 
@@ -11,7 +13,8 @@ use crate::app::App;
 use crate::desired;
 use crate::model::{Device, DeviceKind};
 use crate::pairing::{code_hash, new_nonce, verify_hello};
-use crate::store::{NewDevice, now};
+use crate::store::{self, NewDevice, now};
+use crate::waiting::{Decision, Refused};
 
 /// How long an agent has to answer the challenge.
 const HELLO_TIMEOUT: Duration = Duration::from_secs(30);
@@ -35,12 +38,21 @@ async fn session(app: App, mut socket: WebSocket) {
     }
     let hello = match tokio::time::timeout(HELLO_TIMEOUT, receive(&mut socket)).await {
         Ok(Some(AgentMessage::Hello(hello))) => hello,
-        _ => return reject(socket, "expected a hello").await,
+        _ => return reject(&mut socket, "expected a hello").await,
     };
-    let device = match authenticate(&app, &nonce, &hello).await {
-        Ok(device) => device,
-        Err(reason) => return reject(socket, &reason).await,
+    let device = match identify(&app, &nonce, &hello).await {
+        Ok(Some(device)) => device,
+        Ok(None) if app.lan_pairing() => match approval(&app, &mut socket, report(&hello)).await {
+            Ok(Some(device)) => device,
+            Ok(None) => return,
+            Err(reason) => return reject(&mut socket, &reason).await,
+        },
+        Ok(None) => return reject(&mut socket, "this device is not paired").await,
+        Err(reason) => return reject(&mut socket, &reason).await,
     };
+    if let Err(reason) = admit(&app, &device, &hello).await {
+        return reject(&mut socket, &reason).await;
+    }
 
     let connection = app.set_online(&device.id, now());
     tracing::info!(device = %device.name, "agent connected");
@@ -115,47 +127,108 @@ async fn record_applied(app: &App, device_id: &str, applied: Applied) {
     }
 }
 
-/// The device for a verified hello: enrolled now with its code, or known by its key.
-async fn authenticate(app: &App, nonce: &str, hello: &Hello) -> Result<Device, String> {
+/// The device for a verified hello: enrolled now with its code, or known by its key; `None`
+/// for an unknown key without a code.
+async fn identify(app: &App, nonce: &str, hello: &Hello) -> Result<Option<Device>, String> {
     verify_hello(&hello.public_key, &hello.signature, nonce).map_err(|err| err.to_string())?;
-    let report = report(hello);
     let store = app.store();
     let at = now();
 
-    let enrolled = match &hello.enrollment_code {
-        Some(code) => store
-            .enroll(&code_hash(code), report.clone(), at)
+    if let Some(code) = &hello.enrollment_code {
+        let enrolled = store
+            .enroll(&code_hash(code), report(hello), at)
             .await
-            .map_err(|err| err.to_string())?,
-        None => None,
-    };
-    let device = match enrolled {
-        Some(device) => {
-            let text = format!("{} was paired", device.name);
-            let _ = store
-                .add_event(at, Some(&device.id), None, "paired", &text)
-                .await;
-            device
+            .map_err(|err| err.to_string())?;
+        if let Some(device) = enrolled {
+            paired(app, &device).await;
+            return Ok(Some(device));
         }
-        // An agent that was paired but lost the answer still has its key: let it in.
-        None => store
-            .device_by_key(&hello.public_key)
-            .await
-            .map_err(|err| err.to_string())?
-            .ok_or_else(|| match hello.enrollment_code {
-                Some(_) => "the pairing code is unknown, expired or used".to_string(),
-                None => "this device is not paired".to_string(),
-            })?,
-    };
+    }
+    // An agent that was paired but lost the answer still has its key: let it in.
+    let known = store
+        .device_by_key(&hello.public_key)
+        .await
+        .map_err(|err| err.to_string())?;
+    match (known, &hello.enrollment_code) {
+        (Some(device), _) => Ok(Some(device)),
+        (None, Some(_)) => Err("the pairing code is unknown, expired or used".into()),
+        (None, None) => Ok(None),
+    }
+}
+
+/// Lets a known device in: not blocked, and what it reports is recorded.
+async fn admit(app: &App, device: &Device, hello: &Hello) -> Result<(), String> {
     if !device.approved {
         return Err("this device is blocked".into());
     }
-    store
-        .device_seen(&device.id, &report, at)
+    app.store()
+        .device_seen(&device.id, &report(hello), now())
         .await
         .map_err(|err| err.to_string())?;
-    app.changed().await.map_err(|err| err.to_string())?;
-    Ok(device)
+    app.changed().await.map_err(|err| err.to_string())
+}
+
+/// Waits on the open socket until the UI decides about the agent. `Ok(None)` when the agent
+/// went away or was rejected (it has been told).
+async fn approval(
+    app: &App,
+    socket: &mut WebSocket,
+    device: NewDevice,
+) -> Result<Option<Device>, String> {
+    let public_key = device.public_key.clone();
+    let name = device.name.clone();
+    let place = app
+        .wait_for_approval(device, now())
+        .map_err(|refused| refused.reason().to_string())?;
+    tracing::info!(%name, fingerprint = %place.fingerprint, "agent waits for approval");
+    let waiting = ServerMessage::Waiting {
+        fingerprint: place.fingerprint.clone(),
+    };
+    let decision = if send(socket, &waiting).await.is_ok() {
+        tokio::select! {
+            decision = place.decision => decision.ok(),
+            () = closed(socket) => None,
+        }
+    } else {
+        None
+    };
+    app.stop_waiting(&place.fingerprint, place.ticket);
+    match decision {
+        Some(Decision::Approve) => app
+            .store()
+            .device_by_key(&public_key)
+            .await
+            .map_err(|err| err.to_string()),
+        Some(Decision::Reject) => Err(Refused::Rejected.reason().into()),
+        None => Ok(None),
+    }
+}
+
+/// Approves or rejects a waiting agent; `false` when it is no longer waiting.
+pub async fn decide(app: &App, fingerprint: &str, decision: Decision) -> store::Result<bool> {
+    let Some((device, session)) = app.decide_waiting(fingerprint, decision) else {
+        return Ok(false);
+    };
+    if decision == Decision::Approve {
+        let device = app.store().add_device(device, now()).await?;
+        paired(app, &device).await;
+        app.changed().await?;
+    }
+    let _ = session.send(decision);
+    Ok(true)
+}
+
+async fn paired(app: &App, device: &Device) {
+    let text = format!("{} was paired", device.name);
+    let _ = app
+        .store()
+        .add_event(now(), Some(&device.id), None, "paired", &text)
+        .await;
+}
+
+/// Completes when the agent closes the socket; whatever it sends meanwhile is ignored.
+async fn closed(socket: &mut WebSocket) {
+    while receive(socket).await.is_some() {}
 }
 
 fn report(hello: &Hello) -> NewDevice {
@@ -173,10 +246,10 @@ fn report(hello: &Hello) -> NewDevice {
     }
 }
 
-async fn reject(mut socket: WebSocket, reason: &str) {
+async fn reject(socket: &mut WebSocket, reason: &str) {
     tracing::info!(reason, "agent rejected");
     let _ = send(
-        &mut socket,
+        socket,
         &ServerMessage::Rejected {
             reason: reason.to_string(),
         },

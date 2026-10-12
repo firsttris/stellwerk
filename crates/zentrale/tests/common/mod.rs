@@ -33,6 +33,7 @@ pub async fn start_zentrale(dir: &Path) -> Running {
         hub_listen: hub.clone(),
         hub_address: hub,
         activity_window: Duration::from_secs(1),
+        lan_pairing: true,
     };
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     start(&options, listener).await.unwrap()
@@ -61,7 +62,7 @@ pub async fn pair_agent(zentrale: &Running, data_dir: PathBuf) -> Agent {
         .create_enrollment(&code_hash(&code), now() + CODE_LIFETIME_SECS)
         .await
         .unwrap();
-    stellwerk_agent::join(&data_dir, &format!("http://{}", zentrale.addr), &code).unwrap();
+    stellwerk_agent::join(&data_dir, &format!("http://{}", zentrale.addr), Some(&code)).unwrap();
     start_agent(data_dir).await
 }
 

@@ -6,6 +6,7 @@ use std::io::BufRead;
 use clap::{Parser, Subcommand};
 use stellwerk_engine::process::shutdown_signal;
 use stellwerk_zentrale::auth::hash_password;
+use stellwerk_zentrale::discovery::announce;
 use stellwerk_zentrale::server::{Options, start};
 use stellwerk_zentrale::store::Store;
 
@@ -54,6 +55,19 @@ struct Serve {
     /// Use this Syncthing binary instead of downloading the pinned version.
     #[arg(long, env = "STELLWERK_SYNCTHING")]
     syncthing: Option<PathBuf>,
+    /// LAN pairing: announce the Zentrale over mDNS and let devices without a code wait for
+    /// approval in the UI.
+    #[arg(
+        long,
+        env = "STELLWERK_LAN_PAIRING",
+        default_value_t = true,
+        action = clap::ArgAction::Set
+    )]
+    lan_pairing: bool,
+    /// The address devices use for the web UI, e.g. https://sync.example.org; announced in
+    /// the LAN. By default devices use the announced address and port.
+    #[arg(long, env = "STELLWERK_PUBLIC_URL")]
+    public_url: Option<String>,
 }
 
 #[tokio::main]
@@ -82,14 +96,28 @@ async fn serve(data_dir: PathBuf, serve: Serve) -> anyhow::Result<()> {
         hub_listen: serve.hub_listen,
         hub_address,
         activity_window: stellwerk_zentrale::hub::ACTIVITY_WINDOW,
+        lan_pairing: serve.lan_pairing,
     };
     let listener = tokio::net::TcpListener::bind(serve.listen).await?;
     let running = start(&options, listener).await?;
+    let announced = serve
+        .lan_pairing
+        .then(|| announce(serve.listen.port(), serve.public_url.as_deref()))
+        .and_then(|result| {
+            result
+                .inspect_err(
+                    |err| tracing::warn!(%err, "could not announce the Zentrale in the LAN"),
+                )
+                .ok()
+        });
     if running.app.store().admin_password_hash().await?.is_none() {
         tracing::warn!("no admin password yet: run `stellwerk set-password` to log in");
     }
     shutdown_signal().await;
     tracing::info!("shutting down");
+    if let Some(daemon) = announced {
+        let _ = daemon.shutdown();
+    }
     running.stop().await
 }
 

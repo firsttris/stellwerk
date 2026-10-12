@@ -40,3 +40,17 @@ test("a blocked device says so", async ({ page }) => {
   await page.getByRole("menuitem", { name: "Sperren" }).click();
   await expect(page.getByRole("row", { name: /laptop/ }).getByText("Gesperrt")).toBeVisible();
 });
+
+test("a device waiting in the LAN is approved with its fingerprint", async ({ page }) => {
+  await page.goto("/");
+  const attention = page.getByRole("region", { name: "Braucht Aufmerksamkeit" });
+  await expect(attention.getByText("wohnzimmer-pc wartet auf Freigabe")).toBeVisible();
+  await expect(attention.getByText("9C41-07AB-E2D5-3F18")).toBeVisible();
+  await attention.getByRole("link", { name: "Prüfen" }).click();
+
+  const waiting = page.getByRole("region", { name: "Wartende Geräte" });
+  await expect(waiting.getByText("9C41-07AB-E2D5-3F18")).toBeVisible();
+  await waiting.getByRole("button", { name: "wohnzimmer-pc freigeben" }).click();
+  await expect(waiting).toBeHidden();
+  await expect(page.getByRole("cell", { name: "wohnzimmer-pc Windows" })).toBeVisible();
+});

@@ -5,6 +5,8 @@
 //!    agent's Ed25519 key; on first contact with the one-time enrollment code.
 //! 3. Zentrale → agent: [`ServerMessage::Welcome`], then the full [`DesiredState`] now and
 //!    after every change. A rejected agent gets [`ServerMessage::Rejected`] and the socket closes.
+//!    An unknown agent without a code may instead get [`ServerMessage::Waiting`]: it stays
+//!    connected until it is approved in the UI (then step 3 follows) or rejected.
 //! 4. Agent → Zentrale: [`AgentMessage::Applied`] after each desired state, and
 //!    [`AgentMessage::Status`] whenever its folders change, at most about once per second.
 
@@ -16,13 +18,29 @@ use crate::{DesiredState, DeviceId};
 /// Path of the agent's WebSocket on the Zentrale.
 pub const AGENT_WS_PATH: &str = "/api/agent/ws";
 
+/// The mDNS service type the Zentrale announces in the LAN. Its TXT record may carry `url`,
+/// the address devices should use (e.g. behind a TLS proxy); without it they use the
+/// announced address and port over plain HTTP.
+pub const MDNS_SERVICE: &str = "_stellwerk._tcp.local.";
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ServerMessage {
-    Challenge { nonce: String },
-    Welcome { device: String },
+    Challenge {
+        nonce: String,
+    },
+    Welcome {
+        device: String,
+    },
     DesiredState(DesiredState),
-    Rejected { reason: String },
+    Rejected {
+        reason: String,
+    },
+    /// The agent is unknown and came without a code: it waits for approval in the UI, where it
+    /// shows up with this [`fingerprint`].
+    Waiting {
+        fingerprint: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -76,6 +94,19 @@ pub struct ApplyError {
     pub message: String,
 }
 
+/// A short, readable fingerprint of an agent's public key (as sent in [`Hello`]): the first
+/// 8 bytes of its SHA-256 in hex, e.g. `3F2A-91BC-04DE-77A1`. Agent and UI show it, so the
+/// admin can check that the waiting device is the one in front of them.
+pub fn fingerprint(public_key: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(public_key.as_bytes());
+    digest[..8]
+        .chunks(2)
+        .map(|pair| format!("{:02X}{:02X}", pair[0], pair[1]))
+        .collect::<Vec<_>>()
+        .join("-")
+}
+
 /// The bytes the agent signs: a fixed prefix keeps the key from signing anything else.
 pub fn challenge_payload(nonce: &str) -> Vec<u8> {
     format!("stellwerk-agent-auth:{nonce}").into_bytes()
@@ -104,6 +135,28 @@ mod tests {
         });
         let json = serde_json::to_string(&applied).unwrap();
         assert_eq!(json, r#"{"type":"applied","revision":3,"errors":[]}"#);
+    }
+
+    #[test]
+    fn fingerprints_are_short_and_stable() {
+        let a = fingerprint("key-a");
+        assert_eq!(a.len(), 19);
+        assert_eq!(a.split('-').count(), 4);
+        assert!(
+            a.chars()
+                .all(|c| c == '-' || c.is_ascii_hexdigit() && !c.is_ascii_lowercase())
+        );
+        assert_eq!(a, fingerprint("key-a"));
+        assert_ne!(a, fingerprint("key-b"));
+    }
+
+    #[test]
+    fn waiting_carries_the_fingerprint() {
+        let json = serde_json::to_string(&ServerMessage::Waiting {
+            fingerprint: "AB".into(),
+        })
+        .unwrap();
+        assert_eq!(json, r#"{"type":"waiting","fingerprint":"AB"}"#);
     }
 
     #[test]

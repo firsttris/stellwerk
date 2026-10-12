@@ -120,6 +120,16 @@ export const conflictSchema = z.object({
 });
 export type Conflict = z.infer<typeof conflictSchema>;
 
+/** An agent without a code waiting for approval (crates/zentrale/src/waiting.rs). */
+export const waitingSchema = z.object({
+  fingerprint: z.string(),
+  name: z.string(),
+  os: z.string(),
+  syncthingId: z.string(),
+  since: z.number(),
+});
+export type WaitingDevice = z.infer<typeof waitingSchema>;
+
 /** What is happening right now (crates/zentrale/src/live.rs), by the Zentrale's IDs. */
 export const liveSchema = z.object({
   devices: z.record(
@@ -131,6 +141,7 @@ export const liveSchema = z.object({
     completion: z.record(z.string(), z.record(z.string(), completionSchema)),
   }),
   conflicts: z.record(z.string(), z.array(conflictSchema)),
+  waiting: z.array(waitingSchema).default([]),
 });
 export type Live = z.infer<typeof liveSchema>;
 
@@ -188,6 +199,8 @@ export type Api = {
   deleteDevice(id: string): Promise<void>;
   createEnrollment(): Promise<Enrollment>;
   enrollmentStatus(code: string): Promise<{ device: Device | null }>;
+  approveWaiting(fingerprint: string): Promise<void>;
+  rejectWaiting(fingerprint: string): Promise<void>;
   events(limit?: number): Promise<ActivityEvent[]>;
   status(): Promise<Live>;
   conflictContent(folderId: string, path: string): Promise<ConflictContent>;

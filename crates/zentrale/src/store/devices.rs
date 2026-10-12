@@ -1,6 +1,7 @@
-//! Devices: enrolling with a one-time code, updates on every hello, renaming, blocking.
+//! Devices: enrolling with a one-time code or by approval in the UI, updates on every hello,
+//! renaming, blocking.
 
-use sqlx::{FromRow, SqliteExecutor};
+use sqlx::{FromRow, Sqlite, SqliteExecutor, Transaction};
 
 use super::{Result, Store, StoreError, bump, new_id, to_u64};
 use crate::model::{Device, DeviceKind};
@@ -116,32 +117,7 @@ impl Store {
         if used.rows_affected() == 0 {
             return Ok(None);
         }
-        let known: Option<(String,)> =
-            sqlx::query_as("SELECT id FROM devices WHERE public_key = ?")
-                .bind(&device.public_key)
-                .fetch_optional(&mut *tx)
-                .await?;
-        if known.is_some() {
-            return Err(StoreError::Invalid("this key is already enrolled".into()));
-        }
-        let id = new_id();
-        sqlx::query(
-            "INSERT INTO devices (id, name, kind, os, public_key, syncthing_id, agent_version, \
-             syncthing_version, approved, created_at, last_seen) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)",
-        )
-        .bind(&id)
-        .bind(&device.name)
-        .bind(device.kind.as_str())
-        .bind(&device.os)
-        .bind(&device.public_key)
-        .bind(&device.syncthing_id)
-        .bind(&device.agent_version)
-        .bind(&device.syncthing_version)
-        .bind(now)
-        .bind(now)
-        .execute(&mut *tx)
-        .await?;
+        let id = insert_device(&mut tx, &device, now).await?;
         sqlx::query("UPDATE enrollments SET device_id = ? WHERE code_hash = ?")
             .bind(&id)
             .bind(code_hash)
@@ -150,6 +126,15 @@ impl Store {
         bump(&mut tx).await?;
         tx.commit().await?;
         self.device(&id).await.map(Some)
+    }
+
+    /// Adds a device approved in the UI without a code (LAN pairing).
+    pub async fn add_device(&self, device: NewDevice, now: i64) -> Result<Device> {
+        let mut tx = self.pool.begin().await?;
+        let id = insert_device(&mut tx, &device, now).await?;
+        bump(&mut tx).await?;
+        tx.commit().await?;
+        self.device(&id).await
     }
 
     /// Records what an agent reported on connecting. A new Syncthing ID (fresh Syncthing home)
@@ -237,6 +222,40 @@ impl Store {
         tx.commit().await?;
         Ok(())
     }
+}
+
+/// A new, approved device; refuses a key that is already known.
+async fn insert_device(
+    tx: &mut Transaction<'_, Sqlite>,
+    device: &NewDevice,
+    now: i64,
+) -> Result<String> {
+    let known: Option<(String,)> = sqlx::query_as("SELECT id FROM devices WHERE public_key = ?")
+        .bind(&device.public_key)
+        .fetch_optional(&mut **tx)
+        .await?;
+    if known.is_some() {
+        return Err(StoreError::Invalid("this key is already enrolled".into()));
+    }
+    let id = new_id();
+    sqlx::query(
+        "INSERT INTO devices (id, name, kind, os, public_key, syncthing_id, agent_version, \
+         syncthing_version, approved, created_at, last_seen) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)",
+    )
+    .bind(&id)
+    .bind(&device.name)
+    .bind(device.kind.as_str())
+    .bind(&device.os)
+    .bind(&device.public_key)
+    .bind(&device.syncthing_id)
+    .bind(&device.agent_version)
+    .bind(&device.syncthing_version)
+    .bind(now)
+    .bind(now)
+    .execute(&mut **tx)
+    .await?;
+    Ok(id)
 }
 
 #[cfg(test)]

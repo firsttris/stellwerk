@@ -18,6 +18,7 @@ import { PageHeader } from "../../components/layout";
 import { PairDialog } from "../../components/pair-dialog";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
+import { WaitingDevices } from "../../components/waiting-devices";
 import { ago, nowSeconds, osLabel } from "../../lib/format";
 import { deviceSummary, waitingChanges } from "../../lib/live";
 import { isWaiting } from "../../lib/matrix";
@@ -92,6 +93,7 @@ function Devices() {
           ))}
         </fieldset>
       </div>
+      <WaitingDevices waiting={live?.waiting ?? []} />
       {overview && (
         <DeviceTable overview={overview} live={live} devices={devices} search={search} />
       )}

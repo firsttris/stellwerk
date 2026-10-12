@@ -8,12 +8,15 @@ use serde::{Deserialize, Serialize};
 use super::error::{ApiError, ApiResult};
 use super::session::Admin;
 use stellwerk_engine::files::Keep;
+use stellwerk_protocol::messages::fingerprint;
 
+use crate::agents;
 use crate::app::App;
 use crate::files::{self, ConflictContent, FileVersions, FilesError};
 use crate::model::{Device, DeviceKind, Folder, Share};
-use crate::pairing::{CODE_LIFETIME_SECS, code_hash, fingerprint, new_code};
+use crate::pairing::{CODE_LIFETIME_SECS, code_hash, new_code};
 use crate::store::{DeviceUpdate, Event, ShareChange, now};
+use crate::waiting::Decision;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -182,6 +185,35 @@ pub async fn delete_device(
     app.store().delete_device(&id).await?;
     app.changed().await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// LAN pairing: lets a waiting agent in as a new device.
+pub async fn approve_waiting(
+    State(app): State<App>,
+    _: Admin,
+    Path(fingerprint): Path<String>,
+) -> ApiResult<StatusCode> {
+    decide_waiting(&app, &fingerprint, Decision::Approve).await
+}
+
+/// LAN pairing: turns a waiting agent away until the Zentrale restarts.
+pub async fn reject_waiting(
+    State(app): State<App>,
+    _: Admin,
+    Path(fingerprint): Path<String>,
+) -> ApiResult<StatusCode> {
+    decide_waiting(&app, &fingerprint, Decision::Reject).await
+}
+
+async fn decide_waiting(app: &App, fingerprint: &str, decision: Decision) -> ApiResult<StatusCode> {
+    if agents::decide(app, fingerprint, decision).await? {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            "this device is no longer waiting",
+        ))
+    }
 }
 
 #[derive(Debug, Serialize)]

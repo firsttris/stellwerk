@@ -8,6 +8,7 @@ import type {
   FolderView,
   Live,
   Share,
+  WaitingDevice,
 } from "../api/types";
 
 // Demo data for `vite --mode demo`, the E2E tests and the screenshots. Times are relative to
@@ -25,6 +26,8 @@ export type DemoState = {
   conflicts: Record<string, Conflict[]>;
   /** By folder ID. */
   versions: Record<string, FileVersions[]>;
+  /** Agents in the LAN waiting for approval. */
+  waiting: WaitingDevice[];
 };
 
 export const DEMO_CONFLICT_PATH = "haul/src/config.sync-conflict-20261012-103112-WERKBAN.ts";
@@ -57,7 +60,7 @@ const device = (now: number, d: Partial<Device> & Pick<Device, "id" | "name">): 
   appliedRev: 12,
   online: true,
   onlineSince: now - 2 * 60 * 60,
-  fingerprint: "7F3A-91C2",
+  fingerprint: "7F3A-91C2-4E08-B6D1",
   ...d,
 });
 
@@ -78,13 +81,18 @@ const folder = (
 
 export function demoState(now: number): DemoState {
   const devices = [
-    device(now, { id: "werkbank", name: "werkbank", os: "linux", fingerprint: "7F3A-91C2" }),
+    device(now, {
+      id: "werkbank",
+      name: "werkbank",
+      os: "linux",
+      fingerprint: "7F3A-91C2-4E08-B6D1",
+    }),
     device(now, {
       id: "laptop",
       name: "laptop",
       kind: "laptop",
       os: "windows",
-      fingerprint: "A04B-17EE",
+      fingerprint: "A04B-17EE-93C5-0F72",
     }),
     device(now, {
       id: "buero",
@@ -94,14 +102,14 @@ export function demoState(now: number): DemoState {
       onlineSince: null,
       lastSeen: now - 3 * DAY,
       appliedRev: 11,
-      fingerprint: "C3D9-5520",
+      fingerprint: "C3D9-5520-1AB4-E86F",
     }),
     device(now, {
       id: "macbook",
       name: "macbook",
       kind: "laptop",
       os: "macos",
-      fingerprint: "11F0-8B3A",
+      fingerprint: "11F0-8B3A-D27C-5409",
     }),
   ];
   const folders = [
@@ -202,7 +210,16 @@ export function demoState(now: number): DemoState {
     ],
     dokumente: [{ path: "Steuer/2025/Belege.pdf", versions: [version(5 * DAY, 2_400_000)] }],
   };
-  return { revision: 12, devices, folders, shares, events, conflicts, versions };
+  const waiting: WaitingDevice[] = [
+    {
+      fingerprint: "9C41-07AB-E2D5-3F18",
+      name: "wohnzimmer-pc",
+      os: "windows",
+      syncthingId: "WOHNZIM-SYNCTHING-ID",
+      since: now - 40,
+    },
+  ];
+  return { revision: 12, devices, folders, shares, events, conflicts, versions, waiting };
 }
 
 const folderView = (globalFiles: number, globalBytes: number, extra: Partial<FolderView> = {}) =>
@@ -277,5 +294,6 @@ export function demoLive(now: number): Live {
       },
     },
     conflicts: {},
+    waiting: [],
   };
 }

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Clock, TriangleAlert } from "lucide-react";
+import { Clock, Radar, TriangleAlert } from "lucide-react";
 import { eventsQuery, overviewQuery, statusQuery } from "../../api/queries";
 import type { Live, Overview as OverviewData } from "../../api/types";
 import { PageHeader } from "../../components/layout";
@@ -172,9 +172,28 @@ function Attention({ overview, live }: { overview: OverviewData; live: Live | un
           </Button>
         </div>
       ))}
-      {offline.length === 0 && errors.length === 0 && conflicts.length === 0 && (
-        <p className="text-muted-foreground">{m.attention_nothing()}</p>
-      )}
+      {(live?.waiting ?? []).map((device) => (
+        <div key={device.fingerprint} className="flex items-start gap-3">
+          <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted">
+            <Radar className="size-4" aria-hidden="true" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="font-medium">{m.attention_waiting({ device: device.name })}</span>
+            <span className="text-[13px] text-muted-foreground">
+              {m.attention_waiting_text({ fingerprint: device.fingerprint })}
+            </span>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/devices">{m.attention_review()}</Link>
+          </Button>
+        </div>
+      ))}
+      {offline.length === 0 &&
+        errors.length === 0 &&
+        conflicts.length === 0 &&
+        (live?.waiting ?? []).length === 0 && (
+          <p className="text-muted-foreground">{m.attention_nothing()}</p>
+        )}
       {errors.map(({ folder, device, message }) => (
         <div key={`${folder.id}-${device}`} className="flex items-start gap-3">
           <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-warn text-warn-foreground">

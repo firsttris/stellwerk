@@ -46,12 +46,16 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
     shares: state.shares,
   });
 
-  const newDevice = (): Device => ({
-    id: `werkstatt-${state.devices.length}`,
-    name: "werkstatt-pc",
+  const newDevice = (
+    name = "werkstatt-pc",
+    os = "linux",
+    fingerprint = "5E21-D0A7-88C3-41F9",
+  ): Device => ({
+    id: `${name}-${state.devices.length}`,
+    name,
     kind: "desktop",
-    os: "linux",
-    syncthingId: "WERKSTATT-SYNCTHING-ID",
+    os,
+    syncthingId: `${name.toUpperCase()}-SYNCTHING-ID`,
     agentVersion: "0.1.0",
     syncthingVersion: "v2.1.6",
     approved: true,
@@ -60,8 +64,15 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
     appliedRev: state.revision + 1,
     online: true,
     onlineSince: nowSeconds(),
-    fingerprint: "5E21-D0A7",
+    fingerprint,
   });
+
+  const takeWaiting = (fingerprint: string) => {
+    const waiting = state.waiting.find((w) => w.fingerprint === fingerprint);
+    if (!waiting) throw new ApiError(404, "this device is no longer waiting");
+    state = { ...state, waiting: state.waiting.filter((w) => w !== waiting) };
+    return waiting;
+  };
 
   return {
     session: async () => ({ loggedIn: true, passwordSet: true, csrfToken: "demo" }),
@@ -150,10 +161,20 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
       bump();
       return { device };
     },
+    approveWaiting: async (fingerprint) => {
+      const waiting = takeWaiting(fingerprint);
+      const device = newDevice(waiting.name, waiting.os, waiting.fingerprint);
+      state = { ...state, devices: [...state.devices, device] };
+      bump();
+    },
+    rejectWaiting: async (fingerprint) => {
+      takeWaiting(fingerprint);
+    },
     events: async (limit = 20) => state.events.slice(0, limit),
     status: async () => ({
       ...demoLive(nowSeconds()),
       conflicts: structuredClone(state.conflicts),
+      waiting: structuredClone(state.waiting),
     }),
     conflictContent: async (folderId, path) => {
       if (!state.conflicts[folderId]?.some((c) => c.path === path)) {

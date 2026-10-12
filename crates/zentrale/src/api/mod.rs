@@ -41,6 +41,14 @@ pub fn router() -> Router<App> {
             "/api/devices/{id}",
             patch(routes::update_device).delete(routes::delete_device),
         )
+        .route(
+            "/api/waiting/{fingerprint}/approve",
+            post(routes::approve_waiting),
+        )
+        .route(
+            "/api/waiting/{fingerprint}/reject",
+            post(routes::reject_waiting),
+        )
         .route("/api/enrollments", post(routes::create_enrollment))
         .route("/api/enrollments/status", post(routes::enrollment_status))
         .route("/api/events", get(routes::events))

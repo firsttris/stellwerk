@@ -87,6 +87,9 @@ pub async fn run(
                     *last_applied = Some(applied.revision);
                     send(&mut sink, &AgentMessage::Applied(applied)).await?;
                 }
+                Some(ServerMessage::Waiting { fingerprint }) => {
+                    tracing::info!(%fingerprint, "waiting for approval in the Zentrale's UI; check that it shows this fingerprint");
+                }
                 Some(ServerMessage::Rejected { reason }) => return Ok(End::Rejected(reason)),
                 Some(ServerMessage::Challenge { .. }) => {}
                 None => return Ok(End::Closed),

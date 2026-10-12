@@ -93,6 +93,8 @@ stellwerk --data-dir /srv/stellwerk \
 | `--hub-listen` (`STELLWERK_HUB_LISTEN`) | `tcp://0.0.0.0:22001` | sync port of the hub; not 22000, so a Syncthing already running keeps its port |
 | `--hub-address` (`STELLWERK_HUB_ADDRESS`) | host name + hub port | where devices reach the hub |
 | `--syncthing` (`STELLWERK_SYNCTHING`) | download | a Syncthing binary instead of the pinned release |
+| `--lan-pairing` (`STELLWERK_LAN_PAIRING`) | `true` | announce the Zentrale over mDNS and let devices without a code wait for approval in the UI |
+| `--public-url` (`STELLWERK_PUBLIC_URL`) | – | the address devices use, e.g. `https://sync.example.org`; announced in the LAN |
 
 The hub port must be reachable from the devices; the web port only through the proxy.
 
@@ -109,6 +111,15 @@ In the UI, **Gerät koppeln** shows the command with a one-time code:
 stellwerk-agent join --server https://sync.example.org K7Q2-MX9P-41TZ
 stellwerk-agent run
 ```
+
+In the same network it also works without a code: `stellwerk-agent join` finds the Zentrale over
+mDNS (or pass `--server`), prints the device's fingerprint and saves the address. After
+`stellwerk-agent run` the device shows up under **Geräte → Wartende Geräte**; approve it there if
+the fingerprint matches.
+
+mDNS needs the Zentrale in the same network segment: in a container that means host networking
+(`network_mode: host` in Compose, `Network=host` in Quadlet). With port mapping, pass `--server`
+to `join`; waiting for approval works the same.
 
 The agent keeps its key, its own Syncthing and Syncthing's database in its data directory
 (`~/.local/share/stellwerk-agent` on Linux, `--data-dir` to change it). It downloads the pinned

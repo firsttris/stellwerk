@@ -26,6 +26,7 @@ base64.workspace = true
 clap.workspace = true
 ed25519-dalek.workspace = true
 hostname.workspace = true
+mdns-sd.workspace = true
 rand.workspace = true
 rust-embed.workspace = true
 serde.workspace = true

@@ -70,12 +70,6 @@ pub fn verify_hello(public_key: &str, signature: &str, nonce: &str) -> Result<()
     .map_err(|_| SignatureError::BadSignature)
 }
 
-/// The short fingerprint shown in the UI next to a new device, e.g. `7F3A-91C2`.
-pub fn fingerprint(public_key: &str) -> String {
-    let hash = hex_sha256(public_key.as_bytes()).to_uppercase();
-    format!("{}-{}", &hash[0..4], &hash[4..8])
-}
-
 fn hex_sha256(data: &[u8]) -> String {
     Sha256::digest(data)
         .iter()
@@ -119,11 +113,5 @@ mod tests {
             verify_hello("not base64", &signed, "nonce"),
             Err(SignatureError::BadKey)
         );
-    }
-
-    #[test]
-    fn fingerprints_are_short_and_stable() {
-        assert_eq!(fingerprint("KEY"), fingerprint("KEY"));
-        assert_eq!(fingerprint("KEY").len(), 9);
     }
 }

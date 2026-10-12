@@ -1,10 +1,14 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+use stellwerk_agent::discover::discover;
 use stellwerk_agent::{Network, Options};
 use stellwerk_engine::process::shutdown_signal;
 
 /// Stellwerk agent: runs its own Syncthing and keeps it at the state the Zentrale sets.
+/// How long `join` listens for a Zentrale in the LAN.
+const DISCOVERY_TIME: std::time::Duration = std::time::Duration::from_secs(4);
+
 #[derive(Parser)]
 #[command(version)]
 struct Cli {
@@ -17,13 +21,14 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Pair this device with a Zentrale, using the code from "Pair device".
+    /// Pair this device with a Zentrale: with the code from "Pair device", or without one by
+    /// approving the device in the UI.
     Join {
-        /// The Zentrale's address, e.g. https://sync.example.org
+        /// The Zentrale's address, e.g. https://sync.example.org; found in the LAN if left out.
         #[arg(long)]
-        server: String,
+        server: Option<String>,
         /// The one-time code, e.g. K7Q2-MX9P-41TZ
-        code: String,
+        code: Option<String>,
     },
     /// Run: start Syncthing and follow the Zentrale.
     Run {
@@ -52,8 +57,17 @@ async fn main() -> anyhow::Result<()> {
     };
     match cli.command {
         Command::Join { server, code } => {
-            stellwerk_agent::join(&data_dir, &server, &code)?;
+            let server = match server {
+                Some(server) => server,
+                None => find_zentrale().await?,
+            };
+            let fingerprint = stellwerk_agent::join(&data_dir, &server, code.as_deref())?;
             println!("Saved. Start the agent with: stellwerk-agent run");
+            if code.is_none() {
+                println!(
+                    "Then approve this device in the Zentrale's UI under Devices; it shows the fingerprint {fingerprint}."
+                );
+            }
             Ok(())
         }
         Command::Run { syncthing, name } => {
@@ -64,6 +78,29 @@ async fn main() -> anyhow::Result<()> {
                 name,
             };
             stellwerk_agent::run(options, shutdown_signal()).await
+        }
+    }
+}
+
+/// The one Zentrale announced in the LAN.
+async fn find_zentrale() -> anyhow::Result<String> {
+    println!("Looking for a Zentrale in the LAN …");
+    let found = discover(DISCOVERY_TIME).await?;
+    match found.as_slice() {
+        [one] => {
+            println!("Found {} at {}", one.name, one.url);
+            Ok(one.url.clone())
+        }
+        [] => anyhow::bail!("no Zentrale found in the LAN; pass its address with --server"),
+        several => {
+            let list: Vec<_> = several
+                .iter()
+                .map(|f| format!("  {} at {}", f.name, f.url))
+                .collect();
+            anyhow::bail!(
+                "several Zentralen found; pick one with --server:\n{}",
+                list.join("\n")
+            )
         }
     }
 }

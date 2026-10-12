@@ -31,6 +31,8 @@ pub struct Options {
     pub hub_address: String,
     /// How long changes are collected into one activity entry ([`hub::ACTIVITY_WINDOW`]).
     pub activity_window: Duration,
+    /// Let agents without a code wait for approval in the UI (LAN pairing).
+    pub lan_pairing: bool,
 }
 
 /// A running Zentrale.
@@ -77,6 +79,7 @@ pub async fn start(options: &Options, listener: TcpListener) -> anyhow::Result<R
     tracing::info!(id = %hub_info.syncthing_id, address = %hub_info.address, "hub Syncthing running");
 
     let app = App::new(store, hub_info, hub.client().clone()).await?;
+    app.set_lan_pairing(options.lan_pairing);
     let hub_reconcile = tokio::spawn(hub::run(app.clone(), hub.client().clone()));
     let hub_watch = tokio::spawn(hub::watch(
         app.clone(),

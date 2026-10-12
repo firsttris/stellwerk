@@ -63,6 +63,8 @@ Server: Linux with Docker or Podman. Devices: Linux, Windows and macOS.
 
 - **One-time code**: "Gerät koppeln" shows a command with a code valid for 15 minutes; the device
   appears in the UI by itself.
+- **In the LAN without a code**: `stellwerk-agent join` finds the Zentrale over mDNS; the device
+  waits under "Wartende Geräte" until you approve it, after comparing its fingerprint.
 - **Signed sign-in**: after pairing, the agent signs in with its own Ed25519 key; a device can be
   blocked or removed in the UI.
 

@@ -12,6 +12,7 @@ use stellwerk_engine::files::Conflict;
 
 use crate::files::{ConflictView, conflict_view};
 use crate::model::Config;
+use crate::waiting::WaitingView;
 
 /// The latest status of one device, as its agent reported it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -73,6 +74,9 @@ pub struct LiveView {
     pub hub: HubLiveView,
     /// Conflict copies on the hub by folder ID.
     pub conflicts: BTreeMap<String, Vec<ConflictView>>,
+    /// Agents waiting for approval (LAN pairing); [`view`] leaves it empty, the API fills it
+    /// from the running Zentrale.
+    pub waiting: Vec<WaitingView>,
 }
 
 fn folder_view(status: &FolderStatus) -> FolderView {
@@ -161,6 +165,7 @@ pub fn view(config: &Config, live: &Live, conflicts: &BTreeMap<String, Vec<Confl
             completion,
         },
         conflicts,
+        waiting: Vec::new(),
     }
 }
 

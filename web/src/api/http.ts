@@ -79,6 +79,12 @@ export function httpApi(): Api {
     createEnrollment: () => request("POST", "/api/enrollments").then(parsed(enrollmentSchema)),
     enrollmentStatus: (code) =>
       request("POST", "/api/enrollments/status", { code }).then(parsed(enrollmentStatusSchema)),
+    approveWaiting: async (fingerprint) => {
+      await request("POST", `/api/waiting/${encodeURIComponent(fingerprint)}/approve`);
+    },
+    rejectWaiting: async (fingerprint) => {
+      await request("POST", `/api/waiting/${encodeURIComponent(fingerprint)}/reject`);
+    },
     status: () => request("GET", "/api/status").then(parsed(liveSchema)),
     conflictContent: (folderId, path) =>
       request(

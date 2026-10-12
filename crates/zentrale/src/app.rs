@@ -2,7 +2,7 @@
 //! connected right now.
 
 use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tokio::sync::watch;
@@ -14,7 +14,8 @@ use stellwerk_protocol::status::FolderStatus;
 
 use crate::live::{DeviceLive, Live};
 use crate::model::Hub;
-use crate::store::{Result, Store};
+use crate::store::{NewDevice, Result, Store};
+use crate::waiting::{Decision, Place, Refused, Waiting, WaitingView};
 
 #[derive(Debug, Clone)]
 pub struct App {
@@ -35,6 +36,9 @@ struct Inner {
     live: Mutex<Live>,
     /// Raised on anything the UI shows live: revision, online states, folder states.
     ticks: watch::Sender<u64>,
+    /// Whether agents without a code may wait for approval in the UI.
+    lan_pairing: AtomicBool,
+    waiting: Mutex<Waiting>,
 }
 
 impl App {
@@ -51,6 +55,8 @@ impl App {
                 connections: AtomicU64::new(0),
                 live: Mutex::default(),
                 ticks: watch::Sender::new(0),
+                lan_pairing: AtomicBool::new(false),
+                waiting: Mutex::default(),
             }),
         })
     }
@@ -154,6 +160,45 @@ impl App {
             .iter()
             .map(|(id, (_, since))| (id.clone(), *since))
             .collect()
+    }
+
+    pub fn lan_pairing(&self) -> bool {
+        self.inner.lan_pairing.load(Ordering::Relaxed)
+    }
+
+    pub fn set_lan_pairing(&self, on: bool) {
+        self.inner.lan_pairing.store(on, Ordering::Relaxed);
+    }
+
+    /// Puts an agent without a code on the list for approval in the UI.
+    pub fn wait_for_approval(&self, device: NewDevice, since: i64) -> Result<Place, Refused> {
+        let place = lock(&self.inner.waiting).join(device, since)?;
+        self.tick();
+        Ok(place)
+    }
+
+    /// The agent disconnected while waiting.
+    pub fn stop_waiting(&self, fingerprint: &str, ticket: u64) {
+        if lock(&self.inner.waiting).leave(fingerprint, ticket) {
+            self.tick();
+        }
+    }
+
+    /// Takes a waiting agent off the list; see [`Waiting::decide`].
+    pub fn decide_waiting(
+        &self,
+        fingerprint: &str,
+        decision: Decision,
+    ) -> Option<(NewDevice, tokio::sync::oneshot::Sender<Decision>)> {
+        let taken = lock(&self.inner.waiting).decide(fingerprint, decision);
+        if taken.is_some() {
+            self.tick();
+        }
+        taken
+    }
+
+    pub fn waiting(&self) -> Vec<WaitingView> {
+        lock(&self.inner.waiting).views()
     }
 
     fn online(&self) -> std::sync::MutexGuard<'_, BTreeMap<String, (u64, i64)>> {
