@@ -19,6 +19,9 @@ use crate::model::Hub;
 use crate::store::Store;
 use crate::{agents, api, files, hub, web};
 
+/// How long [`Running::stop`] waits for open HTTP requests.
+const SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
+
 #[derive(Debug, Clone)]
 pub struct Options {
     /// Database, hub Syncthing home and the hub's folders.
@@ -110,10 +113,18 @@ pub async fn start(options: &Options, listener: TcpListener) -> anyhow::Result<R
 }
 
 impl Running {
-    /// Stops serving, then the hub Syncthing.
+    /// Stops serving (open requests get [`SHUTDOWN_GRACE`] to finish), then the hub Syncthing.
+    /// WebSocket sessions are no longer requests once upgraded; they end with the process.
     pub async fn stop(self) -> anyhow::Result<()> {
         let _ = self.shutdown.send(());
-        self.server.abort();
+        let server = self.server.abort_handle();
+        if tokio::time::timeout(SHUTDOWN_GRACE, self.server)
+            .await
+            .is_err()
+        {
+            tracing::warn!("requests still open after the grace period; stopping anyway");
+            server.abort();
+        }
         self.hub_tasks.iter().for_each(JoinHandle::abort);
         self.hub.stop().await?;
         Ok(())
