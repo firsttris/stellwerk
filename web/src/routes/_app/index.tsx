@@ -195,8 +195,8 @@ function Attention({ overview, live }: { overview: OverviewData; live: Live | un
         (live?.waiting ?? []).length === 0 && (
           <p className="text-muted-foreground">{m.attention_nothing()}</p>
         )}
-      {errors.map(({ folder, device, message }) => (
-        <div key={`${folder.id}-${device}`} className="flex items-start gap-3">
+      {errors.map(({ folder, deviceId, device, message }) => (
+        <div key={`${folder.id}-${deviceId ?? "hub"}`} className="flex items-start gap-3">
           <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-warn text-warn-foreground">
             <TriangleAlert className="size-4" aria-hidden="true" />
           </div>

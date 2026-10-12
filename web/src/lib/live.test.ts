@@ -46,7 +46,7 @@ describe("live state in words", () => {
     const withConflict = { ...live, conflicts: demoState(now).conflicts };
     expect(folderBadge(o, withConflict, "projects")).toEqual({ tone: "warn", text: "1 Konflikt" });
     expect(folderErrors(o, live, "documents")).toEqual([
-      { device: "laptop", message: "2 Dateien nicht synchronisiert" },
+      { deviceId: "laptop", device: "laptop", message: "2 Dateien nicht synchronisiert" },
     ]);
     expect(folderSize(live, "projects")).toBe("48.210 Dateien · 18,4 GB");
   });
@@ -78,7 +78,7 @@ describe("live state in words", () => {
     if (!laptop) throw new Error("fixtures changed");
     laptop.errors = 1;
     expect(folderErrors(o, live, "documents")).toEqual([
-      { device: "laptop", message: "1 Datei nicht synchronisiert" },
+      { deviceId: "laptop", device: "laptop", message: "1 Datei nicht synchronisiert" },
     ]);
   });
 

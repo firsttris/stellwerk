@@ -43,21 +43,22 @@ export function deviceFolderCount(overview: Overview, device: Device): number {
   return device.approved ? overview.shares.filter((s) => s.deviceId === device.id).length : 0;
 }
 
-/** Errors in a folder anywhere: on the hub or on a device. */
+/** Errors in a folder anywhere: on the hub (`deviceId` null) or on a device. */
 export function folderErrors(overview: Overview, live: Live | undefined, folderId: string) {
-  const found: { device: string; message: string }[] = [];
+  const found: { deviceId: string | null; device: string; message: string }[] = [];
   const hub = live?.hub.folders[folderId];
-  if (hub?.error) found.push({ device: m.server(), message: hub.error });
+  if (hub?.error) found.push({ deviceId: null, device: m.server(), message: hub.error });
   for (const device of holders(overview, folderId)) {
     const status = live?.devices[device.id]?.folders[folderId];
     if (!device.online || !status) continue;
-    if (status.error) found.push({ device: device.name, message: status.error });
+    if (status.error)
+      found.push({ deviceId: device.id, device: device.name, message: status.error });
     else if (status.errors > 0) {
       const count = status.errors;
       const message = byCount(count, m.error_files_failed_one, () =>
         m.error_files_failed_other({ count: formatCount(count) }),
       );
-      found.push({ device: device.name, message });
+      found.push({ deviceId: device.id, device: device.name, message });
     }
   }
   return found;
