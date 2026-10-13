@@ -146,17 +146,15 @@ jobs:
     if: ${{ needs.changes.outputs.docker == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write   # keeps the build cache in ghcr.io/firsttris/stellwerk-buildcache
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
+      - uses: firsttris/workflows/actions/docker-build@ccr-161f105b-9ns022
         with:
-          context: .
-          file: docker/Dockerfile
-          load: true
+          dockerfile: docker/Dockerfile
           tags: stellwerk:ci
-          cache-from: type=gha,scope=linux-amd64
-          cache-to: type=gha,mode=max,scope=linux-amd64
       # Starts with its hub Syncthing and answers the UI's first request
       - name: Start the image
         run: |

@@ -5,7 +5,7 @@ name: Release
 # Run by hand on a branch it publishes the image as `edge` only.
 #
 # Fast because nothing runs twice: main's CI already tested the code (the release commit only
-# raises the version, scripts/tested-on-main.sh), so the CI runs here only when it did not; the
+# raises the version, tested-on-main.yml), so the CI runs here only when it did not; the
 # agents build beside the image from the start; and the image's build cache is shared with CI.
 on:
   push:
@@ -14,25 +14,19 @@ on:
 
 jobs:
   tested:
-    runs-on: ubuntu-latest
+    uses: firsttris/workflows/.github/workflows/tested-on-main.yml@ccr-161f105b-9ns022
     permissions:
       actions: read
       contents: read
-    outputs:
-      tested: ${{ steps.check.outputs.tested }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-      - id: check
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: scripts/tested-on-main.sh >> "$GITHUB_OUTPUT"
 
   checks:
     needs: tested
     if: needs.tested.outputs.tested != 'true'
     uses: ./.github/workflows/ci.yml
+    # The CI's image check keeps the build cache in GHCR
+    permissions:
+      contents: read
+      packages: write
 
   # Builds only, publishes nothing, so it need not wait for anything
   agents:
