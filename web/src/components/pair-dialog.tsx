@@ -17,15 +17,18 @@ type Os = "linux" | "windows" | "macos";
 const OS_TABS: readonly Os[] = ["linux", "windows", "macos"];
 
 /**
- * The command shown for a code; the agent binary comes from the release page for now. On Windows
- * `;` chains the commands in every PowerShell (`&&` needs 7+), so the dialog says PowerShell.
+ * The one command shown for a code: it fetches the Zentrale's install script, which downloads the
+ * agent of the Zentrale's version, pairs it and starts it (crates/zentrale/src/install). Windows
+ * needs PowerShell; the dialog says so.
  */
 export function pairCommand(os: Os, origin: string, code: string): string {
-  const agent = os === "windows" ? "stellwerk-agent.exe" : "stellwerk-agent";
-  const join = `${agent} join --server ${origin} ${code}`;
-  const service = `${agent} service install`;
-  return os === "windows" ? `${join}; ${service}` : `${join} && ${service}`;
+  return os === "windows"
+    ? `& ([scriptblock]::Create((irm ${origin}/install.ps1))) ${origin} ${code}`
+    : `curl -fsSL ${origin}/install.sh | sh -s -- ${origin} ${code}`;
 }
+
+/** Where the manual installation is described, for a device the script does not cover. */
+const MANUAL_INSTALL = "https://firsttris.github.io/stellwerk/installation.html#agent-on-a-device";
 
 export function PairDialog({ variant = "outline" }: { variant?: "outline" | "default" }) {
   const [open, setOpen] = useState(false);
@@ -178,6 +181,14 @@ function Waiting({
           )}
           <span className="text-xs text-muted-foreground">{m.pair_code_valid()}</span>
           <span className="text-xs text-muted-foreground">{m.pair_lan_hint()}</span>
+          <a
+            href={MANUAL_INSTALL}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-muted-foreground underline"
+          >
+            {m.pair_manual_install()}
+          </a>
           {error && <span className="text-sm text-danger">{error}</span>}
         </div>
         {expired ? (

@@ -42,7 +42,7 @@ describe("PairDialog", () => {
   it("says copied only when the clipboard took the command", async () => {
     const user = await open();
     await user.click(screen.getByRole("button", { name: "Befehl kopieren" }));
-    expect(await navigator.clipboard.readText()).toMatch(/join --server .* CODE-1/);
+    expect(await navigator.clipboard.readText()).toMatch(/install\.sh \| sh -s -- .* CODE-1$/);
     expect(await screen.findByText("Kopiert")).toBeTruthy();
 
     // A plain-HTTP origin has no clipboard API: the command is selected instead.

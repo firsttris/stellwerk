@@ -254,6 +254,26 @@ async fn unknown_api_paths_are_404_and_everything_else_goes_to_the_ui() {
 }
 
 #[tokio::test]
+async fn the_install_scripts_are_served_without_login_for_this_version() {
+    let (router, _app, _dir) = app().await;
+    for path in ["/install.sh", "/install.ps1"] {
+        let response = router
+            .clone()
+            .oneshot(Request::get(path).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "{path}");
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let script = String::from_utf8(body.to_vec()).unwrap();
+        let version = format!("\"{}\"", env!("CARGO_PKG_VERSION"));
+        assert!(
+            script.contains(&version),
+            "{path} names the Zentrale's version"
+        );
+    }
+}
+
+#[tokio::test]
 async fn the_live_socket_closes_once_the_session_is_gone() {
     use futures_util::StreamExt;
     use tokio_tungstenite::tungstenite::{Message, client::IntoClientRequest};

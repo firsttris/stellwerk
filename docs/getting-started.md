@@ -11,22 +11,9 @@ the shortest way that is still safe to keep. For a server reachable from the int
 - the devices must be able to reach the server on two ports: the web port (8080, or 443 behind
   a proxy) and the hub's sync port (22001).
 
-!!! note "Before v1.0"
-    There is no published release yet, so the image and the agent are built from source; that
-    needs [Rust](https://rustup.rs), Node 22 and pnpm. From v1.0 on, the image is
-    `tristanteu/stellwerk` and the agent is attached to every
-    [GitHub release](https://github.com/firsttris/stellwerk/releases).
-
 ## 1. Start the Zentrale
 
-On the server:
-
-```bash
-git clone https://github.com/firsttris/stellwerk && cd stellwerk
-docker build -f docker/Dockerfile -t tristanteu/stellwerk .
-```
-
-Create `compose.yaml` next to it. Replace `nas.local` with the name or IP address under which
+On the server, create `compose.yaml` in a new directory. Replace `nas.local` with the name or IP address under which
 your devices reach the server:
 
 ```yaml
@@ -65,34 +52,28 @@ versions; no device has it yet.
 
 ## 3. Pair a device
 
-Build the agent on the device (or copy it there from a machine with the same OS):
-
-```bash
-cargo build --release -p stellwerk-agent
-# Linux/macOS: copy target/release/stellwerk-agent to ~/.local/bin
-# Windows: copy stellwerk-agent.exe and stellwerk-agent-background.exe
-#          to %LOCALAPPDATA%\Programs\Stellwerk
-```
-
 In the UI click **Pair device**, pick the device's operating system and copy the command. It
 looks like this, with a one-time code valid for 15 minutes:
 
 ```bash
-stellwerk-agent join --server http://nas.local:8080 K7Q2-MX9P-41TZ && stellwerk-agent service install
+curl -fsSL http://nas.local:8080/install.sh | sh -s -- http://nas.local:8080 K7Q2-MX9P-41TZ
 ```
 
-Run it on the device, as your normal user (no `sudo`, no administrator). `join` stores the
-server and a new key for the device; `service install` starts the agent now and on every login.
+Run it in a terminal on the device, as your normal user (no `sudo`, no administrator); on
+Windows the dialog shows a command for PowerShell. It
+downloads the agent of the Zentrale's version, runs `stellwerk-agent join`, which stores the
+server and a new key for the device, and `stellwerk-agent service install`, which starts the
+agent now and on every login. With an agent you built yourself, run those two directly:
+`stellwerk-agent join --server http://nas.local:8080 K7Q2-MX9P-41TZ && stellwerk-agent service install`.
 On the first start the agent downloads its own Syncthing (about 15 MB), which takes a moment.
 
 The dialog in the UI notices the new device by itself and asks which folders it should get.
 Tick **Documents** and click **Set up device**.
 
 ??? tip "Pairing in the LAN without a code"
-    In the same network you can skip the code: run `stellwerk-agent join` on the device. It finds
-    the Zentrale over mDNS and prints a fingerprint such as `3F2A-91BC-04DE-77A1`. After
-    `stellwerk-agent service install` the device appears under **Devices → Waiting devices**;
-    approve it there if the fingerprint matches.
+    In the same network you can skip the code: run the command without the code at the end. The
+    agent prints a fingerprint such as `3F2A-91BC-04DE-77A1`, and the device appears under
+    **Devices → Waiting devices**; approve it there if the fingerprint matches.
 
 ## 4. Watch it sync
 

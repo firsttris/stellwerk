@@ -17,7 +17,7 @@ use tokio::task::JoinHandle;
 use crate::app::App;
 use crate::model::Hub;
 use crate::store::Store;
-use crate::{agents, api, files, hub, web};
+use crate::{agents, api, files, hub, install, web};
 
 /// How long [`Running::stop`] waits for open HTTP requests.
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
@@ -51,6 +51,8 @@ pub struct Running {
 pub fn router(app: App) -> Router {
     Router::new()
         .route(AGENT_WS_PATH, get(agents::ws))
+        .route("/install.sh", get(install::sh))
+        .route("/install.ps1", get(install::ps1))
         .merge(api::router())
         .fallback(web::serve)
         .with_state(app)

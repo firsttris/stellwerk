@@ -99,9 +99,11 @@ WebSocket library answers pings by itself.
 
 1. "Pair device" in the UI: the Zentrale creates a one-time code (valid for 15 minutes) and
    stores only its hash.
-2. On the device: `stellwerk-agent join --server https://… <code>` creates an Ed25519 key and
-   stores server, key and code; `stellwerk-agent service install` starts the agent in the
-   background.
+2. On the device: the command from the dialog fetches the Zentrale's install script
+   (`/install.sh`, `/install.ps1`), which downloads the agent of the Zentrale's version from the
+   GitHub release and runs `stellwerk-agent join --server https://… <code>`. That creates an
+   Ed25519 key and stores server, key and code; `stellwerk-agent service install` starts the
+   agent in the background.
 3. The agent answers the Zentrale's challenge with a hello signed by its key and carrying the
    code. The Zentrale uses the code up and creates the device; the agent drops the code.
 4. From then on the agent signs in with its key only. A blocked device is turned away.
