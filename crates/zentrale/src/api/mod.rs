@@ -41,6 +41,7 @@ pub fn router() -> Router<App> {
             "/api/devices/{id}",
             patch(routes::update_device).delete(routes::delete_device),
         )
+        .route("/api/devices/{id}/browse", get(routes::browse_device))
         .route(
             "/api/waiting/{fingerprint}/approve",
             post(routes::approve_waiting),

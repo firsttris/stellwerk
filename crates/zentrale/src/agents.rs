@@ -4,6 +4,7 @@
 
 use std::time::Duration;
 
+use tokio::sync::mpsc;
 use tokio::time::Instant;
 
 use axum::extract::ws::{Message, WebSocket};
@@ -12,6 +13,7 @@ use axum::response::Response;
 use stellwerk_protocol::messages::{AgentMessage, Applied, Hello, ServerMessage};
 
 use crate::app::App;
+use crate::browse::{Job, Pending};
 use crate::desired;
 use crate::model::{Device, DeviceKind};
 use crate::pairing::{code_hash, new_nonce, verify_hello};
@@ -56,7 +58,8 @@ async fn session(app: App, mut socket: WebSocket) {
         return reject(&mut socket, &reason).await;
     }
 
-    let connection = app.set_online(&device.id, now());
+    let (jobs, browse_jobs) = mpsc::channel(8);
+    let connection = app.set_online(&device.id, now(), jobs);
     tracing::info!(device = %device.name, "agent connected");
     let _ = app
         .store()
@@ -66,7 +69,7 @@ async fn session(app: App, mut socket: WebSocket) {
         device: device.id.clone(),
     };
     if send(&mut socket, &welcome).await.is_ok() {
-        serve(&app, &device.id, &mut socket).await;
+        serve(&app, &device.id, &mut socket, browse_jobs).await;
     }
     app.set_offline(&device.id, connection);
     let _ = app.store().touch_device(&device.id, now()).await;
@@ -77,11 +80,13 @@ async fn session(app: App, mut socket: WebSocket) {
     tracing::info!(device = %device.name, "agent disconnected");
 }
 
-/// Sends the desired state now and after every change, records what the agent applied.
-async fn serve(app: &App, device_id: &str, socket: &mut WebSocket) {
+/// Sends the desired state now and after every change, records what the agent applied, and
+/// passes the folder picker's requests on to the agent and its answers back.
+async fn serve(app: &App, device_id: &str, socket: &mut WebSocket, mut jobs: mpsc::Receiver<Job>) {
     let mut revisions = app.revisions();
     revisions.mark_changed();
     let mut heartbeat = Heartbeat::new();
+    let mut pending = Pending::default();
     loop {
         tokio::select! {
             changed = revisions.changed() => {
@@ -99,9 +104,16 @@ async fn serve(app: &App, device_id: &str, socket: &mut WebSocket) {
                     return;
                 }
             }
+            Some(Job { path, reply }) = jobs.recv() => {
+                let id = pending.add(reply);
+                if send(socket, &ServerMessage::Browse { id, path }).await.is_err() {
+                    return;
+                }
+            }
             message = receive_alive(socket, &mut heartbeat) => match message {
                 Some(AgentMessage::Applied(applied)) => record_applied(app, device_id, applied).await,
                 Some(AgentMessage::Status(status)) => app.set_device_status(device_id, status.folders, now()),
+                Some(AgentMessage::Listing { id, result }) => pending.answer(id, result),
                 Some(AgentMessage::Hello(_)) => {}
                 None => return,
             },

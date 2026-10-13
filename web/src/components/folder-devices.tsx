@@ -11,6 +11,7 @@ import { type CellMode, matrixDevices, storedMode } from "../lib/matrix";
 import { cn } from "../lib/utils";
 import { m } from "../paraglide/messages.js";
 import { StatusDot } from "./device-icon";
+import { FolderPicker } from "./folder-picker";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Input, Select } from "./ui/input";
@@ -191,13 +192,21 @@ function DeviceRow({
           </option>
         ))}
       </Select>
-      <Input
-        aria-label={m.folder_path_for({ device: device.name })}
-        value={off ? "" : row.path}
-        placeholder={off ? m.folder_not_here() : placeholder}
-        disabled={off}
-        onChange={(e) => onChange({ path: e.target.value })}
-      />
+      <div className="flex gap-2">
+        <Input
+          aria-label={m.folder_path_for({ device: device.name })}
+          value={off ? "" : row.path}
+          placeholder={off ? m.folder_not_here() : placeholder}
+          disabled={off}
+          onChange={(e) => onChange({ path: e.target.value })}
+        />
+        <FolderPicker
+          device={device}
+          value={row.path}
+          disabled={off}
+          onPick={(path) => onChange({ path })}
+        />
+      </div>
       <span className="text-[13px] text-muted-foreground">
         {off ? m.folder_not_here() : status}
       </span>

@@ -182,6 +182,16 @@ export const fileVersionsSchema = z.object({
 });
 export type FileVersions = z.infer<typeof fileVersionsSchema>;
 
+/** A directory on a device, for the folder picker; the agent lists it on request. */
+export const directorySchema = z.object({
+  path: z.string(),
+  parent: z.string().nullable(),
+  dirs: z.array(z.object({ name: z.string(), path: z.string() })),
+  home: z.string().nullable(),
+  roots: z.array(z.string()),
+});
+export type Directory = z.infer<typeof directorySchema>;
+
 export type Keep = "original" | "copy" | "both";
 
 /** One cell of the matrix as the API takes it; `mode: null` is "off". */
@@ -207,6 +217,8 @@ export type Api = {
   applyShares(changes: ShareChange[]): Promise<{ revision: number }>;
   updateDevice(id: string, patch: DevicePatch): Promise<Device>;
   deleteDevice(id: string): Promise<void>;
+  /** The directory at `path` on the device; its home directory for an empty path. */
+  browse(deviceId: string, path: string): Promise<Directory>;
   createEnrollment(): Promise<Enrollment>;
   enrollmentStatus(code: string): Promise<{ device: Device | null }>;
   approveWaiting(fingerprint: string): Promise<void>;

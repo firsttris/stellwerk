@@ -4,6 +4,7 @@ import {
   ApiError,
   conflictContentSchema,
   deviceSchema,
+  directorySchema,
   enrollmentSchema,
   enrollmentStatusSchema,
   eventSchema,
@@ -88,6 +89,11 @@ export function httpApi(): Api {
     deleteDevice: async (id) => {
       await request("DELETE", `/api/devices/${encodeURIComponent(id)}`);
     },
+    browse: (deviceId, path) =>
+      request(
+        "GET",
+        `/api/devices/${encodeURIComponent(deviceId)}/browse?path=${encodeURIComponent(path)}`,
+      ).then(parsed(directorySchema)),
     createEnrollment: () => request("POST", "/api/enrollments").then(parsed(enrollmentSchema)),
     enrollmentStatus: (code) =>
       request("POST", "/api/enrollments/status", { code }).then(parsed(enrollmentStatusSchema)),

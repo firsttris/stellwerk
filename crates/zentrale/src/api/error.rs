@@ -5,6 +5,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
+use crate::browse::BrowseError;
 use crate::files::FilesError;
 use crate::store::StoreError;
 
@@ -60,6 +61,18 @@ impl From<FilesError> for ApiError {
                 Self::internal()
             }
         }
+    }
+}
+
+impl From<BrowseError> for ApiError {
+    fn from(err: BrowseError) -> Self {
+        let status = match err {
+            BrowseError::Offline => StatusCode::CONFLICT,
+            BrowseError::NoAnswer => StatusCode::GATEWAY_TIMEOUT,
+            // The device's own words, e.g. a folder it may not read
+            BrowseError::Failed(_) => StatusCode::BAD_REQUEST,
+        };
+        Self::new(status, err.to_string())
     }
 }
 

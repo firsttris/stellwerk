@@ -76,3 +76,63 @@ test("a folder that no longer exists says so", async ({ page }) => {
   await page.getByRole("link", { name: "Zu den Ordnern" }).click();
   await expect(page.getByRole("heading", { name: "Ordner" })).toBeVisible();
 });
+
+test("a new folder starts from a folder picked on a device", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Neuer Ordner" }).click();
+  await expect(page.getByLabel("Gerät")).toHaveValue("workbench");
+
+  await page.getByRole("button", { name: "Ordner auf workbench auswählen" }).click();
+  const picker = page.getByRole("dialog", { name: "Ordner auf workbench" });
+  await picker.getByRole("button", { name: "Pictures" }).click();
+  await picker.getByRole("button", { name: "Holidays 2026" }).click();
+  await expect(picker.getByLabel("Pfad", { exact: true })).toHaveValue(
+    "/home/demo/Pictures/Holidays 2026",
+  );
+  await picker.getByRole("button", { name: "Diesen Ordner wählen" }).click();
+  await expect(picker).toBeHidden();
+
+  await expect(page.getByRole("textbox", { name: "Ordner auf workbench" })).toHaveValue(
+    "/home/demo/Pictures/Holidays 2026",
+  );
+  await expect(page.getByLabel("Name")).toHaveValue("Holidays 2026");
+  await page.getByRole("button", { name: "Anlegen" }).click();
+
+  await page.getByRole("link", { name: "Holidays 2026" }).click();
+  await expect(page.getByLabel("Modus für workbench")).toHaveValue("sendReceive");
+  await expect(page.getByLabel("Pfad auf workbench")).toHaveValue(
+    "/home/demo/Pictures/Holidays 2026",
+  );
+});
+
+test("the picker walks a Windows device's drives and is off for offline devices", async ({
+  page,
+}) => {
+  await page.goto("/folders");
+  await page.getByRole("link", { name: /Photos/ }).click();
+  await expect(
+    page.getByRole("button", { name: "office-pc ist offline – Pfad von Hand eintragen" }),
+  ).toBeDisabled();
+  // Not on the laptop yet: the picker opens once the folder is.
+  await expect(page.getByRole("button", { name: "Ordner auf laptop auswählen" })).toBeDisabled();
+  await page.getByLabel("Modus für laptop").selectOption("sendReceive");
+
+  await page.getByRole("button", { name: "Ordner auf laptop auswählen" }).click();
+  const picker = page.getByRole("dialog", { name: "Ordner auf laptop" });
+  await picker.getByRole("button", { name: "Persönlicher Ordner" }).click();
+  await expect(picker.getByLabel("Pfad", { exact: true })).toHaveValue("C:\\Users\\demo");
+  await picker.getByRole("button", { name: "Eine Ebene höher" }).click();
+  await expect(picker.getByLabel("Pfad", { exact: true })).toHaveValue("C:\\Users");
+  await picker.getByRole("button", { name: "D:\\" }).click();
+  await expect(picker.getByText("Keine Unterordner.")).toBeVisible();
+  await picker.getByLabel("Pfad", { exact: true }).fill("C:\\Users\\demo\\Pictures");
+  await picker.getByLabel("Pfad", { exact: true }).press("Enter");
+  await picker.getByRole("button", { name: "Phone" }).click();
+  await picker.getByRole("button", { name: "Diesen Ordner wählen" }).click();
+
+  await expect(page.getByLabel("Pfad auf laptop")).toHaveValue("C:\\Users\\demo\\Pictures\\Phone");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await page.getByRole("link", { name: "Ordner", exact: true }).click();
+  await page.getByRole("link", { name: /Photos/ }).click();
+  await expect(page.getByLabel("Pfad auf laptop")).toHaveValue("C:\\Users\\demo\\Pictures\\Phone");
+});

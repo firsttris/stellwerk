@@ -9,6 +9,7 @@ import {
 } from "../api/types";
 import { nowSeconds } from "../lib/format";
 import { type DemoState, demoConflictContent, demoLive, demoState } from "./fixtures";
+import { demoDirectory } from "./folders";
 
 /** How many status polls until the demo's "new device" shows up in the pairing dialog. */
 const POLLS_UNTIL_PAIRED = 2;
@@ -146,6 +147,12 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
         shares: state.shares.filter((s) => s.deviceId !== id),
       };
       bump();
+    },
+    browse: async (deviceId, path) => {
+      const device = state.devices.find((d) => d.id === deviceId);
+      if (!device) throw new ApiError(404, "device not found");
+      if (!device.online) throw new ApiError(409, "the device is offline");
+      return demoDirectory(device.os, path);
     },
     createEnrollment: async (): Promise<Enrollment> => {
       const code = "K7Q2-MX9P-41TZ";

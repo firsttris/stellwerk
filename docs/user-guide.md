@@ -77,7 +77,7 @@ devices.
 - **Under the device name**: online or how long offline, and its operating system.
 
 A new share gets the path `~/Stellwerk/<folder name>` on the device. Change it on the folder page
-before or after the files arrive.
+before or after the files arrive, typed or picked with the folder button.
 
 ### Needs attention
 
@@ -155,8 +155,19 @@ devices are kept in memory only, at most 20, and drop off the list when their ag
 ## Folders
 
 The list of all folders with their size, state and how many devices hold them. **New folder**
-creates one: it is on the server right away, and on no device until you share it in the
-matrix (or when pairing a device).
+creates one: it is on the server right away. Pick a **device** and its folder with the folder
+button (or type the path) and the folder is on that device too, in mode Both; the name follows
+the folder you picked. With **Only on the server for now** it is on no device until you share it
+in the matrix (or when pairing a device).
+
+### Picking a folder on a device
+
+The folder button next to a path opens the device's folders: the Zentrale asks the agent, which
+lists the subdirectories of one directory at a time, starting in the home directory. **Up one
+level**, **Home folder**, the drives on Windows, or a path typed into the field and Enter move
+around; **Choose this folder** takes the one shown. Only folder names leave the device, never
+files. The button is off while the device is offline, and an agent older than v0.1.6 does not
+answer; type the path then.
 
 ### Folder page
 
@@ -165,8 +176,8 @@ matrix (or when pairing a device).
 **Devices** tab: one row per device.
 
 - **Mode**: the same choice as in the matrix.
-- **Local path**: where the folder is on that device. `~` is the user's home directory, on
-  Windows too. A new path sets the folder up again on the device: Syncthing scans the new place,
+- **Local path**: where the folder is on that device, typed or picked with the folder button.
+  `~` is the user's home directory, on Windows too. A new path sets the folder up again on the device: Syncthing scans the new place,
   keeps files that are already there and fetches the rest. The files at the old path stay where
   they are; Stellwerk never moves or deletes them.
 - **Status**: in sync, syncing with progress, errors, or how much waits for an offline device.

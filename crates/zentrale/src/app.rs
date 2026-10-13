@@ -10,8 +10,10 @@ use tokio::sync::watch;
 use stellwerk_engine::Client;
 use stellwerk_engine::files::Conflict;
 use stellwerk_engine::monitor::Snapshot;
+use stellwerk_protocol::messages::Directory;
 use stellwerk_protocol::status::FolderStatus;
 
+use crate::browse::{self, BrowseError, Jobs};
 use crate::ca::Ca;
 use crate::live::{DeviceLive, Live};
 use crate::model::Hub;
@@ -23,6 +25,14 @@ pub struct App {
     inner: Arc<Inner>,
 }
 
+/// An agent's open socket: its number, since when, and where its folder picker requests go.
+#[derive(Debug)]
+struct Connection {
+    number: u64,
+    since: i64,
+    jobs: Jobs,
+}
+
 #[derive(Debug)]
 struct Inner {
     store: Store,
@@ -31,8 +41,8 @@ struct Inner {
     /// Conflict copies on the hub by folder ID, from the last scan.
     conflicts: Mutex<BTreeMap<String, Vec<Conflict>>>,
     revision: watch::Sender<u64>,
-    /// Connected agents: device ID → (connection, connected since).
-    online: Mutex<BTreeMap<String, (u64, i64)>>,
+    /// Connected agents by device ID.
+    online: Mutex<BTreeMap<String, Connection>>,
     connections: AtomicU64,
     live: Mutex<Live>,
     /// Raised on anything the UI shows live: revision, online states, folder states.
@@ -147,19 +157,29 @@ impl App {
         self.inner.revision.subscribe()
     }
 
-    /// Marks a device connected and returns the connection's number for [`Self::set_offline`].
-    pub fn set_online(&self, device_id: &str, since: i64) -> u64 {
-        let connection = self.inner.connections.fetch_add(1, Ordering::Relaxed);
-        self.online()
-            .insert(device_id.to_string(), (connection, since));
+    /// Marks a device connected, with `jobs` for its folder picker, and returns the
+    /// connection's number for [`Self::set_offline`].
+    pub fn set_online(&self, device_id: &str, since: i64, jobs: Jobs) -> u64 {
+        let number = self.inner.connections.fetch_add(1, Ordering::Relaxed);
+        self.online().insert(
+            device_id.to_string(),
+            Connection {
+                number,
+                since,
+                jobs,
+            },
+        );
         self.tick();
-        connection
+        number
     }
 
     /// Marks the device offline unless a newer connection of it took over meanwhile.
     pub fn set_offline(&self, device_id: &str, connection: u64) {
         let mut online = self.online();
-        if online.get(device_id).is_some_and(|(c, _)| *c == connection) {
+        if online
+            .get(device_id)
+            .is_some_and(|c| c.number == connection)
+        {
             online.remove(device_id);
             drop(online);
             self.tick();
@@ -170,8 +190,14 @@ impl App {
     pub fn online_devices(&self) -> BTreeMap<String, i64> {
         self.online()
             .iter()
-            .map(|(id, (_, since))| (id.clone(), *since))
+            .map(|(id, connection)| (id.clone(), connection.since))
             .collect()
+    }
+
+    /// A directory on a connected device, for the folder picker.
+    pub async fn browse(&self, device_id: &str, path: String) -> Result<Directory, BrowseError> {
+        let jobs = self.online().get(device_id).map(|c| c.jobs.clone());
+        browse::ask(jobs, path, browse::ANSWER_TIMEOUT).await
     }
 
     pub fn ca(&self) -> Option<&Ca> {
@@ -222,7 +248,7 @@ impl App {
         lock(&self.inner.waiting).views()
     }
 
-    fn online(&self) -> std::sync::MutexGuard<'_, BTreeMap<String, (u64, i64)>> {
+    fn online(&self) -> std::sync::MutexGuard<'_, BTreeMap<String, Connection>> {
         lock(&self.inner.online)
     }
 }
