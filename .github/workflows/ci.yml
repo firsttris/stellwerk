@@ -7,7 +7,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore: ["**.md", "docs/**", "LICENSE"]
-  workflow_call:                # release.yml runs the same checks before publishing
+  workflow_call:                # release.yml runs it when main's CI did not test the release
   workflow_dispatch:
 
 permissions:
@@ -19,10 +19,32 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  rust:
-    # Draft pull requests do not build; "Ready for review" starts the run
+  # What a pull request touches, so it runs only the jobs that can fail because of it: a change
+  # in web/ alone does not run the Rust tests, one in crates/ alone not the UI checks, and the
+  # image builds only when a file it is built from beyond that code changes. Pushes to main, a
+  # run by hand and the release run everything.
+  changes:
     if: ${{ !github.event.pull_request.draft }}
-    # The agent runs on all three, so the integration tests with real Syncthing do too
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.diff.outputs.rust }}
+      web: ${{ steps.diff.outputs.web }}
+      docker: ${{ steps.diff.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: scripts/ci-changes.sh "${BASE:-}" >> "$GITHUB_OUTPUT"
+
+  rust:
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' }}
+    # The agent runs on all three, so the integration tests with real Syncthing and the service
+    # smoke test do too
     strategy:
       fail-fast: false
       matrix:
@@ -34,19 +56,48 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      # Saved on main only: pull requests read it and do not crowd it out with their own
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       # The pinned Syncthing for the integration tests; the key changes with the pin
       - uses: actions/cache@v4
         with:
           path: .syncthing-cache
           key: syncthing-${{ runner.os }}-${{ hashFiles('crates/engine/src/pin.rs') }}
+      # A prebuilt binary, seconds instead of a minute of `cargo install`
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
       - if: runner.os == 'Linux'
         run: cargo fmt --all --check
       - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo test --no-fail-fast
+      # Every test in its own process, all at once: the integration tests with Syncthing take
+      # half a minute each and ran one after the other under `cargo test` (no doc tests exist)
+      - run: cargo nextest run --no-fail-fast
+      # `stellwerk-agent service install` on each system with the agent the tests just built:
+      # runs, starts Syncthing, stops cleanly. The runner user has no systemd user manager
+      # until it may linger.
+      - if: runner.os == 'Linux'
+        run: |
+          sudo loginctl enable-linger "$USER"
+          echo "XDG_RUNTIME_DIR=/run/user/$(id -u)" >> "$GITHUB_ENV"
+          for _ in $(seq 30); do [ -S "/run/user/$(id -u)/bus" ] && break; sleep 1; done
+      - run: scripts/service-smoke.sh target/debug
+        shell: bash
+      # install.sh runs for real in the tests (crates/agent/tests/install_script.rs); the
+      # PowerShell one at least has to parse in Windows PowerShell 5.1, which the command uses
+      - if: runner.os == 'Windows'
+        name: install.ps1 parses
+        shell: powershell
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD\installer\install.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors; exit 1 }
 
   web:
-    if: ${{ !github.event.pull_request.draft }}
+    needs: changes
+    if: ${{ needs.changes.outputs.web == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -64,7 +115,8 @@ jobs:
 
   # The UI in demo mode in the official Playwright image of the version in the lockfile
   e2e-image:
-    if: ${{ !github.event.pull_request.draft }}
+    needs: changes
+    if: ${{ needs.changes.outputs.web == 'true' }}
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.playwright.outputs.image }}
@@ -87,9 +139,11 @@ jobs:
       - run: pnpm --filter e2e lint
       - run: pnpm --filter e2e test
 
-  # The image builds; release.yml publishes it
+  # The image builds and starts, when a file it is built from beyond the code changes;
+  # release.yml publishes it. Its build cache is the one the release's amd64 build reads.
   docker:
-    if: ${{ !github.event.pull_request.draft }}
+    needs: changes
+    if: ${{ needs.changes.outputs.docker == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -99,38 +153,17 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile
-          push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # `stellwerk-agent service install` on each system: runs, starts Syncthing, stops cleanly
-  service:
-    if: ${{ !github.event.pull_request.draft }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo build -p stellwerk-agent
-      # The runner user has no systemd user manager until it may linger
-      - if: runner.os == 'Linux'
+          load: true
+          tags: stellwerk:ci
+          cache-from: type=gha,scope=linux-amd64
+          cache-to: type=gha,mode=max,scope=linux-amd64
+      # Starts with its hub Syncthing and answers the UI's first request
+      - name: Start the image
         run: |
-          sudo loginctl enable-linger "$USER"
-          echo "XDG_RUNTIME_DIR=/run/user/$(id -u)" >> "$GITHUB_ENV"
-          for _ in $(seq 30); do [ -S "/run/user/$(id -u)/bus" ] && break; sleep 1; done
-      - run: scripts/service-smoke.sh target/debug
-        shell: bash
-      # install.sh runs for real in `cargo test` (crates/agent/tests/install_script.rs); the
-      # PowerShell one at least has to parse in Windows PowerShell 5.1, which the command uses
-      - if: runner.os == 'Windows'
-        name: install.ps1 parses
-        shell: powershell
-        run: |
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile("$PWD\installer\install.ps1", [ref]$null, [ref]$errors) | Out-Null
-          if ($errors) { $errors; exit 1 }
+          docker run -d --name stellwerk -p 127.0.0.1:8080:8080 stellwerk:ci
+          for _ in $(seq 60); do
+            curl -fsS http://127.0.0.1:8080/api/session && break
+            sleep 2
+          done
+          docker logs stellwerk
+          curl -fsS http://127.0.0.1:8080/api/session | grep -q '"loggedIn":false'
