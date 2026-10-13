@@ -8,7 +8,7 @@ import { errorMessage } from "../lib/errors";
 import { matrixDevices } from "../lib/matrix";
 import { baseName } from "../lib/paths";
 import { m } from "../paraglide/messages.js";
-import { FolderPicker } from "./folder-picker";
+import { PathField } from "./path-field";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { Field, Input, Select } from "./ui/input";
@@ -91,16 +91,14 @@ function NewFolderForm({ onDone }: { onDone: () => void }) {
         {device && (
           <Field label={m.new_folder_path({ device: device.name })}>
             {(id) => (
-              <div className="flex gap-2">
-                <Input
-                  id={id}
-                  className="font-mono"
-                  value={path}
-                  onChange={(e) => setPath(e.target.value)}
-                  placeholder={`~/Stellwerk/${label.trim()}`}
-                />
-                <FolderPicker device={device} value={path} onPick={pick} />
-              </div>
+              <PathField
+                id={id}
+                device={device}
+                value={path}
+                onChange={setPath}
+                onPick={pick}
+                placeholder={`~/Stellwerk/${label.trim()}`}
+              />
             )}
           </Field>
         )}

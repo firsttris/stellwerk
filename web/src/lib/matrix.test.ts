@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { Overview } from "../api/types";
 import { demoState } from "../demo/fixtures";
 import {
+  cellKey,
   cellMode,
   cycleCell,
   type Draft,
   draftChanges,
   isWaiting,
+  newShares,
   nextMode,
   offlineChanges,
   setCell,
@@ -50,6 +52,27 @@ describe("matrix draft", () => {
       { folderId: "projects", deviceId: "workbench", mode: null },
       { folderId: "photos", deviceId: "laptop", mode: "sendReceive" },
     ]);
+  });
+
+  it("gives a new share the path picked for it, nothing else", () => {
+    const o = overview();
+    let draft: Draft = setCell(o, new Map(), "photos", "laptop", "sendReceive");
+    draft = setCell(o, draft, "projects", "workbench", "sendOnly");
+    expect(newShares(o, draft)).toEqual([{ folderId: "photos", deviceId: "laptop" }]);
+    const paths = {
+      [cellKey("photos", "laptop")]: " D:\\Pictures ",
+      // An existing share keeps its path; that changes on the folder page.
+      [cellKey("projects", "workbench")]: "/elsewhere",
+    };
+    expect(draftChanges(o, draft, paths)).toEqual([
+      { folderId: "photos", deviceId: "laptop", mode: "sendReceive", path: "D:\\Pictures" },
+      { folderId: "projects", deviceId: "workbench", mode: "sendOnly" },
+    ]);
+    expect(draftChanges(o, draft, { [cellKey("photos", "laptop")]: "  " })[0]).toEqual({
+      folderId: "photos",
+      deviceId: "laptop",
+      mode: "sendReceive",
+    });
   });
 
   it("drops cells of folders that are gone and counts offline devices", () => {

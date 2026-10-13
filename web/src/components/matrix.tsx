@@ -15,16 +15,19 @@ import {
   cellMode,
   cycleCell,
   type Draft,
+  type DraftPaths,
   draftChanges,
   isWaiting,
   matrixDevices,
   modeLabel,
   modeLong,
+  newShares,
   offlineChanges,
 } from "../lib/matrix";
 import { cn } from "../lib/utils";
 import { m } from "../paraglide/messages.js";
 import { DeviceIcon, StatusDot } from "./device-icon";
+import { NewSharePaths } from "./new-share-paths";
 import { Button } from "./ui/button";
 import { Badge, Card } from "./ui/card";
 
@@ -70,10 +73,16 @@ export function Legend() {
 /** Folders × devices. Clicks collect in a draft; "Anwenden" sends it as one revision. */
 export function Matrix({ overview, live }: { overview: Overview; live: Live | undefined }) {
   const [draft, setDraft] = useState<Draft>(new Map());
+  const [paths, setPaths] = useState<DraftPaths>({});
   const [toast, setToast] = useState("");
   const queryClient = useQueryClient();
   const devices = matrixDevices(overview);
-  const changes = draftChanges(overview, draft);
+  const changes = draftChanges(overview, draft, paths);
+  const added = newShares(overview, draft);
+  const discard = () => {
+    setDraft(new Map());
+    setPaths({});
+  };
   const offline = offlineChanges(overview, draft);
 
   const apply = useMutation({
@@ -90,7 +99,7 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
           : m.matrix_applied_all(),
       );
       await refresh(queryClient);
-      setDraft(new Map());
+      discard();
     },
   });
   const cycle = (folderId: string, deviceId: string) => {
@@ -114,9 +123,18 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
         <DraftBar
           changes={changes.length}
           offline={offline}
-          onDiscard={() => setDraft(new Map())}
+          onDiscard={discard}
           onApply={() => apply.mutate()}
           applying={apply.isPending}
+        />
+      )}
+      {added.length > 0 && (
+        <NewSharePaths
+          shares={added}
+          folders={overview.folders}
+          devices={devices}
+          paths={paths}
+          onChange={(key, path) => setPaths((current) => ({ ...current, [key]: path }))}
         />
       )}
       {apply.error && (

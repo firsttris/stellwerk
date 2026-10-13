@@ -19,6 +19,12 @@ test("pairing shows a command, waits for the device and sets it up", async ({ pa
   await expect(dialog.getByText("Neues Gerät verbunden")).toBeVisible({ timeout: 10_000 });
   await dialog.getByLabel("Name").fill("workshop");
   await dialog.getByRole("checkbox", { name: "Documents" }).check();
+  // Where the folder goes on the new device, picked from its folders.
+  await dialog.getByRole("button", { name: "Ordner auf workshop-pc auswählen" }).click();
+  const picker = page.getByRole("dialog", { name: "Ordner auf workshop-pc" });
+  await picker.getByRole("button", { name: "Documents" }).click();
+  await picker.getByRole("button", { name: "Diesen Ordner wählen" }).click();
+  await expect(dialog.getByLabel("Documents auf workshop")).toHaveValue("/home/demo/Documents");
   await dialog.getByRole("button", { name: "Gerät mit 1 Ordner einrichten" }).click();
   await expect(dialog).toBeHidden();
 
@@ -27,6 +33,8 @@ test("pairing shows a command, waits for the device and sets it up", async ({ pa
   await expect(
     page.getByRole("button", { name: /^Documents auf workshop: senden und empfangen/ }),
   ).toBeVisible();
+  await page.getByRole("link", { name: "Documents" }).click();
+  await expect(page.getByLabel("Pfad auf workshop")).toHaveValue("/home/demo/Documents");
 });
 
 test("search and filter narrow the list", async ({ page }) => {
