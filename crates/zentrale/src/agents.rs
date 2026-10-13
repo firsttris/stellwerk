@@ -4,6 +4,8 @@
 
 use std::time::Duration;
 
+use tokio::time::Instant;
+
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{State, WebSocketUpgrade};
 use axum::response::Response;
@@ -13,7 +15,7 @@ use crate::app::App;
 use crate::desired;
 use crate::model::{Device, DeviceKind};
 use crate::pairing::{code_hash, new_nonce, verify_hello};
-use crate::store::{self, NewDevice, now};
+use crate::store::{self, Enrolled, NewDevice, now};
 use crate::waiting::{Decision, Refused};
 
 /// How long an agent has to answer the challenge.
@@ -79,6 +81,7 @@ async fn session(app: App, mut socket: WebSocket) {
 async fn serve(app: &App, device_id: &str, socket: &mut WebSocket) {
     let mut revisions = app.revisions();
     revisions.mark_changed();
+    let mut heartbeat = Heartbeat::new();
     loop {
         tokio::select! {
             changed = revisions.changed() => {
@@ -96,7 +99,7 @@ async fn serve(app: &App, device_id: &str, socket: &mut WebSocket) {
                     return;
                 }
             }
-            message = receive(socket) => match message {
+            message = receive_alive(socket, &mut heartbeat) => match message {
                 Some(AgentMessage::Applied(applied)) => record_applied(app, device_id, applied).await,
                 Some(AgentMessage::Status(status)) => app.set_device_status(device_id, status.folders, now()),
                 Some(AgentMessage::Hello(_)) => {}
@@ -130,7 +133,7 @@ async fn record_applied(app: &App, device_id: &str, applied: Applied) {
 /// The device for a verified hello: enrolled now with its code, or known by its key; `None`
 /// for an unknown key without a code.
 async fn identify(app: &App, nonce: &str, hello: &Hello) -> Result<Option<Device>, String> {
-    verify_hello(&hello.public_key, &hello.signature, nonce).map_err(|err| err.to_string())?;
+    verify_hello(hello, nonce).map_err(|err| err.to_string())?;
     let store = app.store();
     let at = now();
 
@@ -139,8 +142,10 @@ async fn identify(app: &App, nonce: &str, hello: &Hello) -> Result<Option<Device
             .enroll(&code_hash(code), report(hello), at)
             .await
             .map_err(|err| err.to_string())?;
-        if let Some(device) = enrolled {
-            paired(app, &device).await;
+        if let Some(Enrolled { device, new }) = enrolled {
+            if new {
+                paired(app, &device).await;
+            }
             return Ok(Some(device));
         }
     }
@@ -226,9 +231,11 @@ async fn paired(app: &App, device: &Device) {
         .await;
 }
 
-/// Completes when the agent closes the socket; whatever it sends meanwhile is ignored.
+/// Completes when the agent closes the socket or goes silent; whatever it sends meanwhile is
+/// ignored.
 async fn closed(socket: &mut WebSocket) {
-    while receive(socket).await.is_some() {}
+    let mut heartbeat = Heartbeat::new();
+    while receive_alive(socket, &mut heartbeat).await.is_some() {}
 }
 
 fn report(hello: &Hello) -> NewDevice {
@@ -263,17 +270,91 @@ async fn send(socket: &mut WebSocket, message: &ServerMessage) -> Result<(), axu
     socket.send(Message::Text(text.into())).await
 }
 
-/// The next agent message; `None` when the socket is closed or broken. Unreadable messages
-/// are logged and skipped, so a newer agent does not break an older Zentrale.
+/// The next agent message; `None` when the socket is closed or broken.
 async fn receive(socket: &mut WebSocket) -> Option<AgentMessage> {
     loop {
-        match socket.recv().await? {
-            Ok(Message::Text(text)) => match serde_json::from_str(&text) {
-                Ok(message) => return Some(message),
-                Err(err) => tracing::warn!(%err, "unreadable agent message"),
-            },
-            Ok(Message::Close(_)) | Err(_) => return None,
-            Ok(_) => {}
+        if let Some(message) = read(socket.recv().await?)? {
+            return Some(message);
         }
+    }
+}
+
+/// Like [`receive`], and pings the agent meanwhile; `None` also when nothing arrived for
+/// [`SILENCE_LIMIT`]. Without this a silently dropped link (suspend, NAT timeout, Wi-Fi roam)
+/// would keep the device "online" until the OS gives up on the TCP connection, hours later.
+/// Agents answer pings by themselves (tokio-tungstenite replies with a pong while reading).
+async fn receive_alive(socket: &mut WebSocket, heartbeat: &mut Heartbeat) -> Option<AgentMessage> {
+    loop {
+        tokio::select! {
+            frame = socket.recv() => {
+                heartbeat.last_heard = Instant::now();
+                if let Some(message) = read(frame?)? {
+                    return Some(message);
+                }
+            }
+            _ = heartbeat.ping.tick() => {
+                if gone_silent(heartbeat.last_heard.elapsed()) {
+                    tracing::info!("agent silent for too long");
+                    return None;
+                }
+                socket.send(Message::Ping(Default::default())).await.ok()?;
+            }
+        }
+    }
+}
+
+/// What one frame says: `None` when the socket closed or broke, `Some(None)` for a frame
+/// without a message. Unreadable messages are logged and skipped, so a newer agent does not
+/// break an older Zentrale.
+fn read(frame: Result<Message, axum::Error>) -> Option<Option<AgentMessage>> {
+    match frame {
+        Ok(Message::Text(text)) => match serde_json::from_str(&text) {
+            Ok(message) => Some(Some(message)),
+            Err(err) => {
+                tracing::warn!(%err, "unreadable agent message");
+                Some(None)
+            }
+        },
+        Ok(Message::Close(_)) | Err(_) => None,
+        Ok(_) => Some(None),
+    }
+}
+
+/// How often the Zentrale pings a connected agent.
+const PING_EVERY: Duration = Duration::from_secs(30);
+/// Nothing at all from the agent for this long, not even a pong: the link is gone.
+const SILENCE_LIMIT: Duration = Duration::from_secs(90);
+
+/// When the agent was last heard of, and the timer for the next ping.
+struct Heartbeat {
+    ping: tokio::time::Interval,
+    last_heard: Instant,
+}
+
+impl Heartbeat {
+    fn new() -> Self {
+        let mut ping = tokio::time::interval_at(Instant::now() + PING_EVERY, PING_EVERY);
+        ping.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        Self {
+            ping,
+            last_heard: Instant::now(),
+        }
+    }
+}
+
+fn gone_silent(since_heard: Duration) -> bool {
+    since_heard >= SILENCE_LIMIT
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_agent_misses_two_pings_before_it_counts_as_gone() {
+        assert!(!gone_silent(PING_EVERY));
+        assert!(!gone_silent(PING_EVERY * 2));
+        assert!(!gone_silent(SILENCE_LIMIT - Duration::from_secs(1)));
+        assert!(gone_silent(SILENCE_LIMIT));
     }
 }

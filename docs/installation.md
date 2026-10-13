@@ -313,8 +313,10 @@ themselves within 30 seconds.
 
 **Agents.** Until the self-update arrives: replace the binary with the new one at the same place
 (on Windows, run the new installer) and run `stellwerk-agent service install` again, which
-restarts it. Agent and Zentrale of neighbouring versions work together; the device list shows
-each agent's version.
+restarts it. Agent and Zentrale of neighbouring versions work together, with one exception:
+agents up to v0.1.1 sign in the older way (over the nonce alone), which newer Zentralen turn
+away, so update those agents together with the Zentrale. The device list shows each agent's
+version.
 
 **Syncthing.** Each Stellwerk version pins one Syncthing version with its checksums. It is
 updated together with Stellwerk, never on its own; Syncthing's own auto-upgrade is off.

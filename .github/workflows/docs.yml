@@ -1,5 +1,7 @@
 # Builds docs/ with MkDocs Material and publishes it to GitHub Pages:
 # https://firsttris.github.io/stellwerk/
+# Pull requests that touch the docs only build them (--strict), so broken links fail before the
+# merge; ci.yml ignores docs-only changes.
 # One-time requirement: Settings → Pages → Source "GitHub Actions"
 # (configure-pages with enablement switches that on itself during the first run).
 name: Docs
@@ -12,6 +14,12 @@ on:
       - "mkdocs.yml"
       - "requirements-docs.txt"
       - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "requirements-docs.txt"
+      - ".github/workflows/docs.yml"
   workflow_dispatch:
 
 permissions:
@@ -19,9 +27,10 @@ permissions:
   pages: write
   id-token: write
 
+# Deploys run one after the other; a new push to a pull request cancels its outdated build
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('docs-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -36,15 +45,18 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-docs.txt
       - run: pip install -r requirements-docs.txt
-      - uses: actions/configure-pages@v5
+      - if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
         with:
           enablement: true
       - run: mkdocs build --strict
-      - uses: actions/upload-pages-artifact@v3
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     environment:

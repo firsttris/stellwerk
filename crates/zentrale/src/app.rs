@@ -39,6 +39,8 @@ struct Inner {
     /// Whether agents without a code may wait for approval in the UI.
     lan_pairing: AtomicBool,
     waiting: Mutex<Waiting>,
+    /// Failed logins in a row; held while a password is checked, so checks run one at a time.
+    login_failures: tokio::sync::Mutex<u32>,
 }
 
 impl App {
@@ -57,6 +59,7 @@ impl App {
                 ticks: watch::Sender::new(0),
                 lan_pairing: AtomicBool::new(false),
                 waiting: Mutex::default(),
+                login_failures: tokio::sync::Mutex::default(),
             }),
         })
     }
@@ -100,6 +103,11 @@ impl App {
         });
         self.tick();
         Ok(())
+    }
+
+    /// Failed logins in a row. Lock it around checking a password.
+    pub fn login_failures(&self) -> &tokio::sync::Mutex<u32> {
+        &self.inner.login_failures
     }
 
     /// Something the UI shows changed.

@@ -9,6 +9,7 @@ import { NewFolderDialog } from "../../components/new-folder-dialog";
 import { PairDialog } from "../../components/pair-dialog";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
+import { errorMessage } from "../../lib/errors";
 import { ago, describeEvent, nowSeconds, since } from "../../lib/format";
 import { byCount } from "../../lib/i18n";
 import {
@@ -38,7 +39,7 @@ function Overview() {
           </>
         }
       />
-      {error && <p className="text-danger">{error.message}</p>}
+      {error && <p className="text-danger">{errorMessage(error)}</p>}
       {overview && (
         <>
           <Stats overview={overview} live={live} />
@@ -194,8 +195,8 @@ function Attention({ overview, live }: { overview: OverviewData; live: Live | un
         (live?.waiting ?? []).length === 0 && (
           <p className="text-muted-foreground">{m.attention_nothing()}</p>
         )}
-      {errors.map(({ folder, device, message }) => (
-        <div key={`${folder.id}-${device}`} className="flex items-start gap-3">
+      {errors.map(({ folder, deviceId, device, message }) => (
+        <div key={`${folder.id}-${deviceId ?? "hub"}`} className="flex items-start gap-3">
           <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-warn text-warn-foreground">
             <TriangleAlert className="size-4" aria-hidden="true" />
           </div>

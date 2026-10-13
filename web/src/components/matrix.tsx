@@ -4,10 +4,11 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Check, Clock, Database } from "lucide-
 import { useState } from "react";
 import { api } from "../api";
 import { refresh } from "../api/queries";
-import type { Live, Overview } from "../api/types";
+import type { Device, Folder, Live, Overview } from "../api/types";
+import { errorMessage } from "../lib/errors";
 import { deviceStatus, nowSeconds } from "../lib/format";
 import { byCount } from "../lib/i18n";
-import { completion, folderBadge, folderSize } from "../lib/live";
+import { completion, folderBadge, folderSize, holders } from "../lib/live";
 import {
   type CellMode,
   cellKey,
@@ -72,7 +73,6 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
   const [toast, setToast] = useState("");
   const queryClient = useQueryClient();
   const devices = matrixDevices(overview);
-  const now = nowSeconds();
   const changes = draftChanges(overview, draft);
   const offline = offlineChanges(overview, draft);
 
@@ -93,6 +93,10 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
       setDraft(new Map());
     },
   });
+  const cycle = (folderId: string, deviceId: string) => {
+    setToast("");
+    setDraft(cycleCell(overview, draft, folderId, deviceId));
+  };
 
   return (
     <Card aria-labelledby="matrix-title" className="overflow-hidden">
@@ -107,35 +111,17 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
       </div>
 
       {changes.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-info-border bg-info px-5 py-3 text-info-foreground">
-          <div className="flex items-center gap-2.5">
-            <span className="size-2 rounded-full bg-info-accent" />
-            <span>
-              <strong className="font-semibold">
-                {byCount(changes.length, m.matrix_unsaved_one, () =>
-                  m.matrix_unsaved_other({ count: changes.length }),
-                )}
-              </strong>{" "}
-              {offline === 0
-                ? m.matrix_applies_now()
-                : byCount(offline, m.matrix_offline_one, () =>
-                    m.matrix_offline_other({ count: offline }),
-                  )}
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setDraft(new Map())}>
-              {m.matrix_discard()}
-            </Button>
-            <Button size="sm" onClick={() => apply.mutate()} disabled={apply.isPending}>
-              {m.matrix_apply()}
-            </Button>
-          </div>
-        </div>
+        <DraftBar
+          changes={changes.length}
+          offline={offline}
+          onDiscard={() => setDraft(new Map())}
+          onApply={() => apply.mutate()}
+          applying={apply.isPending}
+        />
       )}
       {apply.error && (
         <p className="border-b border-border bg-danger-surface px-5 py-3 text-danger">
-          {apply.error.message}
+          {errorMessage(apply.error)}
         </p>
       )}
       {toast && changes.length === 0 && (
@@ -160,129 +146,19 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
                 <col key={device.id} className="w-[136px] min-w-[136px]" />
               ))}
             </colgroup>
-            <thead className="border-b border-border bg-subtle">
-              <tr>
-                <th
-                  scope="col"
-                  className="px-5 py-3 align-bottom text-xs font-medium text-muted-foreground"
-                >
-                  {m.matrix_folder_column()}
-                </th>
-                <th scope="col" className="border-l border-muted px-2.5 py-3 font-normal">
-                  <div className="flex items-center gap-1.5 font-medium">
-                    <Database className="size-3.5" aria-hidden="true" />
-                    <span className="font-mono text-[13px]">{m.server()}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
-                    <StatusDot online />
-                    {m.matrix_hub_status()}
-                  </div>
-                </th>
-                {devices.map((device) => (
-                  <th
-                    key={device.id}
-                    scope="col"
-                    className="border-l border-muted px-2.5 py-3 font-normal"
-                  >
-                    <div className="flex items-center gap-1.5 font-medium">
-                      <DeviceIcon kind={device.kind} />
-                      <span className="truncate font-mono text-[13px]">{device.name}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
-                      <StatusDot online={device.online} />
-                      {deviceStatus(device, now)}
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
+            <MatrixHead devices={devices} />
             <tbody>
-              {overview.folders.map((folder) => {
-                const holders = overview.shares.filter((s) => s.folderId === folder.id).length;
-                const badge = folderBadge(overview, live, folder.id);
-                return (
-                  <tr key={folder.id} className="border-b border-muted hover:bg-subtle">
-                    <th scope="row" className="px-5 py-3 font-normal">
-                      <div className="flex flex-col gap-0.5">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Link
-                            to="/folders/$folderId"
-                            params={{ folderId: folder.id }}
-                            className="font-medium hover:underline"
-                          >
-                            {folder.label}
-                          </Link>
-                          <Badge tone={badge.tone}>{badge.text}</Badge>
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {folderSize(live, folder.id) ??
-                            byCount(holders, m.matrix_on_devices_one, () =>
-                              m.matrix_on_devices_other({ count: holders }),
-                            )}
-                        </span>
-                      </div>
-                    </th>
-                    <td className="border-l border-muted p-2">
-                      <div
-                        className="flex h-11 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-muted text-[13px] font-medium"
-                        title={m.matrix_hub_cell_title({ folder: folder.label })}
-                      >
-                        <Database className="size-3.5" aria-hidden="true" />
-                        {m.matrix_hub_cell()}
-                      </div>
-                    </td>
-                    {devices.map((device) => {
-                      const mode = cellMode(overview, draft, folder.id, device.id);
-                      const changed = draft.has(cellKey(folder.id, device.id));
-                      const waiting =
-                        !changed && mode !== "off" && isWaiting(device, overview.revision);
-                      const percent = completion(live, folder.id, device.id)?.percent ?? 100;
-                      const progress =
-                        !changed && !waiting && mode !== "off" && device.online && percent < 100
-                          ? Math.floor(percent)
-                          : undefined;
-                      const label = m.matrix_cell_label({
-                        folder: folder.label,
-                        device: device.name,
-                        mode: modeLong(mode),
-                      });
-                      return (
-                        <td key={device.id} className="border-l border-muted p-2">
-                          <button
-                            type="button"
-                            aria-label={label}
-                            title={label}
-                            onClick={() => {
-                              setToast("");
-                              setDraft(cycleCell(overview, draft, folder.id, device.id));
-                            }}
-                            className={cn(
-                              "relative flex h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border text-[13px] font-medium transition-transform hover:-translate-y-px",
-                              CELL_STYLE[mode],
-                              changed &&
-                                "ring-2 ring-info-accent ring-offset-2 ring-offset-background",
-                            )}
-                          >
-                            <ModeIcon mode={mode} />
-                            <span>{modeLabel(mode)}</span>
-                            {progress !== undefined && (
-                              <span className="absolute -top-2 -right-1.5 rounded-full border border-info-border bg-background px-1.5 text-[10px] font-medium text-info-foreground tabular-nums dark:text-info-accent">
-                                {progress} %
-                              </span>
-                            )}
-                            {waiting && (
-                              <span className="absolute -top-2 -right-1.5 inline-flex items-center gap-0.5 rounded-full border border-info-border bg-background px-1.5 text-[10px] font-medium text-info-foreground dark:text-info-accent">
-                                <Clock className="size-2.5" strokeWidth={2.6} aria-hidden="true" />
-                                {m.matrix_waiting()}
-                              </span>
-                            )}
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
+              {overview.folders.map((folder) => (
+                <FolderRow
+                  key={folder.id}
+                  overview={overview}
+                  live={live}
+                  folder={folder}
+                  devices={devices}
+                  draft={draft}
+                  onCycle={cycle}
+                />
+              ))}
             </tbody>
           </table>
         </div>
@@ -292,5 +168,209 @@ export function Matrix({ overview, live }: { overview: Overview; live: Live | un
         {m.matrix_footer()}
       </div>
     </Card>
+  );
+}
+
+/** "2 unsaved changes. …" with Discard and Apply. */
+function DraftBar({
+  changes,
+  offline,
+  onDiscard,
+  onApply,
+  applying,
+}: {
+  changes: number;
+  offline: number;
+  onDiscard: () => void;
+  onApply: () => void;
+  applying: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-info-border bg-info px-5 py-3 text-info-foreground">
+      <div className="flex items-center gap-2.5">
+        <span className="size-2 rounded-full bg-info-accent" />
+        <span>
+          <strong className="font-semibold">
+            {byCount(changes, m.matrix_unsaved_one, () =>
+              m.matrix_unsaved_other({ count: changes }),
+            )}
+          </strong>{" "}
+          {offline === 0
+            ? m.matrix_applies_now()
+            : byCount(offline, m.matrix_offline_one, () =>
+                m.matrix_offline_other({ count: offline }),
+              )}
+        </span>
+      </div>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={onDiscard}>
+          {m.matrix_discard()}
+        </Button>
+        <Button size="sm" onClick={onApply} disabled={applying}>
+          {m.matrix_apply()}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function MatrixHead({ devices }: { devices: readonly Device[] }) {
+  const now = nowSeconds();
+  return (
+    <thead className="border-b border-border bg-subtle">
+      <tr>
+        <th
+          scope="col"
+          className="px-5 py-3 align-bottom text-xs font-medium text-muted-foreground"
+        >
+          {m.matrix_folder_column()}
+        </th>
+        <th scope="col" className="border-l border-muted px-2.5 py-3 font-normal">
+          <div className="flex items-center gap-1.5 font-medium">
+            <Database className="size-3.5" aria-hidden="true" />
+            <span className="font-mono text-[13px]">{m.server()}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
+            <StatusDot online />
+            {m.matrix_hub_status()}
+          </div>
+        </th>
+        {devices.map((device) => (
+          <th key={device.id} scope="col" className="border-l border-muted px-2.5 py-3 font-normal">
+            <div className="flex items-center gap-1.5 font-medium">
+              <DeviceIcon kind={device.kind} />
+              <span className="truncate font-mono text-[13px]">{device.name}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
+              <StatusDot online={device.online} />
+              {deviceStatus(device, now)}
+            </div>
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
+function FolderRow({
+  overview,
+  live,
+  folder,
+  devices,
+  draft,
+  onCycle,
+}: {
+  overview: Overview;
+  live: Live | undefined;
+  folder: Folder;
+  devices: readonly Device[];
+  draft: Draft;
+  onCycle: (folderId: string, deviceId: string) => void;
+}) {
+  const holderCount = holders(overview, folder.id).length;
+  const badge = folderBadge(overview, live, folder.id);
+  return (
+    <tr className="border-b border-muted hover:bg-subtle">
+      <th scope="row" className="px-5 py-3 font-normal">
+        <div className="flex flex-col gap-0.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/folders/$folderId"
+              params={{ folderId: folder.id }}
+              className="font-medium hover:underline"
+            >
+              {folder.label}
+            </Link>
+            <Badge tone={badge.tone}>{badge.text}</Badge>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {folderSize(live, folder.id) ??
+              byCount(holderCount, m.matrix_on_devices_one, () =>
+                m.matrix_on_devices_other({ count: holderCount }),
+              )}
+          </span>
+        </div>
+      </th>
+      <td className="border-l border-muted p-2">
+        <div
+          className="flex h-11 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-muted text-[13px] font-medium"
+          title={m.matrix_hub_cell_title({ folder: folder.label })}
+        >
+          <Database className="size-3.5" aria-hidden="true" />
+          {m.matrix_hub_cell()}
+        </div>
+      </td>
+      {devices.map((device) => (
+        <MatrixCell
+          key={device.id}
+          overview={overview}
+          live={live}
+          folder={folder}
+          device={device}
+          draft={draft}
+          onCycle={() => onCycle(folder.id, device.id)}
+        />
+      ))}
+    </tr>
+  );
+}
+
+/** One folder on one device: its mode, a ring when changed, progress or "waiting". */
+function MatrixCell({
+  overview,
+  live,
+  folder,
+  device,
+  draft,
+  onCycle,
+}: {
+  overview: Overview;
+  live: Live | undefined;
+  folder: Folder;
+  device: Device;
+  draft: Draft;
+  onCycle: () => void;
+}) {
+  const mode = cellMode(overview, draft, folder.id, device.id);
+  const changed = draft.has(cellKey(folder.id, device.id));
+  const waiting = !changed && mode !== "off" && isWaiting(device, overview.revision);
+  const percent = completion(live, folder.id, device.id)?.percent ?? 100;
+  const progress =
+    !changed && !waiting && mode !== "off" && device.online && percent < 100
+      ? Math.floor(percent)
+      : undefined;
+  const label = m.matrix_cell_label({
+    folder: folder.label,
+    device: device.name,
+    mode: modeLong(mode),
+  });
+  return (
+    <td className="border-l border-muted p-2">
+      <button
+        type="button"
+        aria-label={label}
+        title={label}
+        onClick={onCycle}
+        className={cn(
+          "relative flex h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border text-[13px] font-medium transition-transform hover:-translate-y-px",
+          CELL_STYLE[mode],
+          changed && "ring-2 ring-info-accent ring-offset-2 ring-offset-background",
+        )}
+      >
+        <ModeIcon mode={mode} />
+        <span>{modeLabel(mode)}</span>
+        {progress !== undefined && (
+          <span className="absolute -top-2 -right-1.5 rounded-full border border-info-border bg-background px-1.5 text-[10px] font-medium text-info-foreground tabular-nums dark:text-info-accent">
+            {m.matrix_progress({ percent: progress })}
+          </span>
+        )}
+        {waiting && (
+          <span className="absolute -top-2 -right-1.5 inline-flex items-center gap-0.5 rounded-full border border-info-border bg-background px-1.5 text-[10px] font-medium text-info-foreground dark:text-info-accent">
+            <Clock className="size-2.5" strokeWidth={2.6} aria-hidden="true" />
+            {m.matrix_waiting()}
+          </span>
+        )}
+      </button>
+    </td>
   );
 }

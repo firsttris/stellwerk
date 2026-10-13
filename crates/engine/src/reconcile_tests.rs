@@ -107,7 +107,7 @@ fn fresh_syncthing_gets_devices_then_folders() {
 
     let calls = plan(&fresh(), &state).unwrap();
 
-    assert_eq!(calls.len(), 2);
+    assert_eq!(calls.len(), 3);
     let ApiCall::PutDevice(device) = &calls[0] else {
         panic!("expected a device first, got {calls:?}");
     };
@@ -123,6 +123,13 @@ fn fresh_syncthing_gets_devices_then_folders() {
         .map(|d| d.device_id.as_str())
         .collect();
     assert_eq!(ids, [HUB, ME]);
+    assert_eq!(
+        calls[2],
+        ApiCall::SetIgnores {
+            folder: "fotos".into(),
+            lines: vec![]
+        }
+    );
 }
 
 #[test]
@@ -137,7 +144,7 @@ fn applying_the_same_state_twice_changes_nothing_the_second_time() {
 
     let (first, second) = apply_twice(fresh(), &state);
 
-    assert_eq!(first.len(), 4);
+    assert_eq!(first.len(), 6);
     assert_eq!(second, []);
 }
 
@@ -182,7 +189,7 @@ fn changed_versioning_is_one_folder_put() {
 #[test]
 fn ignore_patterns_follow_the_folder_and_only_change_when_they_differ() {
     let mut state = desired(&[HUB], vec![folder("dev", FolderMode::SendReceive, &[HUB])]);
-    state.folders[0].ignore_patterns = vec!["node_modules/".into(), "".into(), "*.log  ".into()];
+    state.folders[0].ignore_patterns = vec!["node_modules/".into(), "".into(), "  *.log  ".into()];
 
     let (first, second) = apply_twice(fresh(), &state);
     assert!(
@@ -201,15 +208,16 @@ fn ignore_patterns_follow_the_folder_and_only_change_when_they_differ() {
 }
 
 #[test]
-fn a_new_folder_without_patterns_needs_no_ignore_call() {
+fn a_folder_without_patterns_needs_an_ignore_call_only_when_new() {
     let state = desired(&[HUB], vec![folder("dev", FolderMode::SendReceive, &[HUB])]);
-    let calls = plan(&fresh(), &state).unwrap();
+    let (first, second) = apply_twice(fresh(), &state);
     assert!(
-        !calls
+        first
             .iter()
-            .any(|c| matches!(c, ApiCall::SetIgnores { .. })),
-        "{calls:?}"
+            .any(|c| matches!(c, ApiCall::SetIgnores { lines, .. } if lines.is_empty())),
+        "a .stignore left in the directory must go: {first:?}"
     );
+    assert_eq!(second, []);
 }
 
 #[test]
@@ -233,15 +241,16 @@ fn a_new_path_removes_the_folder_and_adds_it_again() {
         &[HUB],
         vec![folder("fotos", FolderMode::SendReceive, &[HUB])],
     );
-    let actual = simulate(fresh(), &plan(&fresh(), &state).unwrap());
+    let mut actual = simulate(fresh(), &plan(&fresh(), &state).unwrap());
+    actual.ignores.insert("fotos".into(), vec!["*.raw".into()]);
     let mut moved = state.clone();
     moved.folders[0].path = "/elsewhere/fotos".into();
 
     let calls = plan(&actual, &moved).unwrap();
 
     assert!(
-        matches!(&calls[..], [ApiCall::DeleteFolder(id), ApiCall::PutFolder(f)]
-            if id == "fotos" && f.path == "/elsewhere/fotos"),
+        matches!(&calls[..], [ApiCall::DeleteFolder(id), ApiCall::PutFolder(f), ApiCall::SetIgnores { lines, .. }]
+            if id == "fotos" && f.path == "/elsewhere/fotos" && lines.is_empty()),
         "{calls:?}"
     );
 }
@@ -323,4 +332,14 @@ fn invalid_states_are_errors_not_calls() {
         plan(&fresh(), &folders),
         Err(PlanError::DuplicateFolder("docs".into()))
     );
+}
+
+#[test]
+fn calls_name_their_folder_for_error_reports() {
+    let state = desired(&[HUB], vec![folder("docs", FolderMode::SendOnly, &[HUB])]);
+    let calls = plan(&fresh(), &state).unwrap();
+    let folders: Vec<_> = calls.iter().map(ApiCall::folder).collect();
+    assert_eq!(folders, [None, Some("docs"), Some("docs")]);
+    assert_eq!(ApiCall::DeleteFolder("old".into()).folder(), Some("old"));
+    assert_eq!(ApiCall::DeleteDevice(HUB.into()).folder(), None);
 }

@@ -18,12 +18,33 @@ use crate::store::{Session, now};
 const COOKIE: &str = "stellwerk_session";
 const CSRF_HEADER: &str = "x-csrf-token";
 const SESSION_LIFETIME_SECS: i64 = 30 * 24 * 60 * 60;
-/// Slows down guessing; argon2 already takes a moment per try.
+/// The wait after a first failed login; it doubles with every further failure in a row.
 const FAILED_LOGIN_DELAY: Duration = Duration::from_millis(500);
+/// The longest wait, so the admin is not locked out for long by someone guessing.
+const MAX_FAILED_LOGIN_DELAY: Duration = Duration::from_secs(8);
+
+/// How long to wait after the `failures`-th failed login in a row.
+fn failed_login_delay(failures: u32) -> Duration {
+    let doublings = failures.saturating_sub(1).min(16);
+    (FAILED_LOGIN_DELAY * 2u32.pow(doublings)).min(MAX_FAILED_LOGIN_DELAY)
+}
 
 /// A request from the logged-in admin; changes also carry the right CSRF token.
 #[derive(Debug, Clone)]
-pub struct Admin;
+pub struct Admin {
+    /// The session's token hash, for checking later that it still exists.
+    pub token_hash: String,
+}
+
+impl Admin {
+    /// Whether the session still exists: not logged out, expired or ended by a new password.
+    pub async fn still_logged_in(&self, app: &App) -> bool {
+        matches!(
+            app.store().session(&self.token_hash, now()).await,
+            Ok(Some(_))
+        )
+    }
+}
 
 impl FromRequestParts<App> for Admin {
     type Rejection = ApiError;
@@ -44,7 +65,9 @@ impl FromRequestParts<App> for Admin {
                 "missing or wrong CSRF token",
             ));
         }
-        Ok(Admin)
+        Ok(Admin {
+            token_hash: session.token_hash,
+        })
     }
 }
 
@@ -111,14 +134,20 @@ pub async fn login(
             "no password set yet; run `stellwerk set-password` on the server",
         )
     })?;
+    // One check at a time, and the delay after a failure is served while still holding the
+    // lock: many parallel guesses neither run argon2 in parallel nor go faster than one.
+    let mut failures = app.login_failures().lock().await;
     let password = login.password;
     let valid = tokio::task::spawn_blocking(move || verify_password(&password, &hash))
         .await
         .unwrap_or(false);
     if !valid {
-        tokio::time::sleep(FAILED_LOGIN_DELAY).await;
+        *failures = failures.saturating_add(1);
+        tokio::time::sleep(failed_login_delay(*failures)).await;
         return Err(ApiError::new(StatusCode::UNAUTHORIZED, "wrong password"));
     }
+    *failures = 0;
+    drop(failures);
     let token = new_token();
     let session = Session {
         token_hash: token_hash(&token),
@@ -167,6 +196,15 @@ mod tests {
         );
         assert_eq!(cookie(&headers, COOKIE).as_deref(), Some("tok"));
         assert_eq!(cookie(&headers, "missing"), None);
+    }
+
+    #[test]
+    fn failed_logins_in_a_row_wait_longer_up_to_a_limit() {
+        assert_eq!(failed_login_delay(1), FAILED_LOGIN_DELAY);
+        assert_eq!(failed_login_delay(2), FAILED_LOGIN_DELAY * 2);
+        assert_eq!(failed_login_delay(3), FAILED_LOGIN_DELAY * 4);
+        assert_eq!(failed_login_delay(100), MAX_FAILED_LOGIN_DELAY);
+        assert_eq!(failed_login_delay(u32::MAX), MAX_FAILED_LOGIN_DELAY);
     }
 
     #[test]

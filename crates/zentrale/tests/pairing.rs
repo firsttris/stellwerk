@@ -2,10 +2,11 @@
 
 mod common;
 
-use common::{pair_agent, start_zentrale, wait_for, wait_for_file};
+use common::{new_pairing_code, pair_agent, start_agent, start_zentrale, wait_for, wait_for_file};
 use stellwerk_protocol::FolderMode;
 use stellwerk_zentrale::desired::hub_path;
 use stellwerk_zentrale::live::view;
+use stellwerk_zentrale::pairing::code_hash;
 use stellwerk_zentrale::store::{ShareChange, now};
 
 #[tokio::test(flavor = "multi_thread")]
@@ -79,6 +80,45 @@ async fn a_paired_device_syncs_its_folder_with_the_hub() {
     assert_eq!(change.device_id.as_deref(), Some(device.id.as_str()));
     assert_eq!(change.folder_id.as_deref(), Some(folder.id.as_str()));
     assert_eq!(change.text, "1");
+
+    agent.stop().await;
+    zentrale.stop().await.unwrap();
+}
+
+/// `join` again with a fresh code on a paired device keeps its key: it comes back as the same
+/// device instead of being turned away, and the pairing dialog sees the code used.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_paired_device_can_join_again_with_a_new_code() {
+    let tmp = tempfile::tempdir().unwrap();
+    let zentrale = start_zentrale(tmp.path()).await;
+    let store = zentrale.app.store().clone();
+    let dir = tmp.path().join("laptop");
+    let agent = pair_agent(&zentrale, dir.clone()).await;
+    let device = wait_for("the device to pair", || async {
+        store.config().await.ok()?.devices.into_iter().next()
+    })
+    .await;
+    agent.stop().await;
+
+    let code = new_pairing_code(&zentrale).await;
+    stellwerk_agent::join(&dir, &format!("http://{}", zentrale.addr), Some(&code)).unwrap();
+    let agent = start_agent(dir.clone()).await;
+    wait_for("the new code to be used by the same device", || async {
+        let used = store.enrolled_device(&code_hash(&code)).await.ok()??;
+        (used == device.id).then_some(())
+    })
+    .await;
+    wait_for("the device to be online again", || async {
+        zentrale
+            .app
+            .online_devices()
+            .contains_key(&device.id)
+            .then_some(())
+    })
+    .await;
+    assert_eq!(store.config().await.unwrap().devices.len(), 1);
+    let config = stellwerk_agent::config::load(&dir).unwrap();
+    assert_eq!(config.enrollment_code, None, "the agent dropped the code");
 
     agent.stop().await;
     zentrale.stop().await.unwrap();

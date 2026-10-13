@@ -1,6 +1,7 @@
 //! launchd agent in `~/Library/LaunchAgents`, loaded into the user's GUI domain.
 
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use super::definitions::{LAUNCHD_LABEL, launchd_plist};
 use super::{Service, command};
@@ -11,6 +12,10 @@ fn plist_path() -> anyhow::Result<PathBuf> {
         .join("Library/LaunchAgents")
         .join(format!("{LAUNCHD_LABEL}.plist")))
 }
+
+/// How long `bootout` may take: launchd stops the agent with SIGTERM, and the agent first shuts
+/// its Syncthing down.
+const UNLOAD_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// `gui/<uid>`, the domain of the logged-in user.
 fn domain() -> anyhow::Result<String> {
@@ -24,10 +29,7 @@ pub fn install(service: &Service) -> anyhow::Result<String> {
     std::fs::create_dir_all(&service.data_dir)?;
     let domain = domain()?;
     // A loaded older definition would keep running; replace it.
-    let _ = command(
-        "launchctl",
-        &["bootout", &format!("{domain}/{LAUNCHD_LABEL}")],
-    );
+    unload(&domain);
     std::fs::write(&path, launchd_plist(service))?;
     command(
         "launchctl",
@@ -38,14 +40,22 @@ pub fn install(service: &Service) -> anyhow::Result<String> {
 
 /// launchd stops the agent with SIGTERM, which it handles like Ctrl-C.
 pub fn uninstall(_data_dir: &Path) -> anyhow::Result<()> {
-    let domain = domain()?;
-    let _ = command(
-        "launchctl",
-        &["bootout", &format!("{domain}/{LAUNCHD_LABEL}")],
-    );
+    unload(&domain()?);
     let path = plist_path()?;
     if path.exists() {
         std::fs::remove_file(&path)?;
     }
     Ok(())
+}
+
+/// Unloads the agent if it is loaded and waits until launchd has let go of it: `bootout` can
+/// return before the job is gone, and a `bootstrap` in that window fails with
+/// "Bootstrap failed: 5: Input/output error". An agent that was not loaded passes at once.
+fn unload(domain: &str) {
+    let target = format!("{domain}/{LAUNCHD_LABEL}");
+    let _ = command("launchctl", &["bootout", &target]);
+    let deadline = Instant::now() + UNLOAD_TIMEOUT;
+    while command("launchctl", &["print", &target]).is_ok() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(200));
+    }
 }

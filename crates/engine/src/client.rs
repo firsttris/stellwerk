@@ -1,25 +1,42 @@
 //! A small client for Syncthing's REST API (<https://docs.syncthing.net/dev/rest.html>).
 
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use reqwest::{Method, RequestBuilder, Url};
-use serde::Deserialize;
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
 use crate::monitor::{CompletionReply, Event, FolderSummary};
 use crate::syncthing_config::{Actual, Config, DeviceConfig, FolderConfig};
 
+/// How long a call may take, so that a stalled Syncthing cannot block the monitor or a
+/// reconcile forever. Generous: some answers come from the database of a large folder.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+/// `POST /rest/db/scan` answers only when the scan is done (lib/api/api.go, `postDBScan`),
+/// which on a large folder takes long.
+const SCAN_TIMEOUT: Duration = Duration::from_secs(60 * 60);
+
 /// Where a Syncthing listens and the key that opens it.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Client {
     http: reqwest::Client,
     base: Url,
     api_key: String,
 }
 
+/// Without the API key, so that no log shows it.
+impl std::fmt::Debug for Client {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Client")
+            .field("base", &self.base.as_str())
+            .finish_non_exhaustive()
+    }
+}
+
 /// One archived version of a file.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileVersion {
     /// When it was archived, RFC 3339; passed back as is to restore it.
@@ -30,7 +47,6 @@ pub struct FileVersion {
 
 #[derive(Deserialize)]
 struct Ignores {
-    #[serde(default)]
     ignore: Option<Vec<String>>,
 }
 
@@ -43,8 +59,12 @@ struct SystemStatus {
 impl Client {
     /// `base` is the GUI address, e.g. `http://127.0.0.1:41384`.
     pub fn new(base: Url, api_key: impl Into<String>) -> Self {
+        let http = reqwest::Client::builder()
+            .timeout(REQUEST_TIMEOUT)
+            .build()
+            .expect("an HTTP client with a timeout builds like the default one");
         Self {
-            http: reqwest::Client::new(),
+            http,
             base,
             api_key: api_key.into(),
         }
@@ -138,7 +158,9 @@ impl Client {
     pub async fn scan(&self, folder: &str) -> Result<()> {
         let mut url = self.url(&["rest", "db", "scan"]);
         url.query_pairs_mut().append_pair("folder", folder);
-        self.send_to(Method::POST, url, |r| r).await.map(drop)
+        self.send_to(Method::POST, url, |r| r.timeout(SCAN_TIMEOUT))
+            .await
+            .map(drop)
     }
 
     /// `GET /rest/db/status?folder={id}`
@@ -166,7 +188,12 @@ impl Client {
             .append_pair("since", &since.to_string())
             .append_pair("events", kinds)
             .append_pair("timeout", &timeout_secs.to_string());
-        Ok(self.send_to(Method::GET, url, |r| r).await?.json().await?)
+        let wait = Duration::from_secs(timeout_secs.into()) + REQUEST_TIMEOUT;
+        Ok(self
+            .send_to(Method::GET, url, |r| r.timeout(wait))
+            .await?
+            .json()
+            .await?)
     }
 
     /// `GET /rest/folder/versions?folder={id}`: archived versions by file path
@@ -232,7 +259,7 @@ impl Client {
             return Ok(response);
         }
         Err(Error::Api {
-            method: method_name(&method),
+            method,
             path: url.path().to_string(),
             status,
             body: response.text().await.unwrap_or_default(),
@@ -250,16 +277,6 @@ impl Client {
     }
 }
 
-fn method_name(method: &Method) -> &'static str {
-    match *method {
-        Method::GET => "GET",
-        Method::PUT => "PUT",
-        Method::POST => "POST",
-        Method::DELETE => "DELETE",
-        _ => "request",
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -272,5 +289,12 @@ mod tests {
             url.as_str(),
             "http://127.0.0.1:41384/rest/config/folders/a%20b%2Fc"
         );
+    }
+
+    #[test]
+    fn debug_output_leaves_the_key_out() {
+        let client = Client::new("http://127.0.0.1:41384".parse().unwrap(), "s3cr3t");
+        let shown = format!("{client:?}");
+        assert!(shown.contains("127.0.0.1:41384") && !shown.contains("s3cr3t"));
     }
 }

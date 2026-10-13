@@ -79,7 +79,7 @@ field (`crates/protocol/src/messages.rs`).
 | Direction | Message | Content |
 |---|---|---|
 | Zentrale → agent | `challenge` | a fresh nonce |
-| agent → Zentrale | `hello` | public key, signature over the nonce, on first contact the one-time code; host name, OS, agent and Syncthing version, Syncthing device ID, last applied revision |
+| agent → Zentrale | `hello` | public key, on first contact the one-time code; host name, OS, agent and Syncthing version, Syncthing device ID; a signature over the nonce and all these fields (`hello_payload`) |
 | Zentrale → agent | `welcome` | the device's ID at the Zentrale |
 | Zentrale → agent | `desiredState` | revision, peers (device IDs and addresses), folders with ID, label, mode, path, versioning, ignore patterns, peers |
 | agent → Zentrale | `applied` | revision, errors per folder |
@@ -89,6 +89,11 @@ field (`crates/protocol/src/messages.rs`).
 
 The desired state is always complete, never a diff: an agent that was offline for three days just
 gets the current state when it connects.
+
+The Zentrale sends a WebSocket ping to every connected agent every 30 seconds, also while it waits
+for approval, and ends the session when nothing (not even a pong) arrived for 90 seconds, so a
+silently dropped link (suspend, NAT timeout) does not keep a device "online". The agent's
+WebSocket library answers pings by itself.
 
 ## Pairing
 
@@ -100,6 +105,8 @@ gets the current state when it connects.
 3. The agent answers the Zentrale's challenge with a hello signed by its key and carrying the
    code. The Zentrale uses the code up and creates the device; the agent drops the code.
 4. From then on the agent signs in with its key only. A blocked device is turned away.
+   `join` again with a new code keeps the key: the Zentrale recognises the device, lets it in
+   as itself and marks the code used, so the pairing dialog moves on.
 
 **LAN pairing, without a code.** The Zentrale announces itself over mDNS as `_stellwerk._tcp`
 (`crates/zentrale/src/discovery.rs`), with the TXT entry `url` when `--public-url` is set.
@@ -155,6 +162,8 @@ codes are stored.
 | `GET /api/ws` | WebSocket with an `update` per change: revision, online devices, live status |
 
 Every change raises the revision and sends connected agents and the hub their new desired state.
+A failed hub reconcile (hub API briefly unreachable, a refused call) is retried after 1 second,
+doubling up to a minute, until it succeeds or a new revision arrives.
 
 ### Desired states
 
@@ -165,7 +174,9 @@ device and one for the hub, as pure functions. The topology is a star:
 - the hub has every approved device as a peer and holds every folder under
   `<data>/folders/<syncthing folder id>`, in mode "both", with staggered versioning (one year by
   default), shared with every device that has the folder;
-- a blocked device gets no desired state and disappears from the hub's peers and folders.
+- a blocked device gets no desired state and disappears from the hub's peers and folders;
+- a Syncthing device ID is one peer, even if two devices report it; the store turns away a
+  device whose Syncthing ID already belongs to another one.
 
 ## Web UI
 
@@ -223,16 +234,22 @@ to every device (`crates/engine/src/files.rs`, `crates/zentrale/src/files.rs`).
 - **Conflicts.** Syncthing names a conflict copy
   `name.sync-conflict-YYYYMMDD-HHMMSS-<short ID>.ext` (lib/model/folder_sendrecv.go). The
   Zentrale searches the hub's folders every 30 seconds, notes new conflicts in the activity feed
-  and shows both sides, with a line diff for text up to 256 KB. Resolving happens on the hub's
+  and shows both sides, with a line diff for text up to 256 KB. Syncthing's temporary files
+  are not conflicts, and symbolic links are neither listed nor read, since a device could sync
+  one that points anywhere on the server. Resolving happens on the hub's
   disk, followed by a rescan:
   - keep the current file: the copy goes to the versions;
   - keep the copy: the current file goes to the versions, the copy takes its name;
   - keep both: the copy becomes `name.<device>.ext` next to the original.
 
   The discarded side is moved into `.stversions` under Syncthing's own naming
-  (`name~YYYYMMDD-HHMMSS.ext`, lib/versioner/util.go), so it shows up among the versions. The
-  time in that name is UTC; Syncthing reads it as local time, which is the same in the Docker
-  image.
+  (`name~YYYYMMDD-HHMMSS.ext`, lib/versioner/util.go), so it shows up among the versions.
+
+  Both names carry a time without a zone. Syncthing writes and reads it as local time
+  (`conflictName`; `ParseInLocation(…, time.Local)` in lib/versioner/util.go), Stellwerk as
+  UTC. In the Docker image both are UTC; on a server in another time zone the conflict time
+  shown and the time of a version archived by resolving are off by the zone's offset, and the
+  staggered cleanup ages such a version by that much.
 - **Versions.** The hub keeps staggered versions (a year by default). The UI lists them through
   `GET /rest/folder/versions` and restores one with `POST /rest/folder/versions`, which archives
   the current file first.
@@ -240,28 +257,34 @@ to every device (`crates/engine/src/files.rs`, `crates/zentrale/src/files.rs`).
 ## Agent
 
 `stellwerk-agent run` loads `agent.json`, starts its Syncthing (downloading the pinned release on
-first start), starts the monitor and connects to the Zentrale. A lost connection is retried after
+first start), starts the monitor and connects to the Zentrale. It pings the Zentrale every 30
+seconds and counts the connection as lost when nothing at all came back for 90 seconds, so a
+link that died silently (suspend, NAT timeout) is noticed. A lost connection is retried after
 1 second, doubling up to 30 seconds; after `rejected` it waits a minute. Syncthing keeps running
 while the Zentrale is unreachable, so syncing with the hub goes on with the last applied state.
+Syncthing runs with `--no-restart`: if it exits (a crash, or a restart asked for over its API),
+the agent exits with an error and the service manager starts both again. The Zentrale does the
+same with the hub Syncthing and leaves the restart to Docker or systemd.
 
 Its Syncthing listens on a random port on all interfaces, with discovery, relays and NAT
 traversal off: the device dials the hub at the address from the desired state, and the hub,
 which has no address for devices (`dynamic`), only accepts their connections.
 
 **Service** (`crates/agent/src/service`): `service install` writes a definition for the binary
-it runs from and its data directory and starts it. The definitions are pure functions with unit
+it runs from and its data directory and starts it, or restarts an agent that already runs, so a
+replaced binary takes over. The definitions are pure functions with unit
 tests (`definitions.rs`); `linux.rs`, `macos.rs` and `windows.rs` install them:
 
 | System | Definition | Started with |
 |---|---|---|
-| Linux | systemd user unit, `Restart=on-failure` | `systemctl --user enable --now` |
-| macOS | launchd agent with `RunAtLoad`, `KeepAlive` | `launchctl bootstrap gui/<uid>` |
-| Windows | Task Scheduler task at logon, restart on failure, running `stellwerk-agent-background.exe` | `schtasks /Create /XML`, `/Run` |
+| Linux | systemd user unit, `Restart=on-failure` | `systemctl --user enable`, `restart` |
+| macOS | launchd agent with `RunAtLoad`, `KeepAlive` | `launchctl bootout`, `bootstrap gui/<uid>` |
+| Windows | Task Scheduler task at logon, restart on failure, running `stellwerk-agent-background.exe` | stop file (below), `schtasks /Create /XML`, `/Run` |
 
 Systemd and launchd stop the agent with `SIGTERM`, on which it shuts its Syncthing down cleanly.
-A Windows task cannot be ended with a signal, so `service uninstall` writes a `stop` file into
-the data directory, which the running agent looks for every second, and waits until the agent
-has exited before removing the task. A stop file older than the agent's start is ignored, so a
+A Windows task cannot be ended with a signal, so `service uninstall`, and `service install` when
+an agent runs, writes a `stop` file into the data directory, which the running agent looks for
+every second, and waits until the agent has exited before removing or replacing the task. A stop file older than the agent's start is ignored, so a
 leftover from an interrupted uninstall cannot stop a new agent.
 
 ## Engine
@@ -285,7 +308,9 @@ leftover from an interrupted uninstall cannot stop a new agent.
 3. Write the changes with `PUT`/`DELETE` on `/rest/config/devices/{id}` and
    `/rest/config/folders/{id}`, devices before the folders that name them; then the ignore
    patterns with `POST /rest/db/ignores?folder={id}` where they differ from `GET` (empty lines
-   and trailing spaces do not count).
+   and surrounding spaces do not count, as Syncthing trims them too). A new folder always gets
+   its patterns written, even none, so a `.stignore` left in its directory does not stay in
+   force.
 
 A folder with a new path is removed and added again, so Syncthing starts with a fresh index
 instead of treating the files at the old path as deleted. The reconciler only changes

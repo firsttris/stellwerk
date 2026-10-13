@@ -1,6 +1,7 @@
 import type { Device, Live, Overview } from "../api/types";
 import { m } from "../paraglide/messages.js";
 import { byCount, intlLocale } from "./i18n";
+import { isWaiting } from "./matrix";
 
 // What the live state means for a folder or a device, in the UI's words. Pure functions.
 
@@ -14,7 +15,9 @@ export function formatBytes(bytes: number): string {
   const units = ["B", "KB", "MB", "GB", "TB"];
   let value = bytes;
   let unit = 0;
-  while (value >= 1000 && unit < units.length - 1) {
+  // Compare what will be shown: 999 990 B rounds to "1.000 KB", which reads as "1 MB".
+  const shown = (v: number) => Math.round(v * 10) / 10;
+  while (shown(value) >= 1000 && unit < units.length - 1) {
     value /= 1000;
     unit++;
   }
@@ -27,25 +30,36 @@ export function completion(live: Live | undefined, folderId: string, deviceId: s
   return live?.hub.completion[folderId]?.[deviceId];
 }
 
-/** Devices holding the folder. */
-function holders(overview: Overview, folderId: string): Device[] {
+/** Devices holding the folder; a blocked device keeps its shares but gets nothing. */
+export function holders(overview: Overview, folderId: string): Device[] {
   const ids = new Set(
     overview.shares.filter((s) => s.folderId === folderId).map((s) => s.deviceId),
   );
   return overview.devices.filter((d) => d.approved && ids.has(d.id));
 }
 
-/** Errors in a folder anywhere: on the hub or on a device. */
+/** How many folders a device gets: none while it is blocked. */
+export function deviceFolderCount(overview: Overview, device: Device): number {
+  return device.approved ? overview.shares.filter((s) => s.deviceId === device.id).length : 0;
+}
+
+/** Errors in a folder anywhere: on the hub (`deviceId` null) or on a device. */
 export function folderErrors(overview: Overview, live: Live | undefined, folderId: string) {
-  const found: { device: string; message: string }[] = [];
+  const found: { deviceId: string | null; device: string; message: string }[] = [];
   const hub = live?.hub.folders[folderId];
-  if (hub?.error) found.push({ device: m.server(), message: hub.error });
+  if (hub?.error) found.push({ deviceId: null, device: m.server(), message: hub.error });
   for (const device of holders(overview, folderId)) {
     const status = live?.devices[device.id]?.folders[folderId];
     if (!device.online || !status) continue;
-    if (status.error) found.push({ device: device.name, message: status.error });
-    else if (status.errors > 0)
-      found.push({ device: device.name, message: m.error_files_failed({ count: status.errors }) });
+    if (status.error)
+      found.push({ deviceId: device.id, device: device.name, message: status.error });
+    else if (status.errors > 0) {
+      const count = status.errors;
+      const message = byCount(count, m.error_files_failed_one, () =>
+        m.error_files_failed_other({ count: formatCount(count) }),
+      );
+      found.push({ deviceId: device.id, device: device.name, message });
+    }
   }
   return found;
 }
@@ -123,10 +137,43 @@ export function deviceSummary(overview: Overview, live: Live | undefined, device
     return byCount(waiting, m.device_waiting_one, () => m.device_waiting_other({ count }));
   }
   const percent = deviceProgress(overview, live, device.id);
-  if (percent === undefined) return m.device_in_sync();
+  // Below 100 % with nothing to fetch: only deletions are left, which is not "loading 0".
+  if (percent === undefined || waiting === 0) return m.device_in_sync();
   return byCount(
     waiting,
     () => m.device_loading_one({ percent }),
     () => m.device_loading_other({ count, percent }),
   );
+}
+
+/** One device's progress in this folder, from the hub's view of it. */
+export function shareStatus(
+  device: Device,
+  live: Live | undefined,
+  folderId: string,
+  revision: number,
+) {
+  const done = completion(live, folderId, device.id);
+  const missing = done?.needItems ?? 0;
+  const count = formatCount(missing);
+  if (!device.online) {
+    if (missing > 0) {
+      return byCount(missing, m.share_offline_waiting_one, () =>
+        m.share_offline_waiting_other({ count }),
+      );
+    }
+    return isWaiting(device, revision) ? m.share_waiting_online() : m.share_offline_complete();
+  }
+  const error = live?.devices[device.id]?.folders[folderId]?.error;
+  if (error) return m.share_error({ error });
+  // As in deviceSummary: below 100 % with nothing to fetch means only deletions are left.
+  if (done && done.percent < 100 && missing > 0) {
+    const percent = Math.floor(done.percent);
+    return byCount(
+      missing,
+      () => m.share_loading_one({ percent }),
+      () => m.share_loading_other({ count, percent }),
+    );
+  }
+  return m.share_in_sync();
 }

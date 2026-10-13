@@ -7,9 +7,8 @@ import {
   type Overview,
   type Share,
 } from "../api/types";
+import { nowSeconds } from "../lib/format";
 import { type DemoState, demoConflictContent, demoLive, demoState } from "./fixtures";
-
-const nowSeconds = () => Math.floor(Date.now() / 1000);
 
 /** How many status polls until the demo's "new device" shows up in the pairing dialog. */
 const POLLS_UNTIL_PAIRED = 2;
@@ -21,6 +20,8 @@ const POLLS_UNTIL_PAIRED = 2;
 export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
   let state = structuredClone(seed);
   const enrollments = new Map<string, number>();
+  // A counter, not the list's length: that repeats after a folder other than the last is removed.
+  let folderCount = state.folders.length;
 
   const bump = () => {
     const revision = state.revision + 1;
@@ -81,10 +82,11 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
     overview: async () => structuredClone(overview()),
     createFolder: async (label) => {
       if (!label.trim()) throw new ApiError(400, "a folder needs a name");
+      folderCount++;
       const folder: Folder = {
-        id: `folder-${state.folders.length + 1}`,
+        id: `folder-${folderCount}`,
         label: label.trim(),
-        syncthingFolderId: `demo${state.folders.length}-xxxxx`,
+        syncthingFolderId: `demo${folderCount}-xxxxx`,
         versioning: { type: "staggered", max_age_days: 365 },
         ignorePatterns: [],
         createdAt: nowSeconds(),

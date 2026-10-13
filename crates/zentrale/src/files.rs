@@ -164,21 +164,17 @@ pub struct ConflictContent {
 
 fn read(root: &Path, path: &str) -> Result<Option<FileContent>> {
     let full = root.join(safe_relative(path)?);
-    let Ok(meta) = std::fs::metadata(&full) else {
+    // A symbolic link is not followed: a device could make one point at any file here.
+    let Some(meta) = files::regular_file(&full) else {
         return Ok(None);
     };
     let text = (meta.len() <= TEXT_LIMIT)
         .then(|| std::fs::read(&full).ok())
         .flatten()
         .and_then(|bytes| String::from_utf8(bytes).ok());
-    let modified = meta
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
     Ok(Some(FileContent {
         size: meta.len(),
-        modified,
+        modified: files::modified_secs(&meta),
         text,
     }))
 }
@@ -187,10 +183,8 @@ fn read(root: &Path, path: &str) -> Result<Option<FileContent>> {
 pub async fn content(app: &App, folder_id: &str, copy: &str) -> Result<ConflictContent> {
     let config = app.store().config().await?;
     let folder = folder(&config, folder_id)?;
-    let name = copy.rsplit('/').next().unwrap_or(copy);
-    let (original, _, _) = files::parse_conflict_name(name)
+    let (original, _, _) = files::conflict_original(copy)
         .ok_or_else(|| FilesError::Invalid(format!("not a conflict copy: {copy}")))?;
-    let original = format!("{}{original}", copy.strip_suffix(name).unwrap_or(""));
     let root = root(app, folder);
     Ok(ConflictContent {
         original: read(&root, &original)?,
@@ -202,10 +196,9 @@ pub async fn content(app: &App, folder_id: &str, copy: &str) -> Result<ConflictC
 pub async fn resolve(app: &App, folder_id: &str, copy: &str, keep: Keep) -> Result<()> {
     let config = app.store().config().await?;
     let folder = folder(&config, folder_id)?;
-    let name = copy.rsplit('/').next().unwrap_or(copy);
-    let label = files::parse_conflict_name(name)
+    let label = files::conflict_original(copy)
         .and_then(|(_, _, by)| device_by_short_id(&config, &by).map(|d| d.name.clone()))
-        .unwrap_or_else(|| "konflikt".into());
+        .unwrap_or_else(|| "conflict".into());
     let root = root(app, folder);
     let copy_owned = copy.to_string();
     tokio::task::spawn_blocking(move || files::resolve(&root, &copy_owned, keep, &label, now()))
@@ -270,4 +263,23 @@ pub async fn restore(app: &App, folder_id: &str, path: &str, version_time: &str)
         .add_event(now(), None, Some(folder_id), "restored", path)
         .await;
     Ok(())
+}
+
+// The only test needs symbolic links, which Windows creates only with extra rights.
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reading_does_not_follow_symbolic_links() {
+        let dir = tempfile::tempdir().unwrap();
+        let secret = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(secret.path(), "secret").unwrap();
+        std::os::unix::fs::symlink(secret.path(), dir.path().join("link.txt")).unwrap();
+        std::fs::write(dir.path().join("plain.txt"), "plain").unwrap();
+
+        assert_eq!(read(dir.path(), "link.txt").unwrap(), None);
+        let plain = read(dir.path(), "plain.txt").unwrap().unwrap();
+        assert_eq!(plain.text.as_deref(), Some("plain"));
+    }
 }

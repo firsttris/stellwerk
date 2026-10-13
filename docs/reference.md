@@ -49,12 +49,14 @@ stellwerk-agent service uninstall            stop and remove the background serv
 | `--data-dir` (`STELLWERK_AGENT_DATA`) | all | where the agent keeps its key, its Syncthing and Syncthing's database |
 | `--server URL` | `join` | the Zentrale, `https://…` or `http://…`; found over mDNS if left out |
 | `CODE` | `join` | the one-time code from **Pair device**; without it the device waits for approval |
-| `--name NAME` | `run` | the device name suggested to the Zentrale; the host name by default |
+| `--name NAME` | `run` | the device name suggested to the Zentrale when it pairs the device; the host name by default. Only for `run` in the foreground: the service always suggests the host name. Later, rename the device in the UI |
 | `--syncthing PATH` (`STELLWERK_SYNCTHING`) | `run` | use this Syncthing binary instead of downloading the pinned one |
 
 `join` creates the device's Ed25519 key, stores it with the server and the code in `agent.json`
 and prints the key's fingerprint. Running `join` again replaces server and code but keeps the
-key.
+key; with a new code, a device that was paired before comes back as the same device. If
+`agent.json` exists but cannot be read, `join` stops instead of making a new key; delete the
+file to pair the device as a new one.
 
 `service install` sets up the service for the binary it is run from and the data directory it
 is given, and starts it. Run it again after moving the binary or to restart the agent.
@@ -78,7 +80,6 @@ By default:
 | `syncthing/` | home of the agent's Syncthing: identity, configuration, index database |
 | `syncthing-bin/` | the downloaded and checked Syncthing release |
 | `agent.log` | the log on macOS and Windows (on Linux it goes to the journal) |
-| `task.xml` | on Windows: the task definition `service install` registered |
 | `stop` | written by `service uninstall` to ask a running agent to stop; removed by it |
 
 The synced folders are not in the data directory; they are wherever their paths point
@@ -88,7 +89,10 @@ The synced folders are not in the data directory; they are wherever their paths 
 
 Both programs log to standard error, at level `info` by default. `RUST_LOG` changes it, e.g.
 `RUST_LOG=debug` or `RUST_LOG=stellwerk_engine=debug,info`. The Syncthing instances log into
-`stellwerk-syncthing.log` in their home directory.
+`stellwerk-syncthing.log` in their home directory; the log of the previous start is kept as
+`stellwerk-syncthing.log.1`. The agent warns about a connection problem once; while the same
+problem repeats, it logs each retry only at level `debug`, so `agent.log` does not grow while
+the Zentrale is out of reach.
 
 ## Ports
 
@@ -105,9 +109,11 @@ Both programs log to standard error, at level `info` by default. `RUST_LOG` chan
 | What | Value |
 |---|---|
 | pairing code | valid 15 minutes, works once; only its hash is stored |
-| login session | 30 days; a failed login waits half a second |
+| login session | 30 days; logins are checked one at a time, and a failed login waits half a second, doubling with each failure in a row up to 8 s |
 | waiting devices (LAN pairing) | at most 20, in memory, gone when the agent disconnects or the Zentrale restarts |
 | agent reconnect | after 1 s, doubling up to 30 s; 60 s after being turned away |
+| agent heartbeat | agent and Zentrale each ping every 30 s; a connection silent for 90 s counts as lost |
+| hub reconcile retry | after a failure 1 s, doubling up to 60 s, until it succeeds or the revision changes |
 | live status from a device | on change, at most about once per second |
 | activity "changed N files" | counted per device and folder over 30 seconds |
 | conflict scan on the hub | every 30 seconds |

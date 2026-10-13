@@ -6,6 +6,7 @@ test.describe("in an English browser", () => {
   test("the UI is English", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByRole("table", { name: "Share matrix" })).toBeVisible();
     await expect(
       page.getByRole("row", { name: /Photos/ }).getByText("Syncing · 72 %"),
@@ -25,4 +26,5 @@ test("the language can be switched and is remembered", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
   await page.getByLabel("Language").selectOption("de");
   await expect(page.getByRole("heading", { name: "Übersicht" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "de");
 });

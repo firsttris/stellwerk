@@ -2,6 +2,7 @@
 //! report it back.
 
 use std::path::Path;
+use std::time::Duration;
 
 use anyhow::Context;
 use futures_util::stream::{SplitSink, SplitStream};
@@ -13,6 +14,7 @@ use stellwerk_protocol::messages::{
 };
 use stellwerk_protocol::{DesiredState, DeviceId};
 use tokio::sync::watch;
+use tokio::time::{Instant, MissedTickBehavior};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::config::{self, AgentConfig};
@@ -34,15 +36,29 @@ pub enum End {
     Rejected(String),
 }
 
-/// Runs one connection until it closes. `last_applied` carries the applied revision across
-/// reconnects; `status` is the monitor's latest snapshot, sent on connecting and on change.
+/// How the agent notices a connection that died without a word (suspend, NAT timeout, Wi-Fi
+/// roaming), which TCP alone notices only after hours: it pings `every` so often, and a
+/// connection without any frame from the Zentrale for `silence` counts as lost.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Heartbeat {
+    pub every: Duration,
+    pub silence: Duration,
+}
+
+pub const HEARTBEAT: Heartbeat = Heartbeat {
+    every: Duration::from_secs(30),
+    silence: Duration::from_secs(90),
+};
+
+/// Runs one connection until it closes. `status` is the monitor's latest snapshot, sent on
+/// connecting and on change.
 pub async fn run(
     data_dir: &Path,
     config: &mut AgentConfig,
     syncthing: &Client,
     report: &Report,
-    last_applied: &mut Option<u64>,
     status: &mut watch::Receiver<Snapshot>,
+    heartbeat: Heartbeat,
 ) -> anyhow::Result<End> {
     let url = config::ws_url(&config.server)?;
     let (socket, _) = tokio_tungstenite::connect_async(url.as_str())
@@ -50,50 +66,55 @@ pub async fn run(
         .with_context(|| format!("connecting to {url}"))?;
     let (mut sink, mut stream) = socket.split();
 
-    let nonce = match receive(&mut stream).await? {
+    let challenge = tokio::time::timeout(heartbeat.silence, receive(&mut stream))
+        .await
+        .map_err(|_| anyhow::anyhow!("the Zentrale sent no challenge"))??;
+    let nonce = match challenge {
         Some(ServerMessage::Challenge { nonce }) => nonce,
         Some(ServerMessage::Rejected { reason }) => return Ok(End::Rejected(reason)),
         _ => anyhow::bail!("the Zentrale did not send a challenge"),
     };
-    let key = identity::signing_key(&config.secret_key)?;
-    let hello = Hello {
-        public_key: identity::public_key(&key),
-        signature: identity::sign_challenge(&key, &nonce),
-        enrollment_code: config.enrollment_code.clone(),
-        name: report.name.clone(),
-        os: report.os.clone(),
-        agent_version: env!("CARGO_PKG_VERSION").to_string(),
-        syncthing_version: report.syncthing_version.clone(),
-        syncthing_id: DeviceId::new(&report.syncthing_id),
-        applied_revision: *last_applied,
-    };
+    let hello = hello(config, report, &nonce)?;
     send(&mut sink, &AgentMessage::Hello(hello)).await?;
 
+    let mut ping = tokio::time::interval_at(Instant::now() + heartbeat.every, heartbeat.every);
+    ping.set_missed_tick_behavior(MissedTickBehavior::Delay);
+    let mut deadline = Instant::now() + heartbeat.silence;
     let mut welcomed = false;
     loop {
         tokio::select! {
-            message = receive(&mut stream) => match message? {
-                Some(ServerMessage::Welcome { device }) => {
-                    tracing::info!(%device, "connected to the Zentrale");
-                    if config.enrollment_code.take().is_some() {
-                        config::save(data_dir, config)?;
-                        tracing::info!("paired");
+            frame = tokio::time::timeout_at(deadline, next_frame(&mut stream)) => {
+                let frame = frame.map_err(|_| {
+                    anyhow::anyhow!("no answer from the Zentrale for {} s", heartbeat.silence.as_secs())
+                })??;
+                deadline = Instant::now() + heartbeat.silence;
+                let message = match frame {
+                    Frame::Message(message) => message,
+                    Frame::Other => continue,
+                    Frame::Closed => return Ok(End::Closed),
+                };
+                match message {
+                    ServerMessage::Welcome { device } => {
+                        tracing::info!(%device, "connected to the Zentrale");
+                        if config.enrollment_code.take().is_some() {
+                            config::save(data_dir, config)?;
+                            tracing::info!("paired");
+                        }
+                        welcomed = true;
+                        status.mark_changed();
                     }
-                    welcomed = true;
-                    status.mark_changed();
+                    ServerMessage::DesiredState(state) => {
+                        let applied = apply(syncthing, &state).await;
+                        send(&mut sink, &AgentMessage::Applied(applied)).await?;
+                    }
+                    ServerMessage::Waiting { fingerprint } => {
+                        tracing::info!(%fingerprint, "waiting for approval in the Zentrale's UI; check that it shows this fingerprint");
+                    }
+                    ServerMessage::Rejected { reason } => return Ok(End::Rejected(reason)),
+                    ServerMessage::Challenge { .. } => {}
                 }
-                Some(ServerMessage::DesiredState(state)) => {
-                    let applied = apply(syncthing, &state).await;
-                    *last_applied = Some(applied.revision);
-                    send(&mut sink, &AgentMessage::Applied(applied)).await?;
-                }
-                Some(ServerMessage::Waiting { fingerprint }) => {
-                    tracing::info!(%fingerprint, "waiting for approval in the Zentrale's UI; check that it shows this fingerprint");
-                }
-                Some(ServerMessage::Rejected { reason }) => return Ok(End::Rejected(reason)),
-                Some(ServerMessage::Challenge { .. }) => {}
-                None => return Ok(End::Closed),
-            },
+            }
+            _ = ping.tick() => sink.send(Message::Ping(Default::default())).await?,
             changed = status.changed(), if welcomed => {
                 if changed.is_err() {
                     return Ok(End::Closed);
@@ -103,6 +124,22 @@ pub async fn run(
             }
         }
     }
+}
+
+/// The hello for this connection's nonce, signed with the device's key.
+fn hello(config: &AgentConfig, report: &Report, nonce: &str) -> anyhow::Result<Hello> {
+    let key = identity::signing_key(&config.secret_key)?;
+    let hello = Hello {
+        public_key: identity::public_key(&key),
+        signature: String::new(),
+        enrollment_code: config.enrollment_code.clone(),
+        name: report.name.clone(),
+        os: report.os.clone(),
+        agent_version: env!("CARGO_PKG_VERSION").to_string(),
+        syncthing_version: report.syncthing_version.clone(),
+        syncthing_id: DeviceId::new(&report.syncthing_id),
+    };
+    Ok(identity::sign_hello(&key, nonce, hello))
 }
 
 /// Reconciles the local Syncthing; whatever fails becomes an error in the report.
@@ -143,18 +180,135 @@ async fn send(sink: &mut Sink, message: &AgentMessage) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// The next message from the Zentrale; `None` when the connection closed. Unreadable
-/// messages are skipped, so a newer Zentrale does not break an older agent.
+/// One frame from the Zentrale, as far as the agent cares.
+enum Frame {
+    Message(ServerMessage),
+    /// A pong, a ping or a message this agent cannot read; it still shows the link is alive.
+    Other,
+    Closed,
+}
+
+/// The next frame. Unreadable messages are skipped, so a newer Zentrale does not break an
+/// older agent.
+async fn next_frame(stream: &mut Stream) -> anyhow::Result<Frame> {
+    Ok(match stream.next().await.transpose()? {
+        None | Some(Message::Close(_)) => Frame::Closed,
+        Some(Message::Text(text)) => match serde_json::from_str(&text) {
+            Ok(message) => Frame::Message(message),
+            Err(err) => {
+                tracing::warn!(%err, "unreadable message from the Zentrale");
+                Frame::Other
+            }
+        },
+        Some(_) => Frame::Other,
+    })
+}
+
+/// The next message from the Zentrale; `None` when the connection closed.
 async fn receive(stream: &mut Stream) -> anyhow::Result<Option<ServerMessage>> {
-    while let Some(message) = stream.next().await {
-        match message? {
-            Message::Text(text) => match serde_json::from_str(&text) {
-                Ok(message) => return Ok(Some(message)),
-                Err(err) => tracing::warn!(%err, "unreadable message from the Zentrale"),
-            },
-            Message::Close(_) => return Ok(None),
-            _ => {}
+    loop {
+        match next_frame(stream).await? {
+            Frame::Message(message) => return Ok(Some(message)),
+            Frame::Other => {}
+            Frame::Closed => return Ok(None),
         }
     }
-    Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use tokio::net::TcpListener;
+    use tokio_tungstenite::WebSocketStream;
+
+    use super::*;
+
+    const QUICK: Heartbeat = Heartbeat {
+        every: Duration::from_millis(100),
+        silence: Duration::from_millis(400),
+    };
+
+    /// A Zentrale on 127.0.0.1 that welcomes the agent, then hands the socket to `then`.
+    async fn zentrale<F, Fut>(then: F) -> String
+    where
+        F: FnOnce(WebSocketStream<tokio::net::TcpStream>) -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send,
+    {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await.unwrap();
+            let mut socket = tokio_tungstenite::accept_async(tcp).await.unwrap();
+            let say =
+                |message: &ServerMessage| Message::text(serde_json::to_string(message).unwrap());
+            let challenge = ServerMessage::Challenge { nonce: "n".into() };
+            socket.send(say(&challenge)).await.unwrap();
+            socket.next().await.unwrap().unwrap(); // the hello
+            let welcome = ServerMessage::Welcome { device: "d".into() };
+            socket.send(say(&welcome)).await.unwrap();
+            then(socket).await;
+        });
+        url
+    }
+
+    async fn session(server: String) -> anyhow::Result<End> {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = AgentConfig {
+            server,
+            secret_key: identity::new_secret(),
+            enrollment_code: None,
+        };
+        let syncthing = Client::new("http://127.0.0.1:9".parse().unwrap(), "unused");
+        let report = Report {
+            name: "laptop".into(),
+            os: "linux".into(),
+            syncthing_id: "AAAA".into(),
+            syncthing_version: "v2".into(),
+        };
+        let (_snapshots, mut status) = watch::channel(Snapshot::default());
+        run(
+            dir.path(),
+            &mut config,
+            &syncthing,
+            &report,
+            &mut status,
+            QUICK,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn a_silent_zentrale_counts_as_lost() {
+        // Reads nothing, so it answers no ping.
+        let url = zentrale(|socket| async move {
+            tokio::time::sleep(Duration::from_secs(10)).await;
+            drop(socket);
+        })
+        .await;
+        let ended = tokio::time::timeout(Duration::from_secs(5), session(url)).await;
+        assert!(ended.expect("the session noticed the silence").is_err());
+    }
+
+    #[tokio::test]
+    async fn pings_keep_a_quiet_connection_open() {
+        let (pings_tx, pings_rx) = tokio::sync::oneshot::channel();
+        // Reads, and so answers every ping with a pong, but never says anything itself.
+        let url = zentrale(|mut socket| async move {
+            let mut pings = 0;
+            let until = Instant::now() + QUICK.silence * 3;
+            while let Ok(Some(Ok(frame))) = tokio::time::timeout_at(until, socket.next()).await {
+                pings += usize::from(matches!(frame, Message::Ping(_)));
+            }
+            let _ = pings_tx.send(pings);
+            tokio::time::sleep(Duration::from_secs(10)).await;
+        })
+        .await;
+        let running = tokio::spawn(session(url));
+        let pings = tokio::time::timeout(Duration::from_secs(5), pings_rx)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(pings >= 5, "{pings} pings");
+        assert!(!running.is_finished(), "{:?}", running.await);
+        running.abort();
+    }
 }

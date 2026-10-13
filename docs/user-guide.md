@@ -42,7 +42,8 @@ nothing is replayed step by step.
 There is one admin account. Its password is set on the server with `stellwerk set-password`
 (see [Installation](installation.md)); the login page reminds you if none is set yet. A login
 lasts 30 days. **Log out** is at the bottom of the sidebar. Setting a new password logs out every
-session.
+session; a page whose session has ended takes you back to the login. The box above the language
+switch says whether the live link to the server is up (**Server online**) or being re-established.
 
 ## Overview
 
@@ -133,7 +134,8 @@ version, and when they were last seen. Search by name and filter by online or of
     [installer](installation.md#windows-installer), which asks for the address and the code.
 3. The dialog waits. As soon as the agent has signed in, it shows the device with its OS, agent
    version and fingerprint, and asks **Which folders should it get?** The chosen folders are
-   shared in mode Both with the default path; change that per folder afterwards.
+   shared in mode Both with the default path; change that per folder afterwards. When the
+   code expires first, the dialog stops waiting and offers **Create a new code**.
 
 **Later** closes the dialog; the device is paired anyway and shows up in the list.
 
@@ -205,7 +207,8 @@ A conflict happens when two devices change the same file before either has seen 
 change. Syncthing then keeps both: the version that won keeps the name, the other becomes a
 *conflict copy* (`config.sync-conflict-20261012-103112-WORKBEN.ts`). Stellwerk finds those copies
 on the server and lists them here, grouped by folder, with both sides next to each other and a
-line diff for text files up to 256 KB.
+line diff for text files up to 256 KB and 2,000 lines. When the current file was deleted, the
+copy is shown in full.
 
 | Choice | Result |
 |---|---|
