@@ -99,17 +99,17 @@ discovery, no relays.
 | `bump.yml` | by hand: **Actions → Bump version** | raises the version and tags it, which starts `release.yml` |
 | `release.yml` | a tag `vX.Y.Z`, or by hand | CI, agents, the multi-arch image on Docker Hub and GHCR, the GitHub release with the agents |
 
-The reusable parts (bump, Docker release, screenshots) come from
+The reusable parts (bump, tested on main, Docker release, screenshots) come from
 [firsttris/workflows](https://github.com/firsttris/workflows).
 
 ## Releasing
 
 1. **Actions → Bump version → patch/minor/major.** It sets the version in `Cargo.toml`,
    `web/package.json` and `e2e/package.json`, commits, and tags `vX.Y.Z`.
-2. The tag starts `release.yml`, which runs nothing twice. `scripts/tested-on-main.sh` checks
-   that the CI was green on `main` for the commit before the release commit, which only raises
-   the version; only when it was not does the release run the CI first. The agents build from
-   the start, beside the image `tristanteu/stellwerk` and `ghcr.io/firsttris/stellwerk` for
+2. The tag starts `release.yml`, which runs nothing twice. `tested-on-main.yml` from
+   firsttris/workflows checks that the CI was green on `main` for the commit before the release
+   commit, which only raises the version; only when it was not does the release run the CI
+   first. The agents build from the start, beside the image `tristanteu/stellwerk` and `ghcr.io/firsttris/stellwerk` for
    `linux/amd64` and `linux/arm64` (tags `x.y.z`, `x.y`, `latest`, the Docker Hub description
    from the README). The image's build cache is the one the CI's Docker job fills, and
    `cargo-chef` keeps the compiled dependencies in it, so only Stellwerk's own crates compile.
