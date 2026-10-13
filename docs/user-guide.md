@@ -76,8 +76,9 @@ devices.
   number of open conflicts.
 - **Under the device name**: online or how long offline, and its operating system.
 
-A new share gets the path `~/Stellwerk/<folder name>` on the device. Change it on the folder page
-before or after the files arrive, typed or picked with the folder button.
+A cell that puts a folder on a device for the first time asks **Where does it go on the
+device?** under the draft: pick the folder there with the folder button or type a path. Left
+empty, the path is `~/Stellwerk/<folder name>`. Change it later on the folder page.
 
 ### Needs attention
 
@@ -136,7 +137,8 @@ version, and when they were last seen. Search by name and filter by online or of
     [manual steps](installation.md#by-hand).
 3. The dialog waits. As soon as the agent has signed in, it shows the device with its OS, agent
    version and fingerprint, and asks **Which folders should it get?** The chosen folders are
-   shared in mode Both with the default path; change that per folder afterwards. When the
+   shared in mode Both; for each one pick where it goes on the device with the folder button,
+   or leave it empty for `~/Stellwerk/<folder name>`. When the
    code expires first, the dialog stops waiting and offers **Create a new code**.
 
 **Later** closes the dialog; the device is paired anyway and shows up in the list.

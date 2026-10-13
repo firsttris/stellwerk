@@ -10,6 +10,7 @@ import { byCount } from "../lib/i18n";
 import { type Os, pairCommand } from "../lib/pairing";
 import { cn } from "../lib/utils";
 import { m } from "../paraglide/messages.js";
+import { PathField } from "./path-field";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { Field, Input } from "./ui/input";
@@ -215,7 +216,8 @@ function NewDevice({ device, onDone }: { device: Device; onDone: () => void }) {
   const { data: overview } = useQuery(overviewQuery);
   const queryClient = useQueryClient();
   const [name, setName] = useState(device.name);
-  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  // Folder ID → its path here; empty for the Zentrale's default.
+  const [picked, setPicked] = useState<ReadonlyMap<string, string>>(new Map());
 
   const save = useMutation({
     mutationFn: async () => {
@@ -224,7 +226,12 @@ function NewDevice({ device, onDone }: { device: Device; onDone: () => void }) {
       }
       if (picked.size > 0) {
         await api.applyShares(
-          [...picked].map((folderId) => ({ folderId, deviceId: device.id, mode: "sendReceive" })),
+          [...picked].map(([folderId, path]) => ({
+            folderId,
+            deviceId: device.id,
+            mode: "sendReceive",
+            path: path.trim() || undefined,
+          })),
         );
       }
     },
@@ -235,11 +242,13 @@ function NewDevice({ device, onDone }: { device: Device; onDone: () => void }) {
   });
 
   const toggle = (folderId: string) => {
-    const next = new Set(picked);
+    const next = new Map(picked);
     if (next.has(folderId)) next.delete(folderId);
-    else next.add(folderId);
+    else next.set(folderId, "");
     setPicked(next);
   };
+  const setPath = (folderId: string, path: string) =>
+    setPicked((current) => new Map(current).set(folderId, path));
 
   return (
     <>
@@ -260,18 +269,34 @@ function NewDevice({ device, onDone }: { device: Device; onDone: () => void }) {
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-medium">{m.pair_which_folders()}</legend>
           {overview?.folders.map((folder) => (
-            <label
+            <div
               key={folder.id}
-              className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-border px-3"
+              className="flex flex-col gap-2 rounded-md border border-border px-3"
             >
-              <input
-                type="checkbox"
-                className="size-4 accent-primary"
-                checked={picked.has(folder.id)}
-                onChange={() => toggle(folder.id)}
-              />
-              <span className="flex-1">{folder.label}</span>
-            </label>
+              <label className="flex min-h-11 cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-primary"
+                  checked={picked.has(folder.id)}
+                  onChange={() => toggle(folder.id)}
+                />
+                <span className="flex-1">{folder.label}</span>
+              </label>
+              {picked.has(folder.id) && (
+                <div className="pb-3">
+                  <PathField
+                    device={device}
+                    label={m.share_path_label({
+                      folder: folder.label,
+                      device: name.trim() || device.name,
+                    })}
+                    value={picked.get(folder.id) ?? ""}
+                    placeholder={`~/Stellwerk/${folder.label}`}
+                    onChange={(path) => setPath(folder.id, path)}
+                  />
+                </div>
+              )}
+            </div>
           ))}
           <span className="text-xs text-muted-foreground">{m.pair_default_mode()}</span>
         </fieldset>

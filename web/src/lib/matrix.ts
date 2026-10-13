@@ -74,16 +74,36 @@ export function cycleCell(
   return setCell(overview, draft, folderId, deviceId, nextMode(mode));
 }
 
-/** What "Apply" sends. Cells of folders or devices that are gone are dropped. */
-export function draftChanges(overview: Overview, draft: Draft): ShareChange[] {
-  return [...draft].flatMap(([key, mode]) => {
+/** Paths typed or picked for new shares, by [`cellKey`]. */
+export type DraftPaths = Readonly<Record<string, string>>;
+
+/** What "Apply" sends. Cells of folders or devices that are gone are dropped; a new share takes
+ * its path from `paths` when one is given there, else the Zentrale's default. */
+export function draftChanges(
+  overview: Overview,
+  draft: Draft,
+  paths: DraftPaths = {},
+): ShareChange[] {
+  return [...draft].flatMap(([key, mode]): ShareChange[] => {
     const [folderId = "", deviceId = ""] = key.split("\u0000");
     const known =
       overview.folders.some((f) => f.id === folderId) &&
       overview.devices.some((d) => d.id === deviceId);
     if (!known) return [];
-    return [{ folderId, deviceId, mode: mode === "off" ? null : mode }];
+    if (mode === "off") return [{ folderId, deviceId, mode: null }];
+    const path = storedMode(overview, folderId, deviceId) === "off" ? paths[key]?.trim() : "";
+    return [path ? { folderId, deviceId, mode, path } : { folderId, deviceId, mode }];
   });
+}
+
+/** Draft cells that put a folder on a device that does not hold it yet: they need a path. */
+export function newShares(
+  overview: Overview,
+  draft: Draft,
+): { folderId: string; deviceId: string }[] {
+  return draftChanges(overview, draft)
+    .filter((c) => c.mode && storedMode(overview, c.folderId, c.deviceId) === "off")
+    .map(({ folderId, deviceId }) => ({ folderId, deviceId }));
 }
 
 /** How many draft changes touch devices that are offline now. */
