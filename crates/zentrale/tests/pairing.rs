@@ -29,9 +29,9 @@ async fn a_paired_device_syncs_its_folder_with_the_hub() {
             .then_some(())
     })
     .await;
-    // The code is used up: the stored config no longer carries it.
-    let config = stellwerk_agent::config::load(&agent.data_dir).unwrap();
-    assert_eq!(config.enrollment_code, None);
+    // The code is used up: the stored config no longer carries it. The agent drops it on
+    // `welcome`, which the Zentrale sends after marking the device online, so wait for it.
+    wait_for_code_dropped(&agent.data_dir).await;
 
     let folder = store.create_folder("Docs", now()).await.unwrap();
     let docs = tmp.path().join("laptop-docs");
@@ -117,9 +117,16 @@ async fn a_paired_device_can_join_again_with_a_new_code() {
     })
     .await;
     assert_eq!(store.config().await.unwrap().devices.len(), 1);
-    let config = stellwerk_agent::config::load(&dir).unwrap();
-    assert_eq!(config.enrollment_code, None, "the agent dropped the code");
+    wait_for_code_dropped(&dir).await;
 
     agent.stop().await;
     zentrale.stop().await.unwrap();
+}
+
+async fn wait_for_code_dropped(data_dir: &std::path::Path) {
+    wait_for("the agent to drop the used code", || async {
+        let config = stellwerk_agent::config::load(data_dir).ok()?;
+        config.enrollment_code.is_none().then_some(())
+    })
+    .await;
 }
