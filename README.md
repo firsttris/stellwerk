@@ -65,22 +65,22 @@ docker compose up -d
 docker compose exec -T stellwerk stellwerk set-password <<< 'a long password'
 ```
 
-Open `http://nas.local:8080`, click **Pair device** and run the command it shows on each device,
-as the normal user:
+Open `http://nas.local:8080`, click **Pair device** and run the one command it shows in a terminal
+on each device, as the normal user. It downloads the agent, pairs it and starts it:
 
 ```bash
-stellwerk-agent join --server http://nas.local:8080 K7Q2-MX9P-41TZ && stellwerk-agent service install
+curl -fsSL http://nas.local:8080/install.sh | sh -s -- http://nas.local:8080 K7Q2-MX9P-41TZ
 ```
 
-On Windows there is also an installer that asks for the address and the code. Podman Quadlet, a
+On Windows the dialog shows the same as a PowerShell command; there is also an installer that
+asks for the address and the code. Podman Quadlet, a
 reverse proxy with HTTPS, backups and updates are in the
 [installation guide](https://firsttris.github.io/stellwerk/installation.html); a step-by-step
 first run is in [Getting started](https://firsttris.github.io/stellwerk/getting-started.html).
 
-> **Before v1.0** there is no published image or agent yet: build them from source with
-> `docker build -f docker/Dockerfile -t tristanteu/stellwerk .` and
-> `cargo build --release -p stellwerk-agent`. Everything works and is tested on Linux, Windows
-> and macOS; the self-update of the agents is the last piece before the first release
+> **Before v1.0**: every [release](https://github.com/firsttris/stellwerk/releases) publishes the
+> image `tristanteu/stellwerk` and carries the agents. Everything works and is tested on Linux,
+> Windows and macOS; the self-update of the agents is the last piece before v1.0
 > ([roadmap](https://firsttris.github.io/stellwerk/architecture.html#roadmap)).
 
 ## ✨ Features

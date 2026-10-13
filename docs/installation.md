@@ -4,13 +4,9 @@ Stellwerk has two parts to install: the **Zentrale** once on a server, and the *
 device. This page covers both for real use: TLS, firewall, backups, updates. For a quick first
 try, [Getting started](getting-started.md) is shorter.
 
-!!! note "Before v1.0"
-    No release is published yet: build the image with
-    `docker build -f docker/Dockerfile -t tristanteu/stellwerk .` and the agent with
-    `cargo build --release -p stellwerk-agent` (see [Development](development.md#building)).
-    From v1.0 on, the image is `tristanteu/stellwerk` on Docker Hub and
-    `ghcr.io/firsttris/stellwerk`, and every [release](https://github.com/firsttris/stellwerk/releases)
-    carries the agents.
+Every [release](https://github.com/firsttris/stellwerk/releases) publishes the image
+`tristanteu/stellwerk` on Docker Hub and `ghcr.io/firsttris/stellwerk` and carries the agents.
+To build them yourself, see [Development](development.md#building).
 
 ## Requirements
 
@@ -226,6 +222,31 @@ Syncthing's local discovery, global discovery and relays are off on the hub and 
 devices connect to the hub address directly, nothing else.
 
 ## Agent on a device
+
+**Pair device** in the UI shows one command with a fresh code; run it in a terminal on the device
+as the normal user:
+
+=== "Linux, macOS"
+
+    ```bash
+    curl -fsSL https://sync.example.org/install.sh | sh -s -- https://sync.example.org K7Q2-MX9P-41TZ
+    ```
+
+=== "Windows (PowerShell)"
+
+    ```powershell
+    & ([scriptblock]::Create((irm https://sync.example.org/install.ps1))) https://sync.example.org K7Q2-MX9P-41TZ
+    ```
+
+The Zentrale serves the script (`crates/zentrale/src/install`). It downloads the agent of the
+Zentrale's own version from the GitHub release and checks it against the release's
+`SHA256SUMS`, then pairs it and installs the service: on Linux and macOS the binary goes to
+`~/.local/bin/stellwerk-agent`, on Windows the [installer](#windows-installer) runs silently.
+Without the code at the end the device waits for approval in the UI. Running the command again
+on a paired device updates the agent and keeps the pairing. The device needs to reach
+`github.com`; without it, install by hand as below.
+
+### By hand
 
 Download the agent for the device from the release, or build it. Put it where it can stay: the
 service starts it from that place.

@@ -6,10 +6,12 @@ test("pairing shows a command, waits for the device and sets it up", async ({ pa
   const dialog = page.getByRole("dialog", { name: "Gerät koppeln" });
   const origin = new URL(page.url()).origin;
   await expect(dialog.getByTestId("pair-command")).toContainText(
-    `stellwerk-agent join --server ${origin} K7Q2-MX9P-41TZ && stellwerk-agent service install`,
+    `curl -fsSL ${origin}/install.sh | sh -s -- ${origin} K7Q2-MX9P-41TZ`,
   );
   await dialog.getByRole("tab", { name: "Windows" }).click();
-  await expect(dialog.getByTestId("pair-command")).toContainText("stellwerk-agent.exe join");
+  await expect(dialog.getByTestId("pair-command")).toContainText(
+    `& ([scriptblock]::Create((irm ${origin}/install.ps1))) ${origin} K7Q2-MX9P-41TZ`,
+  );
   await expect(dialog.getByText("In PowerShell ausführen", { exact: false })).toBeVisible();
 
   await expect(dialog.getByText("Neues Gerät verbunden")).toBeVisible({ timeout: 10_000 });

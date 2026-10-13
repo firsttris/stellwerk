@@ -123,15 +123,17 @@ version, and when they were last seen. Search by name and filter by online or of
 ![The pairing dialog](screenshot-pairing.png)
 
 1. **Pair device** (also in the overview). Pick the device's operating system.
-2. Copy the command and run it on the device as the normal user. It contains a **one-time code**
-   that is valid for 15 minutes and works once:
+2. Copy the command and run it in a terminal on the device as the normal user. It downloads the
+   agent, pairs it and starts it, and contains a **one-time code** that is valid for 15 minutes
+   and works once:
 
     ```bash
-    stellwerk-agent join --server https://sync.example.org K7Q2-MX9P-41TZ && stellwerk-agent service install
+    curl -fsSL https://sync.example.org/install.sh | sh -s -- https://sync.example.org K7Q2-MX9P-41TZ
     ```
 
-    On Windows, run it in PowerShell in the folder with `stellwerk-agent.exe`, or use the
-    [installer](installation.md#windows-installer), which asks for the address and the code.
+    On Windows the command is for PowerShell; the [installer](installation.md#windows-installer)
+    also asks for the address and the code. **Install the agent by hand** links to the
+    [manual steps](installation.md#by-hand).
 3. The dialog waits. As soon as the agent has signed in, it shows the device with its OS, agent
    version and fingerprint, and asks **Which folders should it get?** The chosen folders are
    shared in mode Both with the default path; change that per folder afterwards. When the

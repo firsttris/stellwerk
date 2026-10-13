@@ -9,6 +9,7 @@ pub mod desired;
 pub mod discovery;
 pub mod files;
 pub mod hub;
+pub mod install;
 pub mod live;
 pub mod model;
 pub mod pairing;
