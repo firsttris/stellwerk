@@ -6,9 +6,9 @@ use axum::http::{Request, StatusCode, header};
 use serde_json::{Value, json};
 use stellwerk_zentrale::app::App;
 use stellwerk_zentrale::auth::hash_password;
-use stellwerk_zentrale::model::Hub;
+use stellwerk_zentrale::model::{DeviceKind, Hub};
 use stellwerk_zentrale::server::router;
-use stellwerk_zentrale::store::Store;
+use stellwerk_zentrale::store::{NewDevice, Store, now};
 use tower::ServiceExt;
 
 const PASSWORD: &str = "a long admin password";
@@ -257,6 +257,43 @@ async fn folders_drafts_and_pairing_codes() {
     assert_eq!(status, StatusCode::NO_CONTENT);
     let (_, overview) = browser.send(&router, "GET", "/api/overview", None).await;
     assert_eq!(overview["folders"], json!([]));
+}
+
+#[tokio::test]
+async fn the_folder_picker_needs_a_known_device_that_is_online() {
+    let (router, app, _dir) = app().await;
+    let mut browser = logged_in(&router, &app).await;
+    let (status, _) = browser
+        .send(&router, "GET", "/api/devices/nope/browse?path=/", None)
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    let device = app
+        .store()
+        .add_device(
+            NewDevice {
+                name: "laptop".into(),
+                kind: DeviceKind::Laptop,
+                os: "linux".into(),
+                public_key: "key".into(),
+                syncthing_id: "LAPTOP".into(),
+                agent_version: "0.1.6".into(),
+                syncthing_version: "v2".into(),
+            },
+            now(),
+        )
+        .await
+        .unwrap();
+    let (status, error) = browser
+        .send(
+            &router,
+            "GET",
+            &format!("/api/devices/{}/browse", device.id),
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(error["error"], "the device is offline");
 }
 
 #[tokio::test]

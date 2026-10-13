@@ -89,6 +89,8 @@ first run is in [Getting started](https://firsttris.github.io/stellwerk/getting-
 
 - **Folders × devices**: one click per cell switches between both directions, send only, receive
   only and off.
+- **Folder picker**: choose the folder on a PC by clicking through its directories in the web
+  UI, no path to type.
 - **Drafts**: changes collect until you apply them, then go out as one numbered revision.
 - **Offline devices catch up**: a device that is off gets the new configuration and the files as
   soon as it is back; the cell says "waiting" until then.

@@ -10,7 +10,7 @@ use futures_util::{SinkExt, StreamExt};
 use stellwerk_engine::Client;
 use stellwerk_engine::monitor::Snapshot;
 use stellwerk_protocol::messages::{
-    AgentMessage, Applied, ApplyError, Hello, ServerMessage, Status,
+    AgentMessage, Applied, ApplyError, Directory, Hello, ServerMessage, Status,
 };
 use stellwerk_protocol::{DesiredState, DeviceId};
 use tokio::sync::watch;
@@ -112,6 +112,10 @@ pub async fn run(
                     ServerMessage::Waiting { fingerprint } => {
                         tracing::info!(%fingerprint, "waiting for approval in the Zentrale's UI; check that it shows this fingerprint");
                     }
+                    ServerMessage::Browse { id, path } => {
+                        let result = browse(path).await;
+                        send(&mut sink, &AgentMessage::Listing { id, result }).await?;
+                    }
                     ServerMessage::Rejected { reason } => return Ok(End::Rejected(reason)),
                     ServerMessage::Challenge { .. } => {}
                 }
@@ -142,6 +146,13 @@ fn hello(config: &AgentConfig, report: &Report, nonce: &str) -> anyhow::Result<H
         syncthing_id: DeviceId::new(&report.syncthing_id),
     };
     Ok(identity::sign_hello(&key, nonce, hello))
+}
+
+/// A directory for the UI's folder picker, read off the async runtime.
+async fn browse(path: String) -> Result<Directory, String> {
+    tokio::task::spawn_blocking(move || crate::browse::list(&path, dirs::home_dir().as_deref()))
+        .await
+        .unwrap_or_else(|err| Err(err.to_string()))
 }
 
 /// Reconciles the local Syncthing; whatever fails becomes an error in the report.
@@ -313,5 +324,39 @@ mod tests {
         assert!(pings >= 5, "{pings} pings");
         assert!(!running.is_finished(), "{:?}", running.await);
         running.abort();
+    }
+
+    #[tokio::test]
+    async fn a_browse_request_gets_the_listing_under_its_id() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir(dir.path().join("Fotos")).unwrap();
+        let path = dir.path().to_string_lossy().into_owned();
+        let (answer_tx, answer_rx) = tokio::sync::oneshot::channel();
+        let url = zentrale(move |mut socket| async move {
+            let browse = ServerMessage::Browse { id: 42, path };
+            let text = serde_json::to_string(&browse).unwrap();
+            socket.send(Message::text(text)).await.unwrap();
+            while let Some(Ok(frame)) = socket.next().await {
+                let Message::Text(text) = frame else { continue };
+                if let Ok(listing @ AgentMessage::Listing { .. }) = serde_json::from_str(&text) {
+                    let _ = answer_tx.send(listing);
+                    break;
+                }
+            }
+            tokio::time::sleep(Duration::from_secs(10)).await;
+        })
+        .await;
+        let running = tokio::spawn(session(url));
+        let answer = tokio::time::timeout(Duration::from_secs(5), answer_rx)
+            .await
+            .unwrap()
+            .unwrap();
+        running.abort();
+        let AgentMessage::Listing { id, result } = answer else {
+            unreachable!()
+        };
+        assert_eq!(id, 42);
+        let names: Vec<String> = result.unwrap().dirs.into_iter().map(|e| e.name).collect();
+        assert_eq!(names, ["Fotos"]);
     }
 }

@@ -5,6 +5,7 @@ pub mod agents;
 pub mod api;
 pub mod app;
 pub mod auth;
+pub mod browse;
 pub mod ca;
 pub mod desired;
 pub mod discovery;

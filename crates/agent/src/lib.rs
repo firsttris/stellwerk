@@ -1,6 +1,7 @@
 //! The agent on each device: brings its own Syncthing and keeps it at the desired state the
 //! Zentrale sends.
 
+pub mod browse;
 pub mod ca;
 pub mod config;
 pub mod discover;

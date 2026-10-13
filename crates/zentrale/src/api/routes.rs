@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use super::error::{ApiError, ApiResult};
 use super::session::Admin;
 use stellwerk_engine::files::Keep;
-use stellwerk_protocol::messages::fingerprint;
+use stellwerk_protocol::messages::{Directory, fingerprint};
 
 use crate::agents;
 use crate::app::App;
@@ -185,6 +185,23 @@ pub async fn delete_device(
     app.store().delete_device(&id).await?;
     app.changed().await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BrowseQuery {
+    #[serde(default)]
+    path: String,
+}
+
+/// The folder picker: a directory on the device, its home directory for an empty `path`.
+pub async fn browse_device(
+    State(app): State<App>,
+    _: Admin,
+    Path(id): Path<String>,
+    Query(query): Query<BrowseQuery>,
+) -> ApiResult<Json<Directory>> {
+    app.store().device(&id).await?;
+    Ok(Json(app.browse(&id, query.path).await?))
 }
 
 /// LAN pairing: lets a waiting agent in as a new device.

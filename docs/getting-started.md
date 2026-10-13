@@ -48,7 +48,9 @@ no folders yet.
 ## 2. Create a folder
 
 **New folder**, give it a name such as `Documents`. The server now holds an empty folder with
-versions; no device has it yet.
+versions; no device has it yet. Once a device is paired, **New folder** can also pick an existing
+folder on it right away (see [Picking a folder on a
+device](user-guide.md#picking-a-folder-on-a-device)).
 
 ## 3. Pair a device
 

@@ -10,6 +10,9 @@
 //!    connected until it is approved in the UI (then step 3 follows) or rejected.
 //! 4. Agent → Zentrale: [`AgentMessage::Applied`] after each desired state, and
 //!    [`AgentMessage::Status`] whenever its folders change, at most about once per second.
+//! 5. Zentrale → agent, any time after the welcome: [`ServerMessage::Browse`] when the UI's
+//!    folder picker opens a directory on the device; the agent answers with
+//!    [`AgentMessage::Listing`] under the same `id`. Agents up to v0.1.5 skip it unanswered.
 
 use serde::{Deserialize, Serialize};
 
@@ -42,6 +45,12 @@ pub enum ServerMessage {
     Waiting {
         fingerprint: String,
     },
+    /// List the subdirectories of `path` on the device: absolute, or empty for the home
+    /// directory.
+    Browse {
+        id: u64,
+        path: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -51,6 +60,32 @@ pub enum AgentMessage {
     Applied(Applied),
     /// The state of every folder; sent on change, at most about once per second.
     Status(Status),
+    /// The answer to the [`ServerMessage::Browse`] with this `id`.
+    Listing {
+        id: u64,
+        result: Result<Directory, String>,
+    },
+}
+
+/// A directory on a device, as the folder picker shows it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Directory {
+    /// Absolute, as the device writes paths.
+    pub path: String,
+    /// `None` at a root of the file system.
+    pub parent: Option<String>,
+    /// The subdirectories, hidden ones left out, sorted by name.
+    pub dirs: Vec<Entry>,
+    /// Where the picker can jump to: the home directory and the roots of the file system
+    /// (`/`, or the drives on Windows).
+    pub home: Option<String>,
+    pub roots: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Entry {
+    pub name: String,
+    pub path: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -155,6 +190,43 @@ mod tests {
         });
         let json = serde_json::to_string(&applied).unwrap();
         assert_eq!(json, r#"{"type":"applied","revision":3,"errors":[]}"#);
+    }
+
+    #[test]
+    fn browsing_carries_the_request_id() {
+        let json = serde_json::to_string(&ServerMessage::Browse {
+            id: 7,
+            path: String::new(),
+        })
+        .unwrap();
+        assert_eq!(json, r#"{"type":"browse","id":7,"path":""}"#);
+
+        let failed = AgentMessage::Listing {
+            id: 7,
+            result: Err("permission denied".into()),
+        };
+        let json = serde_json::to_string(&failed).unwrap();
+        assert_eq!(
+            json,
+            r#"{"type":"listing","id":7,"result":{"Err":"permission denied"}}"#
+        );
+        assert_eq!(serde_json::from_str::<AgentMessage>(&json).unwrap(), failed);
+
+        let listed = AgentMessage::Listing {
+            id: 8,
+            result: Ok(Directory {
+                path: "/home/a".into(),
+                parent: Some("/home".into()),
+                dirs: vec![Entry {
+                    name: "Fotos".into(),
+                    path: "/home/a/Fotos".into(),
+                }],
+                home: Some("/home/a".into()),
+                roots: vec!["/".into()],
+            }),
+        };
+        let json = serde_json::to_string(&listed).unwrap();
+        assert_eq!(serde_json::from_str::<AgentMessage>(&json).unwrap(), listed);
     }
 
     #[test]
