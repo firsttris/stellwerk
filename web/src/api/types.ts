@@ -68,7 +68,14 @@ export const sessionSchema = z.object({
 });
 export type Session = z.infer<typeof sessionSchema>;
 
-export const enrollmentSchema = z.object({ code: z.string(), expiresAt: z.number() });
+export const enrollmentSchema = z.object({
+  code: z.string(),
+  expiresAt: z.number(),
+  /** The Zentrale's version: the pairing command fetches that release's agent. */
+  version: z.string(),
+  /** SHA-256 of the private CA devices are told to trust, if the Zentrale has one. */
+  caSha256: z.string().nullable(),
+});
 export type Enrollment = z.infer<typeof enrollmentSchema>;
 
 export const enrollmentStatusSchema = z.object({ device: deviceSchema.nullable() });

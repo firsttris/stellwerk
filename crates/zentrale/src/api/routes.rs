@@ -221,6 +221,11 @@ async fn decide_waiting(app: &App, fingerprint: &str, decision: Decision) -> Api
 pub struct Enrollment {
     code: String,
     expires_at: i64,
+    /// The release whose agent and install script the pairing command fetches: the agent
+    /// must speak this Zentrale's protocol.
+    version: &'static str,
+    /// The private CA's fingerprint for the command, when the Zentrale has one ([`crate::ca`]).
+    ca_sha256: Option<String>,
 }
 
 /// "Pair device": a new one-time code. Only its hash is stored.
@@ -233,7 +238,15 @@ pub async fn create_enrollment(
     app.store()
         .create_enrollment(&code_hash(&code), expires_at)
         .await?;
-    Ok((StatusCode::CREATED, Json(Enrollment { code, expires_at })))
+    Ok((
+        StatusCode::CREATED,
+        Json(Enrollment {
+            code,
+            expires_at,
+            version: env!("CARGO_PKG_VERSION"),
+            ca_sha256: app.ca().map(|ca| ca.sha256.clone()),
+        }),
+    ))
 }
 
 #[derive(Debug, Deserialize)]

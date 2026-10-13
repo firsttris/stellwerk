@@ -17,7 +17,7 @@ use tokio::task::JoinHandle;
 use crate::app::App;
 use crate::model::Hub;
 use crate::store::Store;
-use crate::{agents, api, files, hub, install, web};
+use crate::{agents, api, ca, files, hub, web};
 
 /// How long [`Running::stop`] waits for open HTTP requests.
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
@@ -36,6 +36,8 @@ pub struct Options {
     pub activity_window: Duration,
     /// Let agents without a code wait for approval in the UI (LAN pairing).
     pub lan_pairing: bool,
+    /// The private CA behind the Zentrale's HTTPS, for devices to trust ([`ca`]).
+    pub ca_cert: Option<PathBuf>,
 }
 
 /// A running Zentrale.
@@ -51,8 +53,7 @@ pub struct Running {
 pub fn router(app: App) -> Router {
     Router::new()
         .route(AGENT_WS_PATH, get(agents::ws))
-        .route("/install.sh", get(install::sh))
-        .route("/install.ps1", get(install::ps1))
+        .route("/ca.crt", get(ca::serve))
         .merge(api::router())
         .fallback(web::serve)
         .with_state(app)
@@ -85,6 +86,11 @@ pub async fn start(options: &Options, listener: TcpListener) -> anyhow::Result<R
 
     let app = App::new(store, hub_info, hub.client().clone()).await?;
     app.set_lan_pairing(options.lan_pairing);
+    if let Some(path) = &options.ca_cert {
+        let ca = ca::load(path)?;
+        tracing::info!(sha256 = %ca.sha256, "devices are told to trust the private CA");
+        app.set_ca(ca);
+    }
     let hub_reconcile = tokio::spawn(hub::run(app.clone(), hub.client().clone()));
     let hub_watch = tokio::spawn(hub::watch(
         app.clone(),

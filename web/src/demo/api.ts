@@ -150,7 +150,7 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
     createEnrollment: async (): Promise<Enrollment> => {
       const code = "K7Q2-MX9P-41TZ";
       enrollments.set(code, 0);
-      return { code, expiresAt: nowSeconds() + 15 * 60 };
+      return { code, expiresAt: nowSeconds() + 15 * 60, version: "0.1.3", caSha256: null };
     },
     enrollmentStatus: async (code) => {
       const polls = (enrollments.get(code) ?? 0) + 1;

@@ -4,6 +4,7 @@
 ;
 ; makensis /DVERSION=1.0.0 /DBIN=<dir with both .exe> /DOUT=<setup.exe> stellwerk-agent.nsi
 ; Silent: setup.exe /S /SERVER=https://sync.example.org /CODE=K7Q2-MX9P-41TZ
+; Behind a private CA also /CASHA256=<fingerprint> (`stellwerk-agent join --ca-sha256`).
 
 Unicode true
 !include "MUI2.nsh"
@@ -25,6 +26,7 @@ SetCompressor /SOLID lzma
 
 Var Server
 Var Code
+Var CaArg
 Var ServerField
 Var CodeField
 
@@ -59,6 +61,13 @@ Function .onInit
   Push "/CODE="
   Call ParameterValue
   Pop $Code
+  Push $0
+  Push "/CASHA256="
+  Call ParameterValue
+  Pop $CaArg
+  ${If} $CaArg != ""
+    StrCpy $CaArg ' --ca-sha256 "$CaArg"'
+  ${EndIf}
 FunctionEnd
 
 ; The value after NAME in the parameters, up to the next space. GetOptions from FileFunc
@@ -157,9 +166,9 @@ Section "Agent"
   WriteUninstaller "$INSTDIR\uninstall.exe"
 
   ${If} $Code == ""
-    !insertmacro Agent 'join --server "$Server"'
+    !insertmacro Agent 'join --server "$Server"$CaArg'
   ${Else}
-    !insertmacro Agent 'join --server "$Server" "$Code"'
+    !insertmacro Agent 'join --server "$Server"$CaArg "$Code"'
   ${EndIf}
   !insertmacro Agent 'service install'
 

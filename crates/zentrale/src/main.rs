@@ -68,6 +68,11 @@ struct Serve {
     /// the LAN. By default devices use the announced address and port.
     #[arg(long, env = "STELLWERK_PUBLIC_URL")]
     public_url: Option<String>,
+    /// The certificate (PEM) of a private CA behind the Zentrale's HTTPS, e.g. Caddy's
+    /// `pki/authorities/local/root.crt`: served at /ca.crt, and its fingerprint goes into the
+    /// pairing command, so devices trust it without setup.
+    #[arg(long, env = "STELLWERK_CA_CERT")]
+    ca_cert: Option<PathBuf>,
 }
 
 #[tokio::main]
@@ -97,6 +102,7 @@ async fn serve(data_dir: PathBuf, serve: Serve) -> anyhow::Result<()> {
         hub_address,
         activity_window: stellwerk_zentrale::hub::ACTIVITY_WINDOW,
         lan_pairing: serve.lan_pairing,
+        ca_cert: serve.ca_cert,
     };
     let listener = tokio::net::TcpListener::bind(serve.listen).await?;
     let mut running = start(&options, listener).await?;

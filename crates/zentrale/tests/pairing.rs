@@ -101,7 +101,13 @@ async fn a_paired_device_can_join_again_with_a_new_code() {
     agent.stop().await;
 
     let code = new_pairing_code(&zentrale).await;
-    stellwerk_agent::join(&dir, &format!("http://{}", zentrale.addr), Some(&code)).unwrap();
+    stellwerk_agent::join(
+        &dir,
+        &format!("http://{}", zentrale.addr),
+        Some(&code),
+        None,
+    )
+    .unwrap();
     let agent = start_agent(dir.clone()).await;
     wait_for("the new code to be used by the same device", || async {
         let used = store.enrolled_device(&code_hash(&code)).await.ok()??;

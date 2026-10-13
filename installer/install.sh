@@ -1,24 +1,51 @@
 #!/bin/sh
 # Installs the Stellwerk agent {{VERSION}} for the current user, pairs it with a Zentrale and
-# starts it in the background. The Zentrale serves this script at /install.sh:
+# starts it in the background. Attached to every release; the pairing dialog shows the command:
 #
-#   curl -fsSL https://zentrale.example/install.sh | sh -s -- https://zentrale.example CODE
+#   curl -fsSL https://github.com/firsttris/stellwerk/releases/download/v{{VERSION}}/install.sh \
+#     | sh -s -- https://zentrale.example CODE [--ca-sha256 FINGERPRINT]
 #
-# Without a code the device waits for approval under Devices (pairing in the LAN). Running it
-# again on a paired device updates the agent and keeps the pairing.
+# The script comes from GitHub, not from the Zentrale, so it also works where the Zentrale's
+# certificate comes from a private CA that the device does not trust yet: --ca-sha256 lets the
+# agent fetch that CA and trust it once its fingerprint matches. Without a code the device waits
+# for approval under Devices (pairing in the LAN). Running it again on a paired device updates
+# the agent and keeps the pairing. STELLWERK_RELEASES replaces the download location (tests).
 set -eu
 
 version="{{VERSION}}"
-releases="https://github.com/firsttris/stellwerk/releases/download/v$version"
+releases="${STELLWERK_RELEASES:-https://github.com/firsttris/stellwerk/releases/download/v$version}"
 docs="https://firsttris.github.io/stellwerk/installation.html"
-
-server="${1:?usage: install.sh <server> [code]}"
-code="${2:-}"
+usage="usage: install.sh <server> [code] [--ca-sha256 <fingerprint>]"
 
 fail() {
     echo "stellwerk: $*" >&2
     exit 1
 }
+
+server=""
+code=""
+ca_sha256=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --ca-sha256)
+            [ $# -ge 2 ] || fail "$usage"
+            ca_sha256="$2"
+            shift 2
+            ;;
+        -*) fail "$usage" ;;
+        *)
+            if [ -z "$server" ]; then
+                server="$1"
+            elif [ -z "$code" ]; then
+                code="$1"
+            else
+                fail "$usage"
+            fi
+            shift
+            ;;
+    esac
+done
+[ -n "$server" ] || fail "$usage"
 
 case "$(uname -s)" in
     Linux) os=linux ;;
@@ -67,11 +94,10 @@ if [ "$os" = macos ]; then
     xattr -d com.apple.quarantine "$agent" 2>/dev/null || true
 fi
 
-if [ -n "$code" ]; then
-    "$agent" join --server "$server" "$code"
-else
-    "$agent" join --server "$server"
-fi
+set -- join --server "$server"
+[ -z "$ca_sha256" ] || set -- "$@" --ca-sha256 "$ca_sha256"
+[ -z "$code" ] || set -- "$@" "$code"
+"$agent" "$@"
 "$agent" service install
 
 case ":$PATH:" in

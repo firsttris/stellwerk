@@ -125,3 +125,12 @@ jobs:
           for _ in $(seq 30); do [ -S "/run/user/$(id -u)/bus" ] && break; sleep 1; done
       - run: scripts/service-smoke.sh target/debug
         shell: bash
+      # install.sh runs for real in `cargo test` (crates/agent/tests/install_script.rs); the
+      # PowerShell one at least has to parse in Windows PowerShell 5.1, which the command uses
+      - if: runner.os == 'Windows'
+        name: install.ps1 parses
+        shell: powershell
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD\installer\install.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors; exit 1 }

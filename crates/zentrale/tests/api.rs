@@ -27,6 +27,25 @@ async fn app() -> (Router, App, tempfile::TempDir) {
     (router(app.clone()), app, dir)
 }
 
+/// A browser logged in as the admin.
+async fn logged_in(router: &Router, app: &App) -> Browser {
+    app.store()
+        .set_admin_password_hash(&hash_password(PASSWORD).unwrap())
+        .await
+        .unwrap();
+    let mut browser = Browser::default();
+    let (status, _) = browser
+        .send(
+            router,
+            "POST",
+            "/api/login",
+            Some(json!({ "password": PASSWORD })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    browser
+}
+
 /// A browser: remembers the session cookie and the CSRF token.
 #[derive(Default)]
 struct Browser {
@@ -253,24 +272,43 @@ async fn unknown_api_paths_are_404_and_everything_else_goes_to_the_ui() {
     assert!(status == StatusCode::OK || status == StatusCode::NOT_FOUND);
 }
 
+/// A Zentrale behind a private CA serves it without login and puts its fingerprint, with the
+/// release to fetch the agent from, into every pairing code; without one, neither.
 #[tokio::test]
-async fn the_install_scripts_are_served_without_login_for_this_version() {
-    let (router, _app, _dir) = app().await;
-    for path in ["/install.sh", "/install.ps1"] {
+async fn the_private_ca_is_served_and_named_in_new_codes() {
+    let (router, app, _dir) = app().await;
+    let mut browser = logged_in(&router, &app).await;
+    let get_ca = || async {
         let response = router
             .clone()
-            .oneshot(Request::get(path).body(Body::empty()).unwrap())
+            .oneshot(Request::get("/ca.crt").body(Body::empty()).unwrap())
             .await
             .unwrap();
-        assert_eq!(response.status(), StatusCode::OK, "{path}");
+        let status = response.status();
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-        let script = String::from_utf8(body.to_vec()).unwrap();
-        let version = format!("\"{}\"", env!("CARGO_PKG_VERSION"));
-        assert!(
-            script.contains(&version),
-            "{path} names the Zentrale's version"
-        );
-    }
+        (status, String::from_utf8(body.to_vec()).unwrap())
+    };
+
+    assert_eq!(get_ca().await.0, StatusCode::NOT_FOUND);
+    let (_, enrollment) = browser
+        .send(&router, "POST", "/api/enrollments", None)
+        .await;
+    assert_eq!(enrollment["version"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(enrollment["caSha256"], Value::Null);
+
+    let key = rcgen::KeyPair::generate().unwrap();
+    let pem = rcgen::CertificateParams::new(Vec::<String>::new())
+        .unwrap()
+        .self_signed(&key)
+        .unwrap()
+        .pem();
+    let ca = stellwerk_zentrale::ca::from_pem(pem.clone()).unwrap();
+    app.set_ca(ca.clone());
+    assert_eq!(get_ca().await, (StatusCode::OK, pem));
+    let (_, enrollment) = browser
+        .send(&router, "POST", "/api/enrollments", None)
+        .await;
+    assert_eq!(enrollment["caSha256"], ca.sha256.as_str());
 }
 
 #[tokio::test]

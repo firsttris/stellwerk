@@ -15,8 +15,8 @@ async fn a_device_without_a_code_waits_for_approval() {
 
     let desk_dir = tmp.path().join("desk");
     let stranger_dir = tmp.path().join("stranger");
-    let desk_print = stellwerk_agent::join(&desk_dir, &url, None).unwrap();
-    let stranger_print = stellwerk_agent::join(&stranger_dir, &url, None).unwrap();
+    let desk_print = stellwerk_agent::join(&desk_dir, &url, None, None).unwrap();
+    let stranger_print = stellwerk_agent::join(&stranger_dir, &url, None, None).unwrap();
     let desk = start_agent(desk_dir).await;
     let stranger = start_agent(stranger_dir).await;
 
