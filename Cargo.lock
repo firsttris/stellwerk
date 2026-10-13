@@ -2388,7 +2388,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "stellwerk-agent"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -2412,7 +2412,7 @@ dependencies = [
 
 [[package]]
 name = "stellwerk-engine"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "flate2",
  "rand 0.9.5",
@@ -2431,7 +2431,7 @@ dependencies = [
 
 [[package]]
 name = "stellwerk-protocol"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -2440,7 +2440,7 @@ dependencies = [
 
 [[package]]
 name = "stellwerk-zentrale"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "argon2",
