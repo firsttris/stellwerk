@@ -2,8 +2,13 @@ name: Agents
 
 # The agent for every platform, as the artifact "agents" (binaries plus SHA256SUMS, and the
 # install scripts the pairing command fetches, with this version filled in). release.yml
-# attaches it to the GitHub release; run by hand it only builds.
+# attaches it to the GitHub release; run by hand it only builds. On main it builds too: that
+# keeps the release builds' cache warm (a tag reads main's cache), so a release compiles only
+# what changed, and a release build that breaks shows up on main, not in a release.
 on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**", "LICENSE"]
   workflow_call:
   workflow_dispatch:
 
@@ -32,9 +37,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
-      # Pinned, so a new zig or cargo-zigbuild cannot break a release build; the versions of v0.1.1
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      # Pinned, so a new zig or cargo-zigbuild cannot break a release build; the versions of
+      # v0.1.1. Both from PyPI as prebuilt binaries: seconds instead of compiling cargo-zigbuild.
       - if: matrix.zig
-        run: pip install ziglang==0.17.0 && cargo install --locked cargo-zigbuild --version 0.23.4
+        run: pip install ziglang==0.17.0 cargo-zigbuild==0.23.4
       - name: Build
         shell: bash
         run: |

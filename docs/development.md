@@ -92,8 +92,8 @@ discovery, no relays.
 
 | Workflow | When | Does |
 |---|---|---|
-| `ci.yml` | every push to `main` and pull request (not for docs only) | Rust: fmt, clippy and tests on Linux, Windows and macOS; the service smoke test on all three; web checks; E2E in the Playwright image; the Docker image builds |
-| `agents.yml` | from `release.yml`, or by hand | the agent for every platform; on Windows also the installer and its silent install/uninstall test; `SHA256SUMS` |
+| `ci.yml` | every push to `main` and pull request (not for docs only) | Rust: fmt, clippy and tests (`cargo nextest`, every test in its own process at once) on Linux, Windows and macOS, then the service smoke test with the agent the tests built; web checks; E2E in the Playwright image; the Docker image builds and starts. A pull request runs only what it can break (`scripts/ci-changes.sh`): a change in `web/` alone skips Rust, one in `crates/` alone the UI checks, and the image builds only when `docker/`, a lockfile or a `package.json` changed |
+| `agents.yml` | pushes to `main`, from `release.yml`, or by hand | the agent for every platform; on Windows also the installer and its silent install/uninstall test; `SHA256SUMS` and the install scripts. On `main` it keeps the release builds' cache warm, and a broken release build shows up there |
 | `docs.yml` | pushes to `main` and pull requests that touch `docs/`, `mkdocs.yml` or `requirements-docs.txt` | builds the docs with `mkdocs build --strict`; on `main` also publishes them to GitHub Pages |
 | `screenshots.yml` | by hand: **Actions → Update screenshots** | renders the pictures in `docs/` from the demo data and commits them |
 | `bump.yml` | by hand: **Actions → Bump version** | raises the version and tags it, which starts `release.yml` |
@@ -106,10 +106,15 @@ The reusable parts (bump, Docker release, screenshots) come from
 
 1. **Actions → Bump version → patch/minor/major.** It sets the version in `Cargo.toml`,
    `web/package.json` and `e2e/package.json`, commits, and tags `vX.Y.Z`.
-2. The tag starts `release.yml`: the full CI, the agents, then the image `tristanteu/stellwerk`
-   and `ghcr.io/firsttris/stellwerk` for `linux/amd64` and `linux/arm64` with the tags `x.y.z`,
-   `x.y` and `latest`, the Docker Hub description from the README, and the GitHub release with
-   the agents, the Windows installer and `SHA256SUMS`.
+2. The tag starts `release.yml`, which runs nothing twice. `scripts/tested-on-main.sh` checks
+   that the CI was green on `main` for the commit before the release commit, which only raises
+   the version; only when it was not does the release run the CI first. The agents build from
+   the start, beside the image `tristanteu/stellwerk` and `ghcr.io/firsttris/stellwerk` for
+   `linux/amd64` and `linux/arm64` (tags `x.y.z`, `x.y`, `latest`, the Docker Hub description
+   from the README). The image's build cache is the one the CI's Docker job fills, and
+   `cargo-chef` keeps the compiled dependencies in it, so only Stellwerk's own crates compile.
+   Last, the GitHub release gets the agents, the Windows installer, the install scripts and
+   `SHA256SUMS`.
 
 Run by hand on `main`, `release.yml` publishes the image as `edge` only, without a release: a
 dry run of the publishing part.

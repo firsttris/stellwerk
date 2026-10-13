@@ -11,8 +11,22 @@ RUN pnpm install --frozen-lockfile --filter web
 COPY web web
 RUN pnpm --filter web build
 
-FROM rust:1-bookworm AS zentrale
+# cargo-chef splits the build: the dependencies are cooked from a recipe of the manifests alone,
+# a layer the build cache keeps until Cargo.toml or Cargo.lock change in more than the
+# workspace's own version (the recipe leaves that out, so a release does not change it); on a
+# code change only the workspace crates compile.
+FROM rust:1-bookworm AS chef
+RUN cargo install cargo-chef --version 0.1.78 --locked
 WORKDIR /src
+
+FROM chef AS planner
+COPY Cargo.toml Cargo.lock ./
+COPY crates crates
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS zentrale
+COPY --from=planner /src/recipe.json recipe.json
+RUN cargo chef cook --release --locked -p stellwerk-zentrale --recipe-path recipe.json
 COPY Cargo.toml Cargo.lock ./
 COPY crates crates
 COPY --from=web /src/web/dist web/dist
