@@ -265,11 +265,11 @@ pub async fn restore(app: &App, folder_id: &str, path: &str, version_time: &str)
     Ok(())
 }
 
-#[cfg(test)]
+// The only test needs symbolic links, which Windows creates only with extra rights.
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
 
-    #[cfg(unix)]
     #[test]
     fn reading_does_not_follow_symbolic_links() {
         let dir = tempfile::tempdir().unwrap();
