@@ -56,7 +56,7 @@ In the UI click **Pair device**, pick the device's operating system and copy the
 looks like this, with a one-time code valid for 15 minutes:
 
 ```bash
-curl -fsSL http://nas.local:8080/install.sh | sh -s -- http://nas.local:8080 K7Q2-MX9P-41TZ
+curl -fsSL https://github.com/firsttris/stellwerk/releases/download/vX.Y.Z/install.sh | sh -s -- http://nas.local:8080 K7Q2-MX9P-41TZ
 ```
 
 Run it in a terminal on the device, as your normal user (no `sudo`, no administrator); on

@@ -18,6 +18,8 @@ describe("PairDialog", () => {
     api.createEnrollment.mockImplementation(async () => ({
       code: `CODE-${api.createEnrollment.mock.calls.length}`,
       expiresAt: Math.floor(Date.now() / 1000) + 15 * 60,
+      version: "1.2.3",
+      caSha256: null,
     }));
     api.enrollmentStatus.mockResolvedValue({ device: null });
   });

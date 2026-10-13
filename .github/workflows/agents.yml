@@ -1,6 +1,7 @@
 name: Agents
 
-# The agent for every platform, as the artifact "agents" (binaries plus SHA256SUMS). release.yml
+# The agent for every platform, as the artifact "agents" (binaries plus SHA256SUMS, and the
+# install scripts the pairing command fetches, with this version filled in). release.yml
 # attaches it to the GitHub release; run by hand it only builds.
 on:
   workflow_call:
@@ -74,12 +75,21 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           pattern: agent-*
           merge-multiple: true
           path: agents
       - run: cd agents && sha256sum stellwerk-agent-* > SHA256SUMS && cat SHA256SUMS
+      # The pairing dialog fetches them from releases/download/v<version>/
+      - name: Install scripts
+        run: |
+          version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          for script in install.sh install.ps1; do
+            sed "s/{{VERSION}}/$version/g" "installer/$script" > "agents/$script"
+          done
+          ! grep -l '{{VERSION}}' agents/install.*
       - uses: actions/upload-artifact@v4
         with:
           name: agents

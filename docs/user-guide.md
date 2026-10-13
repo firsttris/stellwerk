@@ -128,7 +128,7 @@ version, and when they were last seen. Search by name and filter by online or of
    and works once:
 
     ```bash
-    curl -fsSL https://sync.example.org/install.sh | sh -s -- https://sync.example.org K7Q2-MX9P-41TZ
+    curl -fsSL https://github.com/firsttris/stellwerk/releases/download/vX.Y.Z/install.sh | sh -s -- https://sync.example.org K7Q2-MX9P-41TZ
     ```
 
     On Windows the command is for PowerShell; the [installer](installation.md#windows-installer)

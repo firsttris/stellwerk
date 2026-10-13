@@ -17,6 +17,10 @@ pub struct AgentConfig {
     /// The pairing code until the Zentrale has accepted it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enrollment_code: Option<String>,
+    /// The Zentrale's private CA (PEM), trusted next to the system's roots; set by `join
+    /// --ca-sha256` for a Zentrale whose certificate no system knows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ca: Option<String>,
 }
 
 pub fn path(data_dir: &Path) -> PathBuf {
@@ -83,6 +87,7 @@ mod tests {
             server: "https://sync.example.org".into(),
             secret_key: "secret".into(),
             enrollment_code: Some("K7Q2-MX9P-41TZ".into()),
+            ca: None,
         };
         save(dir.path(), &config).unwrap();
         assert_eq!(load(dir.path()).unwrap(), config);
@@ -99,6 +104,7 @@ mod tests {
             server: "https://sync.example.org".into(),
             secret_key: "secret".into(),
             enrollment_code: None,
+            ca: None,
         };
         std::fs::write(path(dir.path()).with_extension("json.tmp"), "left over").unwrap();
         save(dir.path(), &config).unwrap();

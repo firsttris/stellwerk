@@ -3,29 +3,18 @@ import { CircleCheck, Copy, Link2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { overviewQuery, refresh } from "../api/queries";
-import type { Device } from "../api/types";
+import type { Device, Enrollment } from "../api/types";
 import { errorMessage } from "../lib/errors";
 import { osLabel } from "../lib/format";
 import { byCount } from "../lib/i18n";
+import { type Os, pairCommand } from "../lib/pairing";
 import { cn } from "../lib/utils";
 import { m } from "../paraglide/messages.js";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { Field, Input } from "./ui/input";
 
-type Os = "linux" | "windows" | "macos";
 const OS_TABS: readonly Os[] = ["linux", "windows", "macos"];
-
-/**
- * The one command shown for a code: it fetches the Zentrale's install script, which downloads the
- * agent of the Zentrale's version, pairs it and starts it (crates/zentrale/src/install). Windows
- * needs PowerShell; the dialog says so.
- */
-export function pairCommand(os: Os, origin: string, code: string): string {
-  return os === "windows"
-    ? `& ([scriptblock]::Create((irm ${origin}/install.ps1))) ${origin} ${code}`
-    : `curl -fsSL ${origin}/install.sh | sh -s -- ${origin} ${code}`;
-}
 
 /** Where the manual installation is described, for a device the script does not cover. */
 const MANUAL_INSTALL = "https://firsttris.github.io/stellwerk/installation.html#agent-on-a-device";
@@ -71,7 +60,7 @@ function PairDialogContent({ onDone }: { onDone: () => void }) {
         <NewDevice device={device} onDone={onDone} />
       ) : (
         <Waiting
-          code={code}
+          enrollment={enrollment.data}
           expired={expired}
           onNewCode={() => void enrollment.refetch()}
           error={enrollment.error ? errorMessage(enrollment.error) : undefined}
@@ -104,13 +93,13 @@ function useExpired(expiresAt: number | undefined): boolean {
 }
 
 function Waiting({
-  code,
+  enrollment,
   expired,
   onNewCode,
   error,
   onCancel,
 }: {
-  code: string | undefined;
+  enrollment: Enrollment | undefined;
   expired: boolean;
   onNewCode: () => void;
   error: string | undefined;
@@ -119,7 +108,9 @@ function Waiting({
   const [os, setOs] = useState<Os>("linux");
   const [copied, setCopied] = useState<"copied" | "selected" | undefined>();
   const commandRef = useRef<HTMLElement>(null);
-  const command = code ? pairCommand(os, window.location.origin, code) : m.pair_code_pending();
+  const command = enrollment
+    ? pairCommand(os, window.location.origin, enrollment)
+    : m.pair_code_pending();
 
   const copy = async () => {
     // No clipboard API on plain HTTP (a LAN address): select the command for a manual copy.
@@ -165,7 +156,7 @@ function Waiting({
               variant="outline"
               size="sm"
               onClick={copy}
-              disabled={!code || expired}
+              disabled={!enrollment || expired}
               aria-label={m.pair_copy_command()}
             >
               <Copy aria-hidden="true" />

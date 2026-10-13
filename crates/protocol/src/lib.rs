@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod ca;
 pub mod messages;
 pub mod status;
 

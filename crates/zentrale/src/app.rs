@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use tokio::sync::watch;
 
@@ -12,6 +12,7 @@ use stellwerk_engine::files::Conflict;
 use stellwerk_engine::monitor::Snapshot;
 use stellwerk_protocol::status::FolderStatus;
 
+use crate::ca::Ca;
 use crate::live::{DeviceLive, Live};
 use crate::model::Hub;
 use crate::store::{NewDevice, Result, Store};
@@ -41,6 +42,8 @@ struct Inner {
     waiting: Mutex<Waiting>,
     /// Failed logins in a row; held while a password is checked, so checks run one at a time.
     login_failures: tokio::sync::Mutex<u32>,
+    /// The private CA devices are told to trust, set once at start.
+    ca: OnceLock<Ca>,
 }
 
 impl App {
@@ -60,6 +63,7 @@ impl App {
                 lan_pairing: AtomicBool::new(false),
                 waiting: Mutex::default(),
                 login_failures: tokio::sync::Mutex::default(),
+                ca: OnceLock::new(),
             }),
         })
     }
@@ -168,6 +172,15 @@ impl App {
             .iter()
             .map(|(id, (_, since))| (id.clone(), *since))
             .collect()
+    }
+
+    pub fn ca(&self) -> Option<&Ca> {
+        self.inner.ca.get()
+    }
+
+    /// Only the first call counts; the CA is set once at start.
+    pub fn set_ca(&self, ca: Ca) {
+        let _ = self.inner.ca.set(ca);
     }
 
     pub fn lan_pairing(&self) -> bool {

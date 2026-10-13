@@ -20,6 +20,7 @@ stellwerk fetch-syncthing <DIR>           download and check the pinned Syncthin
 | `--public-url` (`STELLWERK_PUBLIC_URL`) | – | the address devices use for the web port, e.g. `https://sync.example.org`; announced in the LAN |
 | `--lan-pairing` (`STELLWERK_LAN_PAIRING`) | `true` | announce the Zentrale over mDNS and let devices without a code wait for approval; `false` turns both off |
 | `--syncthing` (`STELLWERK_SYNCTHING`) | download the pinned release | use this Syncthing binary instead (the image sets `/opt/syncthing/syncthing`) |
+| `--ca-cert` (`STELLWERK_CA_CERT`) | – | the certificate (PEM) of a private CA behind the Zentrale's HTTPS; served at `/ca.crt`, its fingerprint goes into the pairing command ([private CA](installation.md#behind-a-private-ca)) |
 | `--version`, `--help` | | |
 
 `set-password` reads one line from standard input, stores its argon2id hash and logs out every
@@ -37,7 +38,8 @@ session.
 ## Agent
 
 ```text
-stellwerk-agent join [--server URL] [CODE]   pair this device
+stellwerk-agent join [--server URL] [--ca-sha256 FINGERPRINT] [CODE]
+                                             pair this device
 stellwerk-agent run [--name NAME] [--syncthing PATH]
                                              run in the foreground
 stellwerk-agent service install              run in the background from login on
@@ -49,12 +51,14 @@ stellwerk-agent service uninstall            stop and remove the background serv
 | `--data-dir` (`STELLWERK_AGENT_DATA`) | all | where the agent keeps its key, its Syncthing and Syncthing's database |
 | `--server URL` | `join` | the Zentrale, `https://…` or `http://…`; found over mDNS if left out |
 | `CODE` | `join` | the one-time code from **Pair device**; without it the device waits for approval |
+| `--ca-sha256 FINGERPRINT` | `join` | the Zentrale is behind a private CA with this SHA-256 fingerprint: fetch the CA from `/ca.crt`, keep it if the fingerprint matches, and trust it for the Zentrale from then on |
 | `--name NAME` | `run` | the device name suggested to the Zentrale when it pairs the device; the host name by default. Only for `run` in the foreground: the service always suggests the host name. Later, rename the device in the UI |
 | `--syncthing PATH` (`STELLWERK_SYNCTHING`) | `run` | use this Syncthing binary instead of downloading the pinned one |
 
 `join` creates the device's Ed25519 key, stores it with the server and the code in `agent.json`
-and prints the key's fingerprint. Running `join` again replaces server and code but keeps the
-key; with a new code, a device that was paired before comes back as the same device. If
+and prints the key's fingerprint; with `--ca-sha256` it stores the Zentrale's CA there too.
+Running `join` again replaces server and code but keeps the key (and the CA, for the same
+server); with a new code, a device that was paired before comes back as the same device. If
 `agent.json` exists but cannot be read, `join` stops instead of making a new key; delete the
 file to pair the device as a new one.
 

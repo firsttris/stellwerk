@@ -22,8 +22,11 @@ The agent has not reached the Zentrale. On the device, look at its log:
 - `connection to the Zentrale failed`: the address in the command is not reachable from the
   device. The dialog uses the address in the browser's address bar; if you opened the UI as
   `localhost` or through an address the device cannot reach, pair with `--server` set by hand.
-- a certificate error: the proxy's certificate is not trusted by the device (self-signed). Use a
-  certificate from a public CA, e.g. through Caddy.
+- a certificate error: the device does not trust the proxy's certificate, because it comes from
+  a CA of your own (e.g. Caddy's `tls internal`). Give the Zentrale that CA with `--ca-cert`
+  and create a new code: the command then carries the CA's fingerprint (see
+  [Behind a private CA](installation.md#behind-a-private-ca)). Or use a certificate from a
+  public CA.
 - `the Zentrale turned the agent away`: the code is used up or older than 15 minutes. Create a
   new one and run `join` again with it; the device keeps its key.
 

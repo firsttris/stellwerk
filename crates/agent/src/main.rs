@@ -29,6 +29,10 @@ enum Command {
         server: Option<String>,
         /// The one-time code, e.g. K7Q2-MX9P-41TZ
         code: Option<String>,
+        /// For a Zentrale behind a private CA: the CA's SHA-256 fingerprint from the pairing
+        /// command. The agent fetches the CA from the Zentrale and trusts it from then on.
+        #[arg(long)]
+        ca_sha256: Option<String>,
     },
     /// Run: start Syncthing and follow the Zentrale.
     Run {
@@ -68,12 +72,20 @@ async fn main() -> anyhow::Result<()> {
         None => default_data_dir()?,
     };
     match cli.command {
-        Command::Join { server, code } => {
+        Command::Join {
+            server,
+            code,
+            ca_sha256,
+        } => {
             let server = match server {
                 Some(server) => server,
                 None => find_zentrale().await?,
             };
-            let fingerprint = stellwerk_agent::join(&data_dir, &server, code.as_deref())?;
+            let ca = match &ca_sha256 {
+                Some(sha) => Some(stellwerk_agent::ca::fetch(&server, sha).await?),
+                None => None,
+            };
+            let fingerprint = stellwerk_agent::join(&data_dir, &server, code.as_deref(), ca)?;
             println!("Saved. Start the agent with: stellwerk-agent service install");
             if code.is_none() {
                 println!(

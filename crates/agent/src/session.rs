@@ -61,9 +61,11 @@ pub async fn run(
     heartbeat: Heartbeat,
 ) -> anyhow::Result<End> {
     let url = config::ws_url(&config.server)?;
-    let (socket, _) = tokio_tungstenite::connect_async(url.as_str())
-        .await
-        .with_context(|| format!("connecting to {url}"))?;
+    let connector = crate::ca::connector(config.ca.as_deref())?;
+    let (socket, _) =
+        tokio_tungstenite::connect_async_tls_with_config(url.as_str(), None, false, connector)
+            .await
+            .with_context(|| format!("connecting to {url}"))?;
     let (mut sink, mut stream) = socket.split();
 
     let challenge = tokio::time::timeout(heartbeat.silence, receive(&mut stream))
@@ -256,6 +258,7 @@ mod tests {
             server,
             secret_key: identity::new_secret(),
             enrollment_code: None,
+            ca: None,
         };
         let syncthing = Client::new("http://127.0.0.1:9".parse().unwrap(), "unused");
         let report = Report {
