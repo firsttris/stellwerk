@@ -208,7 +208,8 @@ pinned device IDs.
     mapping then.
 
 With the proxy in place, pair devices with `--server https://sync.example.org`. The pairing
-dialog takes the address from the browser, so open the UI through the proxy.
+dialog takes the address from the browser, so open the UI through the proxy. A certificate
+from a CA of your own needs `--ca-cert`, see [Behind a private CA](#behind-a-private-ca).
 
 ## Firewall
 
@@ -223,28 +224,56 @@ devices connect to the hub address directly, nothing else.
 
 ## Agent on a device
 
-**Pair device** in the UI shows one command with a fresh code; run it in a terminal on the device
-as the normal user:
+**Pair device** in the UI shows one command with a fresh code and the Zentrale's version in
+place of `X.Y.Z`; run it in a terminal on the device as the normal user:
 
 === "Linux, macOS"
 
     ```bash
-    curl -fsSL https://sync.example.org/install.sh | sh -s -- https://sync.example.org K7Q2-MX9P-41TZ
+    curl -fsSL https://github.com/firsttris/stellwerk/releases/download/vX.Y.Z/install.sh | sh -s -- https://sync.example.org K7Q2-MX9P-41TZ
     ```
 
 === "Windows (PowerShell)"
 
     ```powershell
-    & ([scriptblock]::Create((irm https://sync.example.org/install.ps1))) https://sync.example.org K7Q2-MX9P-41TZ
+    & ([scriptblock]::Create((irm https://github.com/firsttris/stellwerk/releases/download/vX.Y.Z/install.ps1))) https://sync.example.org K7Q2-MX9P-41TZ
     ```
 
-The Zentrale serves the script (`crates/zentrale/src/install`). It downloads the agent of the
-Zentrale's own version from the GitHub release and checks it against the release's
-`SHA256SUMS`, then pairs it and installs the service: on Linux and macOS the binary goes to
-`~/.local/bin/stellwerk-agent`, on Windows the [installer](#windows-installer) runs silently.
-Without the code at the end the device waits for approval in the UI. Running the command again
-on a paired device updates the agent and keeps the pairing. The device needs to reach
-`github.com`; without it, install by hand as below.
+The script (`installer/install.sh`, `install.ps1`) is attached to every release; the dialog
+takes the one of the Zentrale's own version. It downloads that version's agent from the release
+and checks it against the release's `SHA256SUMS`, then pairs it and installs the service: on
+Linux and macOS the binary goes to `~/.local/bin/stellwerk-agent`, on Windows the
+[installer](#windows-installer) runs silently. Without the code the device waits for approval
+in the UI. Running the command again on a paired device updates the agent and keeps the
+pairing. The device needs to reach `github.com`; without it, install by hand as below.
+
+### Behind a private CA
+
+When the reverse proxy's certificate comes from a CA of your own, for example Caddy's
+`tls internal` or step-ca, no device trusts it yet: `curl` and the agent refuse the
+connection. Tell the Zentrale the CA's certificate with `--ca-cert` (`STELLWERK_CA_CERT`). It
+serves the CA at `/ca.crt`, and the pairing dialog adds the CA's SHA-256 fingerprint to the
+command (`--ca-sha256 …`, on Windows `-CaSha256 …`). The agent fetches the CA from the Zentrale,
+keeps it only if the fingerprint matches, and trusts it from then on, next to the system's
+root certificates; nothing has to be installed on the device by hand. The fingerprint comes
+from the UI, which you opened over a connection you already trust, so a machine in between
+cannot slip in a CA of its own.
+
+With Caddy in Docker Compose, give Stellwerk Caddy's root certificate:
+
+```yaml
+services:
+  stellwerk:
+    # …
+    environment:
+      STELLWERK_CA_CERT: /caddy/pki/authorities/local/root.crt
+    volumes:
+      - stellwerk:/data
+      - caddy_data:/caddy:ro    # the volume Caddy keeps /data in
+```
+
+`openssl x509 -in root.crt -noout -fingerprint -sha256` shows the same fingerprint as the
+dialog, without the colons.
 
 ### By hand
 

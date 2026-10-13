@@ -69,7 +69,7 @@ Open `http://nas.local:8080`, click **Pair device** and run the one command it s
 on each device, as the normal user. It downloads the agent, pairs it and starts it:
 
 ```bash
-curl -fsSL http://nas.local:8080/install.sh | sh -s -- http://nas.local:8080 K7Q2-MX9P-41TZ
+curl -fsSL https://github.com/firsttris/stellwerk/releases/download/vX.Y.Z/install.sh | sh -s -- http://nas.local:8080 K7Q2-MX9P-41TZ
 ```
 
 On Windows the dialog shows the same as a PowerShell command; there is also an installer that
@@ -95,8 +95,10 @@ first run is in [Getting started](https://firsttris.github.io/stellwerk/getting-
 
 ### 🔗 Pairing without clicking on every PC
 
-- **One-time code**: "Pair device" shows a command with a code valid for 15 minutes; the device
-  appears in the UI by itself.
+- **One command per device**: "Pair device" shows a command with a code valid for 15 minutes; it
+  downloads the agent, pairs it and starts it, and the device appears in the UI by itself.
+- **Your own CA works too**: behind a private CA (e.g. Caddy's `tls internal`) the command carries
+  the CA's fingerprint, and the agent trusts it without any setup on the device.
 - **In the LAN without a code**: `stellwerk-agent join` finds the Zentrale over mDNS; the device
   waits under "Waiting devices" until you approve it, after comparing its fingerprint.
 - **Runs in the background**: `stellwerk-agent service install` (or the Windows installer) starts

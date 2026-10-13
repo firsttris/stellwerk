@@ -38,7 +38,10 @@ browser ──HTTPS (proxy)──▶ Zentrale ◀──WSS (proxy)── agent
 - **Browser and agents → Zentrale.** One web port for the UI, the API and the agents'
   WebSocket. Stellwerk itself speaks plain HTTP; TLS comes from the reverse proxy
   ([installation](installation.md#reverse-proxy-and-tls)). Agents check the proxy's certificate
-  against the system's root certificates. A Zentrale address with `http://` is fine inside a
+  against the system's root certificates, plus a private CA when the Zentrale has one
+  (`--ca-cert`): the agent fetched it at pairing without trusting the connection and kept it
+  only because its SHA-256 matched the fingerprint in the pairing command, which the admin
+  copied from the UI over a connection they already trust. A Zentrale address with `http://` is fine inside a
   trusted LAN, but nothing is encrypted then, including the pairing code.
 - **Devices ↔ hub.** Syncthing's own protocol: TLS with each side's certificate, and each side
   only accepts the device IDs (certificate hashes) it was given. The Zentrale hands every agent
