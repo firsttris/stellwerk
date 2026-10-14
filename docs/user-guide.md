@@ -2,7 +2,9 @@
 
 What every part of the web UI does, and what happens on the devices when you use it. The UI is in
 English and German; it follows the browser's language, and the selector at the bottom of the
-sidebar switches it (the choice is kept in the browser).
+sidebar switches it (the choice is kept in the browser). Below it, **System**, **Light** and
+**Dark** pick the theme the same way: **System** follows the operating system. The bottom line of
+the sidebar shows the version of the installed Zentrale.
 
 ## Concepts
 

@@ -50,6 +50,8 @@ export const shareSchema = z.object({
 export type Share = z.infer<typeof shareSchema>;
 
 export const overviewSchema = z.object({
+  /** The Zentrale's release. */
+  version: z.string(),
   revision: z.number(),
   hub: z.object({ syncthingId: z.string(), address: z.string() }),
   devices: z.array(deviceSchema),
