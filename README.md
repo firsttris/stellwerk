@@ -7,6 +7,10 @@ A small agent on each device brings its own Syncthing and follows what the serve
 Open source, no cloud, no clicking "accept" on every machine.
 
 [![CI](https://github.com/firsttris/stellwerk/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/stellwerk/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/firsttris/stellwerk?logo=github&label=release)](https://github.com/firsttris/stellwerk/releases/latest)
+[![Docker pulls](https://img.shields.io/docker/pulls/tristanteu/stellwerk?logo=docker&logoColor=white)](https://hub.docker.com/r/tristanteu/stellwerk)
+[![Image Size](https://img.shields.io/docker/image-size/tristanteu/stellwerk/latest?logo=docker&logoColor=white&label=image)](https://hub.docker.com/r/tristanteu/stellwerk)
+[![Platforms](https://img.shields.io/badge/platform-amd64%20%7C%20arm64-lightgrey)](https://hub.docker.com/r/tristanteu/stellwerk/tags)
 [![Docs](https://img.shields.io/badge/docs-firsttris.github.io%2Fstellwerk-4f46e5?logo=materialformkdocs&logoColor=white)](https://firsttris.github.io/stellwerk/)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 ![Rust](https://img.shields.io/badge/built_with-Rust-b7410e?logo=rust)
