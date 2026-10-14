@@ -16,6 +16,7 @@ import { overviewQuery, sessionQuery, statusQuery } from "../api/queries";
 import { cn } from "../lib/utils";
 import { m } from "../paraglide/messages.js";
 import { getLocale, type Locale, setLocale } from "../paraglide/runtime.js";
+import { ThemeSwitch } from "./theme-switch";
 import { Button } from "./ui/button";
 
 const navLink =
@@ -127,10 +128,14 @@ export function Layout({ children }: { children: ReactNode }) {
               <option value="en">English</option>
             </select>
           </label>
+          <ThemeSwitch />
           <Button variant="ghost" className="justify-start" onClick={logout}>
             <LogOut aria-hidden="true" />
             {m.logout()}
           </Button>
+          <span className="px-2.5 text-xs text-muted-foreground">
+            {m.app_version({ version: overview?.version ?? "…" })}
+          </span>
         </div>
       </aside>
       <main className="min-w-0 flex-[999_1_560px] px-4 pt-7 pb-12 sm:px-10">

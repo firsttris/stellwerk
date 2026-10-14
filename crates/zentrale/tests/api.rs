@@ -142,6 +142,7 @@ async fn login_needs_a_password_and_protects_everything_else() {
     let (status, overview) = browser.send(&router, "GET", "/api/overview", None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(overview["hub"]["syncthingId"], "HUB");
+    assert_eq!(overview["version"], env!("CARGO_PKG_VERSION"));
 
     // A change without the CSRF token is refused.
     let csrf = browser.csrf.take();

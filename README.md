@@ -120,6 +120,8 @@ first run is in [Getting started](https://firsttris.github.io/stellwerk/getting-
 - **Conflicts solved in one place**: both versions side by side with a diff; keep one or both,
   the other stays in the versions. Any older version of a file can be restored.
 - **German and English**, following the browser or switched in the sidebar.
+- **Light and dark**, following the system or switched in the sidebar, which also shows the
+  installed version.
 - **Your Syncthing stays yours**: the agent brings its own Syncthing on its own ports and never
   touches a Syncthing you already run.
 

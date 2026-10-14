@@ -38,6 +38,8 @@ pub struct HubView {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Overview {
+    /// The Zentrale's release, shown at the bottom of the sidebar.
+    version: &'static str,
     revision: u64,
     hub: HubView,
     devices: Vec<DeviceView>,
@@ -59,6 +61,7 @@ pub async fn overview(State(app): State<App>, _: Admin) -> ApiResult<Json<Overvi
     let config = app.store().config().await?;
     let hub = app.hub();
     Ok(Json(Overview {
+        version: env!("CARGO_PKG_VERSION"),
         revision: config.revision,
         hub: HubView {
             syncthing_id: hub.syncthing_id.clone(),

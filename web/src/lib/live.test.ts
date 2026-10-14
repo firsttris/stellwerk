@@ -18,6 +18,7 @@ const now = 1_000_000;
 const overview = (): Overview => {
   const state = demoState(now);
   return {
+    version: "0.1.8",
     revision: state.revision,
     hub: { syncthingId: "HUB", address: "tcp://hub:22001" },
     devices: state.devices,

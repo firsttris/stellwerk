@@ -41,6 +41,7 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
   };
 
   const overview = (): Overview => ({
+    version: "0.1.8",
     revision: state.revision,
     hub: { syncthingId: "HUB-SYNCTHING-ID", address: "tcp://nas.local:22001" },
     devices: state.devices,

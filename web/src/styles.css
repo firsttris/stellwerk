@@ -2,64 +2,55 @@
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
 
-/* Design tokens, light and dark; the components only use the semantic names. */
+/* Design tokens as light-dark() pairs; the components only use the semantic names. The scheme
+   follows the system unless the sidebar's theme switch fixed one (`data-theme`, lib/theme.ts). */
 :root {
-  --background: #ffffff;
-  --foreground: #09090b;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --subtle: #fafafa;
-  --border: #e4e4e7;
-  --border-strong: #d4d4d8;
-  --primary: #18181b;
-  --primary-foreground: #fafafa;
-  --secondary: #e4e4e7;
-  --secondary-foreground: #18181b;
-  --info: #eff6ff;
-  --info-border: #bfdbfe;
-  --info-foreground: #1e3a8a;
-  --info-accent: #2563eb;
-  --ok: #16a34a;
-  --ok-ring: #dcfce7;
-  --ok-surface: #f0fdf4;
-  --ok-border: #bbf7d0;
-  --ok-foreground: #14532d;
-  --warn: #fef3c7;
-  --warn-border: #fde68a;
-  --warn-foreground: #92400e;
-  --danger: #b91c1c;
-  --danger-surface: #fef2f2;
-  --offline: #a1a1aa;
+  color-scheme: light dark;
+  --background: light-dark(#ffffff, #09090b);
+  --foreground: light-dark(#09090b, #fafafa);
+  --muted: light-dark(#f4f4f5, #27272a);
+  --muted-foreground: light-dark(#71717a, #a1a1aa);
+  --subtle: light-dark(#fafafa, #111113);
+  --border: light-dark(#e4e4e7, #27272a);
+  --border-strong: light-dark(#d4d4d8, #3f3f46);
+  --primary: light-dark(#18181b, #fafafa);
+  --primary-foreground: light-dark(#fafafa, #18181b);
+  --secondary: light-dark(#e4e4e7, #3f3f46);
+  --secondary-foreground: light-dark(#18181b, #fafafa);
+  --info: light-dark(#eff6ff, #172554);
+  --info-border: light-dark(#bfdbfe, #1e3a8a);
+  --info-foreground: light-dark(#1e3a8a, #dbeafe);
+  --info-accent: light-dark(#2563eb, #60a5fa);
+  --ok: light-dark(#16a34a, #22c55e);
+  --ok-ring: light-dark(#dcfce7, #14532d);
+  --ok-surface: light-dark(#f0fdf4, #052e16);
+  --ok-border: light-dark(#bbf7d0, #14532d);
+  --ok-foreground: light-dark(#14532d, #bbf7d0);
+  --warn: light-dark(#fef3c7, #451a03);
+  --warn-border: light-dark(#fde68a, #78350f);
+  --warn-foreground: light-dark(#92400e, #fde68a);
+  --danger: light-dark(#b91c1c, #f87171);
+  --danger-surface: light-dark(#fef2f2, #450a0a);
+  --offline: light-dark(#a1a1aa, #52525b);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #09090b;
-    --foreground: #fafafa;
-    --muted: #27272a;
-    --muted-foreground: #a1a1aa;
-    --subtle: #111113;
-    --border: #27272a;
-    --border-strong: #3f3f46;
-    --primary: #fafafa;
-    --primary-foreground: #18181b;
-    --secondary: #3f3f46;
-    --secondary-foreground: #fafafa;
-    --info: #172554;
-    --info-border: #1e3a8a;
-    --info-foreground: #dbeafe;
-    --info-accent: #60a5fa;
-    --ok: #22c55e;
-    --ok-ring: #14532d;
-    --ok-surface: #052e16;
-    --ok-border: #14532d;
-    --ok-foreground: #bbf7d0;
-    --warn: #451a03;
-    --warn-border: #78350f;
-    --warn-foreground: #fde68a;
-    --danger: #f87171;
-    --danger-surface: #450a0a;
-    --offline: #52525b;
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Tailwind's dark: follows the same choice as the tokens. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
   }
 }
 

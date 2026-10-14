@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { createQueryClient } from "./api/client";
 import { sessionQuery } from "./api/queries";
 import { NotFound, RouteError } from "./components/route-error";
+import { applyTheme, loadTheme } from "./lib/theme";
 import { getLocale } from "./paraglide/runtime.js";
 import { routeTree } from "./routeTree.gen";
 import "./styles.css";
@@ -31,6 +32,8 @@ declare module "@tanstack/react-router" {
 // index.html says "de"; screen readers need the language actually shown. setLocale reloads the
 // page, so setting it once here is enough.
 document.documentElement.lang = getLocale();
+// Before the first render, so a fixed light or dark theme does not flash the system's.
+applyTheme(document.documentElement, loadTheme(localStorage));
 
 const root = document.getElementById("root");
 if (root) {

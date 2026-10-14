@@ -209,6 +209,12 @@ German and English with Paraglide: messages in `web/messages/{de,en}.json`, comp
 functions; the language follows the browser and can be switched in the sidebar (kept in local
 storage).
 
+Light and dark: the color tokens in `src/styles.css` are `light-dark()` pairs, so the browser's
+`color-scheme` picks them. The theme switch in the sidebar (`src/lib/theme.ts`) fixes it with
+`data-theme="light"` or `"dark"` on `<html>` and keeps the choice in local storage; without it the
+system decides. Tailwind's `dark:` variant follows the same choice. `/api/overview` carries the
+Zentrale's `version` for the sidebar.
+
 Live updates come through `/api/ws` (see above); polling every 30 seconds is only the fallback.
 `src/api/types.ts` checks every answer with Zod.
 `pnpm dev:demo` runs the UI on fixtures (`src/demo/`) without a Zentrale. The Playwright tests in
