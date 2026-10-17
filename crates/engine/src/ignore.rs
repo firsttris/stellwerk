@@ -2,21 +2,31 @@
 //! device ask for (see `stellwerk_agent::local_ignores`).
 //!
 //! Syncthing reads a pattern line trimmed (`lib/ignore/ignore.go`, `loadParseIncludeFile`),
-//! compiles it with gobwas/glob, and on Linux and macOS takes a backslash as the escape
-//! character (`defaultEscapeChar`). A leading `/` roots the pattern at the folder.
+//! compiles it with gobwas/glob, and takes a backslash as the escape character, or `|` on
+//! Windows, where the backslash separates paths (`defaultEscapeChar`; there it also turns
+//! `\` into `/` and `|` back into a backslash before compiling). A leading `/` roots the
+//! pattern at the folder.
+
+/// Syncthing's default escape character on this platform.
+pub const ESCAPE: char = if cfg!(windows) { '|' } else { '\\' };
 
 /// The pattern for `relative` (a path inside the folder, `/`-separated): rooted, with every
 /// character the glob reads specially escaped. `None` for a path Syncthing cannot match
 /// exactly because it trims pattern lines (leading or trailing spaces), or for an empty one.
 pub fn anchored_pattern(relative: &str) -> Option<String> {
+    anchored_pattern_with(relative, ESCAPE)
+}
+
+/// [`anchored_pattern`] with the escape character of a given platform.
+pub fn anchored_pattern_with(relative: &str, escape: char) -> Option<String> {
     if relative.is_empty() || relative != relative.trim() || relative.contains('\n') {
         return None;
     }
     let mut out = String::with_capacity(relative.len() + 8);
     out.push('/');
     for c in relative.chars() {
-        if matches!(c, '\\' | '*' | '?' | '[' | ']' | '{' | '}') {
-            out.push('\\');
+        if c == escape || matches!(c, '*' | '?' | '[' | ']' | '{' | '}') {
+            out.push(escape);
         }
         out.push(c);
     }
@@ -42,5 +52,13 @@ mod tests {
         assert_eq!(anchored_pattern(r"a\b").as_deref(), Some(r"/a\\b"));
         assert_eq!(anchored_pattern("trailing "), None);
         assert_eq!(anchored_pattern(""), None);
+    }
+
+    #[test]
+    fn on_windows_the_pipe_escapes() {
+        assert_eq!(
+            anchored_pattern_with("Games/Save [1] {a,b}.dat", '|').as_deref(),
+            Some("/Games/Save |[1|] |{a,b|}.dat")
+        );
     }
 }

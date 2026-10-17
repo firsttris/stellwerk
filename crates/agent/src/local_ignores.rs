@@ -58,6 +58,17 @@ fn folder_root(path: &str, home: Option<&Path>) -> Option<PathBuf> {
     }
 }
 
+/// `path` inside `root`, `/`-separated as Syncthing patterns are on every platform.
+fn relative_in(path: &Path, root: &Path) -> Option<String> {
+    let parts = path
+        .strip_prefix(root)
+        .ok()?
+        .components()
+        .map(|c| c.as_os_str().to_str())
+        .collect::<Option<Vec<_>>>()?;
+    Some(parts.join("/"))
+}
+
 /// `state` with the excluded paths added to the folders they lie in.
 pub fn merge(state: &DesiredState, excluded: &[PathBuf], home: Option<&Path>) -> DesiredState {
     let mut merged = state.clone();
@@ -66,12 +77,7 @@ pub fn merge(state: &DesiredState, excluded: &[PathBuf], home: Option<&Path>) ->
             continue;
         };
         for path in excluded {
-            let Some(pattern) = path
-                .strip_prefix(&root)
-                .ok()
-                .and_then(Path::to_str)
-                .and_then(anchored_pattern)
-            else {
+            let Some(pattern) = relative_in(path, &root).and_then(|r| anchored_pattern(&r)) else {
                 continue;
             };
             if !folder.ignore_patterns.contains(&pattern) {
@@ -85,6 +91,7 @@ pub fn merge(state: &DesiredState, excluded: &[PathBuf], home: Option<&Path>) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+    use stellwerk_engine::ignore::ESCAPE;
     use stellwerk_protocol::{DeviceId, Folder, FolderMode, Versioning};
 
     fn folder(id: &str, path: &str) -> Folder {
@@ -101,25 +108,36 @@ mod tests {
 
     #[test]
     fn listed_paths_become_rooted_patterns_of_the_folder_they_are_in() {
+        // Real absolute paths of this platform: on Windows `C:\…`, with `\` between the parts.
+        let tmp = tempfile::tempdir().unwrap();
+        let home = tmp.path();
+        let photos = home.join("photos");
         let state = DesiredState {
             revision: 3,
             peers: vec![],
-            folders: vec![folder("games", "~/Games"), folder("photos", "/srv/photos")],
+            folders: vec![
+                folder("games", "~/Games"),
+                folder("photos", photos.to_str().unwrap()),
+            ],
         };
-        let excluded = paths(
-            "# Written by Spielstand\n\
-             /home/t/Games/Hades/prefix/drive_c/users/steamuser/Save [1].sav\n\
-             \n\
-             relative/ignored\n\
-             /elsewhere/x.sav\n\
-             /home/t/Games/Hades/prefix/drive_c/users/steamuser/Save [1].sav\n",
-        );
-        let merged = merge(&state, &excluded, Some(Path::new("/home/t")));
+        let save = home
+            .join("Games")
+            .join("Hades")
+            .join("prefix")
+            .join("Save [1].sav");
+        let excluded = paths(&format!(
+            "# Written by Spielstand\n{save}\n\nrelative/ignored\n{elsewhere}\n{save}\n",
+            save = save.display(),
+            elsewhere = home.join("elsewhere").join("x.sav").display(),
+        ));
+        assert_eq!(excluded.len(), 3, "the relative line is skipped");
+        let merged = merge(&state, &excluded, Some(home));
+        let e = ESCAPE;
         assert_eq!(
             merged.folders[0].ignore_patterns,
             vec![
                 "*.tmp".to_string(),
-                r"/Hades/prefix/drive_c/users/steamuser/Save \[1\].sav".to_string()
+                format!("/Hades/prefix/Save {e}[1{e}].sav")
             ]
         );
         assert_eq!(merged.folders[1].ignore_patterns, vec!["*.tmp".to_string()]);
@@ -148,10 +166,15 @@ mod tests {
     fn every_list_in_the_folder_is_read_in_name_order() {
         let tmp = tempfile::tempdir().unwrap();
         assert_eq!(read_lists(&tmp.path().join("missing")), "");
-        std::fs::write(tmp.path().join("b.list"), "/b\n").unwrap();
-        std::fs::write(tmp.path().join("a.list"), "/a\n").unwrap();
-        std::fs::write(tmp.path().join("notes.txt"), "/not-a-list\n").unwrap();
+        let (a, b) = (tmp.path().join("a"), tmp.path().join("b"));
+        std::fs::write(tmp.path().join("b.list"), format!("{}\n", b.display())).unwrap();
+        std::fs::write(tmp.path().join("a.list"), format!("{}\n", a.display())).unwrap();
+        std::fs::write(
+            tmp.path().join("notes.txt"),
+            format!("{}\n", tmp.path().display()),
+        )
+        .unwrap();
         let text = read_lists(tmp.path());
-        assert_eq!(paths(&text), vec![PathBuf::from("/a"), PathBuf::from("/b")]);
+        assert_eq!(paths(&text), vec![a, b]);
     }
 }

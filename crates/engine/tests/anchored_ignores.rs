@@ -37,18 +37,32 @@ async fn an_anchored_pattern_excludes_exactly_its_path() {
     let client = instance.client();
     let data = tmp.path().join("Games");
 
-    let excluded = [
-        "Hades/prefix/drive_c/users/steamuser/Save [1] {a,b}.sav",
-        "Hades/star*.sav",
-        r"Hades/back\slash.sav",
-    ];
-    let kept = [
-        "Hades/prefix/drive_c/users/steamuser/Save 1 a.sav",
-        "Hades/starX.sav",
-        "Hades/other.sav",
-        "Other/Hades/star*.sav",
-    ];
-    for rel in excluded.iter().chain(&kept) {
+    // `*` and `\` cannot be in a file name on Windows; there `|` is the escape character.
+    let excluded: &[&str] = if cfg!(windows) {
+        &["Hades/prefix/drive_c/users/steamuser/Save [1] {a,b}.sav"]
+    } else {
+        &[
+            "Hades/prefix/drive_c/users/steamuser/Save [1] {a,b}.sav",
+            "Hades/star*.sav",
+            r"Hades/back\slash.sav",
+        ]
+    };
+    let kept: &[&str] = if cfg!(windows) {
+        &[
+            "Hades/prefix/drive_c/users/steamuser/Save 1 a.sav",
+            "Hades/prefix/drive_c/users/steamuser/Save 1 {a,b}.sav",
+            "Hades/other.sav",
+            "Other/Hades/prefix/drive_c/users/steamuser/Save [1] {a,b}.sav",
+        ]
+    } else {
+        &[
+            "Hades/prefix/drive_c/users/steamuser/Save 1 a.sav",
+            "Hades/starX.sav",
+            "Hades/other.sav",
+            "Other/Hades/star*.sav",
+        ]
+    };
+    for rel in excluded.iter().chain(kept) {
         write(&data, rel);
     }
     let desired = DesiredState {

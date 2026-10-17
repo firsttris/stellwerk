@@ -98,7 +98,7 @@ list into `ignore.d/<program>.list` in the agent's data directory: one absolute 
 
 The agent adds each listed path that lies inside a folder to that folder's ignore patterns, as
 a pattern rooted at the folder that matches exactly that path (characters Syncthing's patterns
-read specially are escaped). It applies the lists with every desired state and reads them
+read specially are escaped, with `\` or on Windows `|`). It applies the lists with every desired state and reads them
 again every 10 seconds, so a changed list takes effect without the Zentrale. The lists stay on
 the device: the patterns from the Zentrale are unchanged, and every other device gets the same
 exclusions from its own list.
