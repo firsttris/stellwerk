@@ -37,19 +37,20 @@ pub fn anchored_pattern_with(relative: &str, escape: char) -> Option<String> {
 mod tests {
     use super::*;
 
-    /// The same table as Spielstand's `foreign::anchored_pattern`, which reads these patterns
-    /// back from `.stignore` to see whether its saves are excluded.
+    /// The same table as Spielstand's `foreign::anchored_pattern` (Linux), which reads these
+    /// patterns back from `.stignore` to see whether its saves are excluded.
     #[test]
     fn patterns_are_rooted_and_escaped() {
+        let unix = |relative| anchored_pattern_with(relative, '\\');
         assert_eq!(
-            anchored_pattern("Games/Hades/prefix/drive_c/x.sav").as_deref(),
+            unix("Games/Hades/prefix/drive_c/x.sav").as_deref(),
             Some("/Games/Hades/prefix/drive_c/x.sav")
         );
         assert_eq!(
-            anchored_pattern("Games/Save [1] {a,b} *?.dat").as_deref(),
+            unix("Games/Save [1] {a,b} *?.dat").as_deref(),
             Some(r"/Games/Save \[1\] \{a,b\} \*\?.dat")
         );
-        assert_eq!(anchored_pattern(r"a\b").as_deref(), Some(r"/a\\b"));
+        assert_eq!(unix(r"a\b").as_deref(), Some(r"/a\\b"));
         assert_eq!(anchored_pattern("trailing "), None);
         assert_eq!(anchored_pattern(""), None);
     }
@@ -59,6 +60,11 @@ mod tests {
         assert_eq!(
             anchored_pattern_with("Games/Save [1] {a,b}.dat", '|').as_deref(),
             Some("/Games/Save |[1|] |{a,b|}.dat")
+        );
+        assert_eq!(
+            anchored_pattern("x [1]"),
+            anchored_pattern_with("x [1]", ESCAPE),
+            "this platform's escape character by default"
         );
     }
 }
