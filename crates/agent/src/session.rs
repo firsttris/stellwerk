@@ -297,10 +297,10 @@ mod tests {
 
     async fn session(server: String) -> anyhow::Result<End> {
         let dir = tempfile::tempdir().unwrap();
-        session_in(dir.path(), server).await
+        session_in(dir.path(), server, QUICK).await
     }
 
-    async fn session_in(dir: &Path, server: String) -> anyhow::Result<End> {
+    async fn session_in(dir: &Path, server: String, heartbeat: Heartbeat) -> anyhow::Result<End> {
         let mut config = AgentConfig {
             server,
             secret_key: identity::new_secret(),
@@ -315,7 +315,15 @@ mod tests {
             syncthing_version: "v2".into(),
         };
         let (_snapshots, mut status) = watch::channel(Snapshot::default());
-        run(dir, &mut config, &syncthing, &report, &mut status, QUICK).await
+        run(
+            dir,
+            &mut config,
+            &syncthing,
+            &report,
+            &mut status,
+            heartbeat,
+        )
+        .await
     }
 
     #[tokio::test]
@@ -411,8 +419,14 @@ mod tests {
         })
         .await;
         let data = dir.path().to_path_buf();
-        let running = tokio::spawn(async move { session_in(&data, url).await });
-        let wait = Duration::from_secs(5);
+        // Applying against the absent Syncthing takes about 2 s on Windows, where a refused
+        // connection is retried; a short silence would end the session meanwhile.
+        let patient = Heartbeat {
+            silence: Duration::from_secs(60),
+            ..QUICK
+        };
+        let running = tokio::spawn(async move { session_in(&data, url, patient).await });
+        let wait = Duration::from_secs(20);
         let first = tokio::time::timeout(wait, applied_rx.recv()).await.unwrap();
         assert_eq!(first, Some(7));
         tokio::time::sleep(Duration::from_millis(300)).await;
