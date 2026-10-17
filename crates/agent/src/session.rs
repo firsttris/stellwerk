@@ -18,7 +18,7 @@ use tokio::time::{Instant, MissedTickBehavior};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::config::{self, AgentConfig};
-use crate::identity;
+use crate::{identity, local_ignores};
 
 /// What the agent tells the Zentrale about itself besides its key.
 #[derive(Debug, Clone)]
@@ -43,11 +43,14 @@ pub enum End {
 pub struct Heartbeat {
     pub every: Duration,
     pub silence: Duration,
+    /// How often the exclusion lists of other programs are read again (see [`local_ignores`]).
+    pub lists: Duration,
 }
 
 pub const HEARTBEAT: Heartbeat = Heartbeat {
     every: Duration::from_secs(30),
     silence: Duration::from_secs(90),
+    lists: Duration::from_secs(10),
 };
 
 /// Runs one connection until it closes. `status` is the monitor's latest snapshot, sent on
@@ -83,6 +86,14 @@ pub async fn run(
     ping.set_missed_tick_behavior(MissedTickBehavior::Delay);
     let mut deadline = Instant::now() + heartbeat.silence;
     let mut welcomed = false;
+    // The last desired state and the exclusion lists it was applied with: a changed list is
+    // applied without waiting for the next state from the Zentrale.
+    let lists_dir = local_ignores::dir(data_dir);
+    let mut last: Option<DesiredState> = None;
+    let mut lists_seen = String::new();
+    let mut lists_tick =
+        tokio::time::interval_at(Instant::now() + heartbeat.lists, heartbeat.lists);
+    lists_tick.set_missed_tick_behavior(MissedTickBehavior::Delay);
     loop {
         tokio::select! {
             frame = tokio::time::timeout_at(deadline, next_frame(&mut stream)) => {
@@ -106,7 +117,9 @@ pub async fn run(
                         status.mark_changed();
                     }
                     ServerMessage::DesiredState(state) => {
-                        let applied = apply(syncthing, &state).await;
+                        lists_seen = local_ignores::read_lists(&lists_dir);
+                        let applied = apply(syncthing, &with_lists(&state, &lists_seen)).await;
+                        last = Some(state);
                         send(&mut sink, &AgentMessage::Applied(applied)).await?;
                     }
                     ServerMessage::Waiting { fingerprint } => {
@@ -121,6 +134,15 @@ pub async fn run(
                 }
             }
             _ = ping.tick() => sink.send(Message::Ping(Default::default())).await?,
+            _ = lists_tick.tick(), if last.is_some() => {
+                let lists = local_ignores::read_lists(&lists_dir);
+                if lists != lists_seen && let Some(state) = &last {
+                    tracing::info!("exclusion lists changed; applying them");
+                    let applied = apply(syncthing, &with_lists(state, &lists)).await;
+                    lists_seen = lists;
+                    send(&mut sink, &AgentMessage::Applied(applied)).await?;
+                }
+            }
             changed = status.changed(), if welcomed => {
                 if changed.is_err() {
                     return Ok(End::Closed);
@@ -130,6 +152,15 @@ pub async fn run(
             }
         }
     }
+}
+
+/// The desired state with the exclusions of other programs on this device added.
+fn with_lists(state: &DesiredState, lists: &str) -> DesiredState {
+    local_ignores::merge(
+        state,
+        &local_ignores::paths(lists),
+        dirs::home_dir().as_deref(),
+    )
 }
 
 /// The hello for this connection's nonce, signed with the device's key.
@@ -238,6 +269,7 @@ mod tests {
     const QUICK: Heartbeat = Heartbeat {
         every: Duration::from_millis(100),
         silence: Duration::from_millis(400),
+        lists: Duration::from_millis(100),
     };
 
     /// A Zentrale on 127.0.0.1 that welcomes the agent, then hands the socket to `then`.
@@ -265,6 +297,10 @@ mod tests {
 
     async fn session(server: String) -> anyhow::Result<End> {
         let dir = tempfile::tempdir().unwrap();
+        session_in(dir.path(), server, QUICK).await
+    }
+
+    async fn session_in(dir: &Path, server: String, heartbeat: Heartbeat) -> anyhow::Result<End> {
         let mut config = AgentConfig {
             server,
             secret_key: identity::new_secret(),
@@ -280,12 +316,12 @@ mod tests {
         };
         let (_snapshots, mut status) = watch::channel(Snapshot::default());
         run(
-            dir.path(),
+            dir,
             &mut config,
             &syncthing,
             &report,
             &mut status,
-            QUICK,
+            heartbeat,
         )
         .await
     }
@@ -358,5 +394,52 @@ mod tests {
         assert_eq!(id, 42);
         let names: Vec<String> = result.unwrap().dirs.into_iter().map(|e| e.name).collect();
         assert_eq!(names, ["Fotos"]);
+    }
+
+    /// A changed exclusion list is applied at once, without a new desired state.
+    #[tokio::test]
+    async fn a_changed_exclusion_list_is_applied_again() {
+        let dir = tempfile::tempdir().unwrap();
+        let (applied_tx, mut applied_rx) = tokio::sync::mpsc::unbounded_channel();
+        let url = zentrale(move |mut socket| async move {
+            let state = ServerMessage::DesiredState(DesiredState {
+                revision: 7,
+                ..DesiredState::default()
+            });
+            socket
+                .send(Message::text(serde_json::to_string(&state).unwrap()))
+                .await
+                .unwrap();
+            while let Some(Ok(frame)) = socket.next().await {
+                let Message::Text(text) = frame else { continue };
+                if let Ok(AgentMessage::Applied(applied)) = serde_json::from_str(&text) {
+                    let _ = applied_tx.send(applied.revision);
+                }
+            }
+        })
+        .await;
+        let data = dir.path().to_path_buf();
+        // Applying against the absent Syncthing takes about 2 s on Windows, where a refused
+        // connection is retried; a short silence would end the session meanwhile.
+        let patient = Heartbeat {
+            silence: Duration::from_secs(60),
+            ..QUICK
+        };
+        let running = tokio::spawn(async move { session_in(&data, url, patient).await });
+        let wait = Duration::from_secs(20);
+        let first = tokio::time::timeout(wait, applied_rx.recv()).await.unwrap();
+        assert_eq!(first, Some(7));
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert!(
+            applied_rx.try_recv().is_err(),
+            "unchanged lists apply nothing"
+        );
+
+        let lists = local_ignores::dir(dir.path());
+        std::fs::create_dir_all(&lists).unwrap();
+        std::fs::write(lists.join("spielstand.list"), "/home/t/Games/x.sav\n").unwrap();
+        let again = tokio::time::timeout(wait, applied_rx.recv()).await.unwrap();
+        assert_eq!(again, Some(7), "the same state, applied with the new list");
+        running.abort();
     }
 }

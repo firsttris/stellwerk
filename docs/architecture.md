@@ -280,6 +280,13 @@ Syncthing runs with `--no-restart`: if it exits (a crash, or a restart asked for
 the agent exits with an error and the service manager starts both again. The Zentrale does the
 same with the hub Syncthing and leaves the restart to Docker or systemd.
 
+Before applying a desired state, the agent adds the exclusions other programs on the device
+listed in `ignore.d/` (`crates/agent/src/local_ignores.rs`, a pure merge with unit tests): each
+listed path inside a folder becomes a rooted, escaped pattern for exactly that path
+(`engine::ignore::anchored_pattern`, checked against the pinned Syncthing in
+`crates/engine/tests/anchored_ignores.rs`). The lists are read again every 10 seconds; a
+changed list is applied to the last desired state at once.
+
 Its Syncthing listens on a random port on all interfaces, with discovery, relays and NAT
 traversal off: the device dials the hub at the address from the desired state, and the hub,
 which has no address for devices (`dynamic`), only accepts their connections.

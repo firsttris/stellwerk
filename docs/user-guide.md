@@ -212,6 +212,10 @@ can be undone. The devices get the restored file with the next sync.
     ```
 
     Ignored files are not deleted where they exist; they just stop being synced.
+- **Exclusions from other programs** do not show here: a program on a device that moves some
+  files itself (for example [Spielstand](https://github.com/firsttris/spielstand) with game
+  saves) asks the agent on that device to leave exactly those files alone
+  ([Reference](reference.md#exclusions-from-other-programs)).
 - **Versions on the server** shows how long the hub keeps old versions.
 - **Remove folder** stops syncing it everywhere and removes it from the server's configuration.
   The files on the devices and on the server stay.

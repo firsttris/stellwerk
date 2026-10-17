@@ -85,9 +85,23 @@ By default:
 | `syncthing-bin/` | the downloaded and checked Syncthing release |
 | `agent.log` | the log on macOS and Windows (on Linux it goes to the journal) |
 | `stop` | written by `service uninstall` to ask a running agent to stop; removed by it |
+| `ignore.d/*.list` | exclusions written by other programs on this device (below) |
 
 The synced folders are not in the data directory; they are wherever their paths point
 (`~/Stellwerk/<folder>` by default).
+
+### Exclusions from other programs
+
+A program that moves some files itself, and must not have Syncthing write them too, puts a
+list into `ignore.d/<program>.list` in the agent's data directory: one absolute path per line,
+`#` starts a comment. Spielstand writes `spielstand.list` with the save files it synchronises.
+
+The agent adds each listed path that lies inside a folder to that folder's ignore patterns, as
+a pattern rooted at the folder that matches exactly that path (characters Syncthing's patterns
+read specially are escaped, with `\` or on Windows `|`). It applies the lists with every desired state and reads them
+again every 10 seconds, so a changed list takes effect without the Zentrale. The lists stay on
+the device: the patterns from the Zentrale are unchanged, and every other device gets the same
+exclusions from its own list.
 
 ## Logging
 
