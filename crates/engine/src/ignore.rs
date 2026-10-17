@@ -1,0 +1,46 @@
+//! Syncthing ignore patterns that match exactly one path, for exclusions other programs on a
+//! device ask for (see `stellwerk_agent::local_ignores`).
+//!
+//! Syncthing reads a pattern line trimmed (`lib/ignore/ignore.go`, `loadParseIncludeFile`),
+//! compiles it with gobwas/glob, and on Linux and macOS takes a backslash as the escape
+//! character (`defaultEscapeChar`). A leading `/` roots the pattern at the folder.
+
+/// The pattern for `relative` (a path inside the folder, `/`-separated): rooted, with every
+/// character the glob reads specially escaped. `None` for a path Syncthing cannot match
+/// exactly because it trims pattern lines (leading or trailing spaces), or for an empty one.
+pub fn anchored_pattern(relative: &str) -> Option<String> {
+    if relative.is_empty() || relative != relative.trim() || relative.contains('\n') {
+        return None;
+    }
+    let mut out = String::with_capacity(relative.len() + 8);
+    out.push('/');
+    for c in relative.chars() {
+        if matches!(c, '\\' | '*' | '?' | '[' | ']' | '{' | '}') {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    Some(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The same table as Spielstand's `foreign::anchored_pattern`, which reads these patterns
+    /// back from `.stignore` to see whether its saves are excluded.
+    #[test]
+    fn patterns_are_rooted_and_escaped() {
+        assert_eq!(
+            anchored_pattern("Games/Hades/prefix/drive_c/x.sav").as_deref(),
+            Some("/Games/Hades/prefix/drive_c/x.sav")
+        );
+        assert_eq!(
+            anchored_pattern("Games/Save [1] {a,b} *?.dat").as_deref(),
+            Some(r"/Games/Save \[1\] \{a,b\} \*\?.dat")
+        );
+        assert_eq!(anchored_pattern(r"a\b").as_deref(), Some(r"/a\\b"));
+        assert_eq!(anchored_pattern("trailing "), None);
+        assert_eq!(anchored_pattern(""), None);
+    }
+}
