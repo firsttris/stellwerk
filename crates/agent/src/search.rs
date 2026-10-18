@@ -84,6 +84,9 @@ pub fn search(
                 });
             } else if depth + 1 < limits.depth {
                 queue.push_back((path, depth + 1));
+            } else {
+                // Too deep to look into: a match may be in there.
+                truncated = true;
             }
         }
     }
@@ -175,9 +178,14 @@ mod tests {
         assert_eq!(names(&found), ["Photos 1", "Photos 2"]);
         assert!(found.truncated);
 
+        // "a/b/c/Photos" is below the depth limit: not found, and said so.
         let shallow = Limits { depth: 2, ..LIMITS };
         let found = search(&text(dir.path()), "photos", None, shallow).unwrap();
         assert_eq!(found.dirs.len(), 3);
+        assert!(found.truncated);
+        let deep_enough = Limits { depth: 4, ..LIMITS };
+        let found = search(&text(dir.path()), "photos", None, deep_enough).unwrap();
+        assert_eq!(found.dirs.len(), 4);
         assert!(!found.truncated);
 
         let no_time = Limits {

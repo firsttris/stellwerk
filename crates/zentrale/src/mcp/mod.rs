@@ -95,8 +95,10 @@ fn pretty(value: &Value) -> String {
     serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
 }
 
-/// A browser page on another site must not reach the server (DNS rebinding, MCP "Security
-/// Warning" under Streamable HTTP). Requests without `Origin` come from programs, not pages.
+/// A page on another site must not call the server through the browser (MCP "Security
+/// Warning" under Streamable HTTP). This does not stop DNS rebinding, where Origin and Host
+/// agree; the bearer token does, since a page cannot add it. Requests without `Origin` come
+/// from programs, not pages.
 fn same_origin(headers: &HeaderMap) -> bool {
     let Some(origin) = headers.get(header::ORIGIN) else {
         return true;

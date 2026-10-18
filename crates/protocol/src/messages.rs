@@ -110,7 +110,8 @@ pub struct Matches {
     pub root: String,
     /// Shallower ones first; below a match nothing more is listed.
     pub dirs: Vec<Entry>,
-    /// The search stopped early (too many matches, or out of time): there may be more.
+    /// The search stopped early (too many matches, too deep, or out of time): there may be
+    /// more.
     pub truncated: bool,
 }
 

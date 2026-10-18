@@ -324,7 +324,8 @@ subdirectories of one directory for the folder picker; `search` walks breadth fi
 directory and returns the directories whose name holds every word of the query as word prefixes,
 in order ("game of thrones" finds `Game.of.Thrones.S01`), without looking below a match. It skips
 hidden directories, follows no symbolic links and stops after 8 levels, 50 matches or 10 seconds,
-saying so. Both run off the async runtime; an agent that does not know a request leaves it
+saying so (`truncated`). Both run off the async runtime and next to each other, so a search
+holds up neither the folder picker nor a new desired state; an agent that does not know a request leaves it
 unanswered, and the Zentrale reports "update its agent" after its timeout.
 
 Its Syncthing listens on a random port on all interfaces, with discovery, relays and NAT
