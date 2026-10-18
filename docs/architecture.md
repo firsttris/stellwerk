@@ -145,6 +145,7 @@ SQLite with migrations embedded in the binary (`crates/zentrale/migrations`).
 | `config_rev` | one revision number, raised in the same transaction as every change |
 | `events` | at, device, folder, kind, text (activity feed) |
 | `admin`, `sessions` | login |
+| `api_tokens` | id, name, scope, token_hash, created_at, last_used_at |
 
 ### Login and API
 
@@ -153,21 +154,28 @@ sets an HttpOnly, SameSite=Strict session cookie (Secure behind HTTPS) and retur
 the UI sends back in `X-CSRF-Token` on every change. Only hashes of session tokens and pairing
 codes are stored.
 
-| Endpoint | Does |
-|---|---|
-| `GET /api/session`, `POST /api/login`, `POST /api/logout` | login state, log in, log out |
-| `GET /api/overview` | revision, hub, devices (with online state), folders, shares |
-| `POST /api/folders`, `PATCH`/`DELETE /api/folders/{id}` | create; rename or set ignore patterns; remove a folder |
-| `POST /api/shares` | apply a draft of modes and paths as one revision |
-| `PATCH`/`DELETE /api/devices/{id}` | rename, block, unblock, remove a device |
-| `GET /api/devices/{id}/browse?path=` | the folder picker: a directory on an online device, asked of its agent (409 offline, 504 no answer) |
-| `POST /api/enrollments`, `POST /api/enrollments/status` | new pairing code, has a device used it yet |
-| `POST /api/waiting/{fingerprint}/approve`, `…/reject` | decide about a device waiting in the LAN |
-| `GET /api/folders/{id}/conflicts/content`, `POST …/conflicts/resolve` | both sides of a conflict, resolve it |
-| `GET /api/folders/{id}/versions`, `POST …/versions/restore` | versions on the hub, restore one |
-| `GET /api/events` | activity feed |
-| `GET /api/status` | live status of devices and hub |
-| `GET /api/ws` | WebSocket with an `update` per change: revision, online devices, live status |
+Scripts and AI assistants use an API token instead (`Authorization: Bearer stw_…`, no CSRF
+token; `crates/zentrale/src/api/access.rs`). Its scope decides what it may call: **read** the
+endpoints marked R below, **manage** also those marked M. Everything else needs the browser
+login, and a request with a token gets `403` there. A new password revokes every token.
+
+| Endpoint | Does | Token |
+|---|---|---|
+| `GET /api/session`, `POST /api/login`, `POST /api/logout` | login state, log in, log out | |
+| `GET /api/overview` | revision, hub, devices (with online state), folders, shares | R |
+| `POST /api/folders`, `PATCH /api/folders/{id}` | create; rename or set ignore patterns | M |
+| `DELETE /api/folders/{id}` | remove a folder | |
+| `POST /api/shares` | apply a draft of modes and paths as one revision | M |
+| `PATCH`/`DELETE /api/devices/{id}` | rename, block, unblock, remove a device | |
+| `GET /api/devices/{id}/browse?path=` | the folder picker: a directory on an online device, asked of its agent (409 offline, 504 no answer) | R |
+| `POST /api/enrollments`, `POST /api/enrollments/status` | new pairing code, has a device used it yet | |
+| `POST /api/waiting/{fingerprint}/approve`, `…/reject` | decide about a device waiting in the LAN | |
+| `GET /api/folders/{id}/conflicts/content`, `POST …/conflicts/resolve` | both sides of a conflict, resolve it | |
+| `GET /api/folders/{id}/versions`, `POST …/versions/restore` | versions on the hub, restore one | |
+| `GET /api/events` | activity feed | R |
+| `GET /api/status` | live status of devices and hub | R |
+| `GET /api/ws` | WebSocket with an `update` per change: revision, online devices, live status | |
+| `GET`/`POST /api/tokens`, `DELETE /api/tokens/{id}` | list, create (the token is in the answer this once), revoke API tokens | |
 
 Every change raises the revision and sends connected agents and the hub their new desired state.
 A failed hub reconcile (hub API briefly unreachable, a refused call) is retried after 1 second,
@@ -202,6 +210,8 @@ of the Zentrale embeds `web/dist`; paths outside `/api` fall back to `index.html
 - **Folders**: mode and local path per device; versions per file with restore; conflicts side by
   side; rename, ignore patterns (one per line, on every device and the hub), remove.
 - **Conflicts**: every conflict of every folder in one list.
+- **API tokens**: create a token for a script or assistant (shown once), see when each was last
+  used, revoke it.
 
 The [user guide](user-guide.md) describes each page in detail.
 

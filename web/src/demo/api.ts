@@ -1,6 +1,7 @@
 import {
   type Api,
   ApiError,
+  type ApiToken,
   type Device,
   type Enrollment,
   type Folder,
@@ -23,6 +24,7 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
   const enrollments = new Map<string, number>();
   // A counter, not the list's length: that repeats after a folder other than the last is removed.
   let folderCount = state.folders.length;
+  let tokenCount = state.tokens.length;
 
   const bump = () => {
     const revision = state.revision + 1;
@@ -205,6 +207,24 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
       if (!state.versions[folderId]?.some((f) => f.path === path)) {
         throw new ApiError(400, "no such version");
       }
+    },
+    tokens: async () => structuredClone(state.tokens),
+    createToken: async (name, scope) => {
+      if (!name.trim()) throw new ApiError(400, "a token needs a name");
+      tokenCount++;
+      const token: ApiToken = {
+        id: `token-${tokenCount}`,
+        name: name.trim(),
+        scope,
+        createdAt: nowSeconds(),
+        lastUsedAt: null,
+      };
+      state = { ...state, tokens: [token, ...state.tokens] };
+      return { ...token, secret: `stw_demo${tokenCount}xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` };
+    },
+    deleteToken: async (id) => {
+      if (!state.tokens.some((t) => t.id === id)) throw new ApiError(404, "token not found");
+      state = { ...state, tokens: state.tokens.filter((t) => t.id !== id) };
     },
   };
 }

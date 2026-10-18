@@ -1,12 +1,15 @@
-//! The HTTP API the web UI uses. Everything but the session endpoints needs the admin.
+//! The HTTP API the web UI uses. Everything but the session endpoints needs the admin; reading,
+//! and changing folders and shares, also works with an API token ([`access`]).
 
+pub mod access;
 mod error;
 mod live;
 mod routes;
 mod session;
+mod tokens;
 
 use axum::Router;
-use axum::routing::{get, patch, post};
+use axum::routing::{delete, get, patch, post};
 
 pub use error::ApiError;
 
@@ -54,5 +57,7 @@ pub fn router() -> Router<App> {
         .route("/api/enrollments/status", post(routes::enrollment_status))
         .route("/api/events", get(routes::events))
         .route("/api/status", get(live::status))
+        .route("/api/tokens", get(tokens::list).post(tokens::create))
+        .route("/api/tokens/{id}", delete(tokens::delete))
         .route("/api/ws", get(live::ws))
 }

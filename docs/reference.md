@@ -113,6 +113,7 @@ the Zentrale is out of reach.
 | What | Value |
 |---|---|
 | pairing code | valid 15 minutes, works once; only its hash is stored |
+| API token | until revoked or a new admin password is set; only its hash is stored |
 | login session | 30 days; logins are checked one at a time, and a failed login waits half a second, doubling with each failure in a row up to 8 s |
 | waiting devices (LAN pairing) | at most 20, in memory, gone when the agent disconnects or the Zentrale restarts |
 | agent reconnect | after 1 s, doubling up to 30 s; 60 s after being turned away |
@@ -129,5 +130,7 @@ the Zentrale is out of reach.
 
 The web UI uses the API under `/api`; it is not a stable public interface yet. Every request but
 `/api/session` and `/api/login` needs the session cookie, and every change also the header
-`X-CSRF-Token` with the token from the login. The endpoints are listed in
+`X-CSRF-Token` with the token from the login. Scripts use an
+[API token](user-guide.md#api-tokens) instead: `Authorization: Bearer stw_…`, no CSRF token. The
+endpoints, and which of them a token may call, are listed in
 [Architecture](architecture.md#login-and-api).

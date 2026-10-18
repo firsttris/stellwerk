@@ -236,6 +236,29 @@ copy is shown in full.
 The change is made on the server and synced to every device from there. Nothing is lost: a
 discarded side can be restored from the **Versions** tab.
 
+## API tokens
+
+**API tokens** in the sidebar: tokens for scripts and AI assistants such as Claude Code. Give a
+token a name (where it is used) and a scope, and click **Create token**. The token
+(`stw_…`) is shown this once; copy it then. Only its hash is stored, so a lost token cannot be
+shown again: revoke it and create a new one.
+
+| Scope | May |
+|---|---|
+| **Read** | the overview, live status, activity, and the folders on a device (the folder picker) |
+| **Manage** | also create and rename folders, set ignore patterns and apply shares |
+
+Removing or blocking devices, pairing, deleting folders, conflicts, versions and the tokens
+themselves need the login in the browser, whatever the scope. The list shows when each token was
+created and last used. **Revoke** turns it away at once. Setting a new admin password revokes
+every token.
+
+A token is sent as `Authorization: Bearer stw_…`:
+
+```sh
+curl -H "Authorization: Bearer stw_…" https://sync.example.org/api/overview
+```
+
 ## What happens on a device
 
 - The agent runs in the background as the user who installed it, without admin rights

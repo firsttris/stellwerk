@@ -5,6 +5,7 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 
+use super::access::{Manager, Reader};
 use super::error::{ApiError, ApiResult};
 use super::session::Admin;
 use stellwerk_engine::files::Keep;
@@ -57,7 +58,7 @@ fn device_view(app: &App, device: Device) -> DeviceView {
     }
 }
 
-pub async fn overview(State(app): State<App>, _: Admin) -> ApiResult<Json<Overview>> {
+pub async fn overview(State(app): State<App>, _: Reader) -> ApiResult<Json<Overview>> {
     let config = app.store().config().await?;
     let hub = app.hub();
     Ok(Json(Overview {
@@ -84,7 +85,7 @@ pub struct NewFolder {
 
 pub async fn create_folder(
     State(app): State<App>,
-    _: Admin,
+    _: Manager,
     Json(body): Json<NewFolder>,
 ) -> ApiResult<(StatusCode, Json<Folder>)> {
     let folder = app.store().create_folder(&body.label, now()).await?;
@@ -101,7 +102,7 @@ pub struct FolderPatch {
 
 pub async fn update_folder(
     State(app): State<App>,
-    _: Admin,
+    _: Manager,
     Path(id): Path<String>,
     Json(patch): Json<FolderPatch>,
 ) -> ApiResult<StatusCode> {
@@ -139,7 +140,7 @@ pub struct Revision {
 /// "Apply" in the matrix: all changes of the draft as one revision.
 pub async fn apply_shares(
     State(app): State<App>,
-    _: Admin,
+    _: Manager,
     Json(draft): Json<Draft>,
 ) -> ApiResult<Json<Revision>> {
     let revision = app.store().apply_shares(&draft.changes).await?;
@@ -199,7 +200,7 @@ pub struct BrowseQuery {
 /// The folder picker: a directory on the device, its home directory for an empty `path`.
 pub async fn browse_device(
     State(app): State<App>,
-    _: Admin,
+    _: Reader,
     Path(id): Path<String>,
     Query(query): Query<BrowseQuery>,
 ) -> ApiResult<Json<Directory>> {
@@ -300,7 +301,7 @@ pub struct EventQuery {
 
 pub async fn events(
     State(app): State<App>,
-    _: Admin,
+    _: Reader,
     Query(query): Query<EventQuery>,
 ) -> ApiResult<Json<Vec<Event>>> {
     let limit = query.limit.unwrap_or(50).min(500);

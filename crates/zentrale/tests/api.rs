@@ -46,11 +46,13 @@ async fn logged_in(router: &Router, app: &App) -> Browser {
     browser
 }
 
-/// A browser: remembers the session cookie and the CSRF token.
+/// A browser: remembers the session cookie and the CSRF token. With `bearer` it is a script
+/// that sends an API token instead.
 #[derive(Default)]
 struct Browser {
     cookie: Option<String>,
     csrf: Option<String>,
+    bearer: Option<String>,
 }
 
 impl Browser {
@@ -67,6 +69,9 @@ impl Browser {
         }
         if let Some(csrf) = &self.csrf {
             request = request.header("x-csrf-token", csrf);
+        }
+        if let Some(token) = &self.bearer {
+            request = request.header(header::AUTHORIZATION, format!("Bearer {token}"));
         }
         let body = match body {
             Some(json) => {
@@ -422,4 +427,92 @@ async fn parallel_wrong_logins_are_checked_one_after_another() {
         )
         .await;
     assert_eq!(status, StatusCode::OK);
+}
+
+/// A script with an API token of the given scope, created by the logged-in admin.
+async fn script(router: &Router, admin: &mut Browser, scope: &str) -> (Browser, String) {
+    let (status, created) = admin
+        .send(
+            router,
+            "POST",
+            "/api/tokens",
+            Some(json!({ "name": format!("{scope} script"), "scope": scope })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let secret = created["secret"].as_str().unwrap();
+    assert!(secret.starts_with("stw_"));
+    let script = Browser {
+        bearer: Some(secret.to_string()),
+        ..Browser::default()
+    };
+    (script, created["id"].as_str().unwrap().to_string())
+}
+
+#[tokio::test]
+async fn api_tokens_may_do_what_their_scope_allows() {
+    let (router, app, _dir) = app().await;
+    let mut admin = logged_in(&router, &app).await;
+    let (mut reader, reader_id) = script(&router, &mut admin, "read").await;
+    let (mut manager, _) = script(&router, &mut admin, "manage").await;
+
+    // Both read, without a CSRF token.
+    for script in [&mut reader, &mut manager] {
+        let (status, _) = script.send(&router, "GET", "/api/overview", None).await;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _) = script.send(&router, "GET", "/api/status", None).await;
+        assert_eq!(status, StatusCode::OK);
+    }
+
+    // Only "manage" changes folders and shares.
+    let new_folder = Some(json!({ "label": "Serien" }));
+    let (status, _) = reader
+        .send(&router, "POST", "/api/folders", new_folder.clone())
+        .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (status, folder) = manager
+        .send(&router, "POST", "/api/folders", new_folder)
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let (status, _) = manager
+        .send(
+            &router,
+            "POST",
+            "/api/shares",
+            Some(json!({ "changes": [] })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+
+    // Removing, pairing and the tokens themselves need the browser.
+    let folder_uri = format!("/api/folders/{}", folder["id"].as_str().unwrap());
+    let (status, _) = manager.send(&router, "DELETE", &folder_uri, None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (status, _) = manager
+        .send(&router, "POST", "/api/enrollments", None)
+        .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (status, _) = manager.send(&router, "GET", "/api/tokens", None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+
+    // The list shows when a token was last used, never the token.
+    let (status, tokens) = admin.send(&router, "GET", "/api/tokens", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(tokens.as_array().unwrap().len(), 2);
+    assert!(tokens[0]["lastUsedAt"].is_number());
+    assert!(tokens[0].get("secret").is_none());
+
+    // A revoked token is unknown at once.
+    let (status, _) = admin
+        .send(&router, "DELETE", &format!("/api/tokens/{reader_id}"), None)
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, _) = reader.send(&router, "GET", "/api/overview", None).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let mut unknown = Browser {
+        bearer: Some("stw_unknown".into()),
+        ..Browser::default()
+    };
+    let (status, _) = unknown.send(&router, "GET", "/api/overview", None).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
 }

@@ -71,6 +71,22 @@ browser ──HTTPS (proxy)──▶ Zentrale ◀──WSS (proxy)── agent
 - Behind a TLS proxy, the cookie gets `Secure` only if the proxy sets `X-Forwarded-Proto: https`
   (the examples in [installation](installation.md#reverse-proxy-and-tls) do).
 
+## API tokens
+
+- For scripts and AI assistants, the admin creates API tokens in the web UI (**API tokens**).
+  A token is 32 random bytes with the prefix `stw_`; the database stores only its SHA-256, and
+  the UI shows it once.
+- A token is sent as `Authorization: Bearer …`. The browser never sends it on its own, so it
+  needs no CSRF token.
+- Its scope limits it: **Read** sees the overview, status, activity and the folders on devices;
+  **Manage** also creates and renames folders, sets ignore patterns and applies shares. Removing
+  or blocking devices, pairing, deleting folders, conflicts, versions and the tokens themselves
+  are refused (`403`) to every token, so a leaked token cannot let a device in or throw one out.
+- A **Manage** token can still share a folder with any paired device, at any path there: treat it
+  like the admin password. Prefer **Read** where that is enough, give each script or assistant
+  its own token, and revoke the ones you no longer use (the list shows when each was last used).
+- A new admin password revokes every token, since whoever knew the old one may have made one.
+
 ## Pairing and device sign-in
 
 - **One-time code.** Random, valid for 15 minutes, usable once; the database stores only its
@@ -116,6 +132,7 @@ program to the devices.
 
 - [ ] The web port is reachable from outside only through HTTPS.
 - [ ] The admin password is long and used nowhere else.
+- [ ] Only the API tokens in use exist, each with the narrowest scope that works.
 - [ ] The data directory (or volume) is backed up, and the backup is protected like the server.
 - [ ] Waiting devices are approved only after comparing the fingerprint.
 - [ ] A lost or sold device is **blocked** or **removed** in the UI.

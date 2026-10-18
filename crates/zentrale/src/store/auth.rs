@@ -20,7 +20,8 @@ impl Store {
         Ok(row.map(|(hash,)| hash))
     }
 
-    /// Sets the password and logs out every session.
+    /// Sets the password, logs out every session and revokes every API token: whoever knew the
+    /// old password may have created one.
     pub async fn set_admin_password_hash(&self, hash: &str) -> Result<()> {
         let mut tx = self.write().await?;
         sqlx::query(
@@ -31,6 +32,9 @@ impl Store {
         .execute(&mut *tx)
         .await?;
         sqlx::query("DELETE FROM sessions")
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM api_tokens")
             .execute(&mut *tx)
             .await?;
         tx.commit().await?;

@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Folder,
+  KeyRound,
   Languages,
   LayoutGrid,
   LogOut,
@@ -95,6 +96,10 @@ export function Layout({ children }: { children: ReactNode }) {
                 {conflicts}
               </span>
             )}
+          </Link>
+          <Link to="/tokens" className={navLink} activeProps={{ className: navActive }}>
+            <KeyRound aria-hidden="true" />
+            {m.nav_tokens()}
           </Link>
         </nav>
         <div className="mt-auto flex flex-col gap-3">

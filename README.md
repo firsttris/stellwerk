@@ -111,6 +111,8 @@ first run is in [Getting started](https://firsttris.github.io/stellwerk/getting-
   the agent at login as the current user, without admin rights, on Linux, macOS and Windows.
 - **Signed sign-in**: after pairing, the agent signs in with its own Ed25519 key; a device can be
   blocked or removed in the UI.
+- **API tokens**: scripts and AI assistants get their own token, read-only or allowed to manage
+  folders and shares; devices, pairing and the tokens themselves stay with the browser login.
 
 ### 🗄️ The server holds everything
 
