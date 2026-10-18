@@ -114,6 +114,16 @@ first run is in [Getting started](https://firsttris.github.io/stellwerk/getting-
 - **API tokens**: scripts and AI assistants get their own token, read-only or allowed to manage
   folders and shares; devices, pairing and the tokens themselves stay with the browser login.
 
+### 🤖 Ask Claude to set it up
+
+- **MCP server built in**: the Zentrale speaks the Model Context Protocol at `/mcp`. Add it to
+  Claude Code with the command shown when you create a token, then say "Sync Game of Thrones
+  from the NAS to my laptop".
+- **Finds the files for you**: the assistant searches the device by name, creates the folder and
+  shows a preview with the size before anything is applied.
+- **Safe by scope**: a read-only token can look and preview; only a "manage" token applies, and
+  devices, pairing and deleting stay with the browser login.
+
 ### 🗄️ The server holds everything
 
 - **Hub in every folder**: the server keeps a full copy of each folder, with versions for a year.

@@ -135,4 +135,5 @@ The web UI uses the API under `/api`; it is not a stable public interface yet. E
 `X-CSRF-Token` with the token from the login. Scripts use an
 [API token](user-guide.md#api-tokens) instead: `Authorization: Bearer stw_…`, no CSRF token. The
 endpoints, and which of them a token may call, are listed in
-[Architecture](architecture.md#login-and-api).
+[Architecture](architecture.md#login-and-api). AI assistants use the
+[MCP server](user-guide.md#claude-code-and-other-assistants-mcp) at `/mcp` with the same tokens.

@@ -12,7 +12,7 @@ import { Badge, Card } from "../../components/ui/card";
 import { Field, Input, Select } from "../../components/ui/input";
 import { errorMessage } from "../../lib/errors";
 import { nowSeconds } from "../../lib/format";
-import { scopeLabel, TOKEN_SCOPES, tokenUsage } from "../../lib/tokens";
+import { claudeCommand, scopeLabel, TOKEN_SCOPES, tokenUsage } from "../../lib/tokens";
 import { m } from "../../paraglide/messages.js";
 
 export const Route = createFileRoute("/_app/tokens")({ component: Tokens });
@@ -116,6 +116,12 @@ function NewSecret({ token }: { token: CreatedToken }) {
       <span className="font-medium">{m.tokens_created_title({ name: token.name })}</span>
       <CopyableCode text={token.secret} label={m.tokens_copy()} />
       <span className="text-sm text-muted-foreground">{m.tokens_shown_once()}</span>
+      <span className="mt-2 text-sm font-medium">{m.tokens_claude_title()}</span>
+      <CopyableCode
+        text={claudeCommand(window.location.origin, token.secret)}
+        label={m.tokens_claude_copy()}
+      />
+      <span className="text-sm text-muted-foreground">{m.tokens_claude_hint()}</span>
     </Card>
   );
 }

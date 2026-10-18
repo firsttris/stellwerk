@@ -86,6 +86,11 @@ browser ──HTTPS (proxy)──▶ Zentrale ◀──WSS (proxy)── agent
   like the admin password. Prefer **Read** where that is enough, give each script or assistant
   its own token, and revoke the ones you no longer use (the list shows when each was last used).
 - A new admin password revokes every token, since whoever knew the old one may have made one.
+- The MCP server at `/mcp` takes only API tokens, never the session cookie, and offers a token
+  only the tools of its scope. It refuses requests whose `Origin` names another host, so a web
+  page cannot reach it through your browser. An assistant with a **Manage** token can set up
+  any share a person could in the matrix; Claude Code asks before each tool that changes
+  something, so keep that prompt on for `apply_shares`.
 
 ## Pairing and device sign-in
 

@@ -13,6 +13,9 @@ test("an API token is shown once and can be revoked", async ({ page }) => {
   await page.getByRole("button", { name: "Token erstellen" }).click();
   const created = page.getByRole("status").filter({ hasText: "Token „Backup-Skript“ erstellt" });
   await expect(created.getByText(/^stw_/)).toBeVisible();
+  await expect(
+    created.getByText(/^claude mcp add --transport http --scope user stellwerk http:\/\/.+\/mcp/),
+  ).toBeVisible();
   await expect(list.getByText("Backup-Skript")).toBeVisible();
   await expect(list.getByText("noch nie benutzt", { exact: false })).toBeVisible();
 

@@ -179,6 +179,7 @@ login, and a request with a token gets `403` there. A new password revokes every
 | `GET /api/status` | live status of devices and hub | R |
 | `GET /api/ws` | WebSocket with an `update` per change: revision, online devices, live status | |
 | `GET`/`POST /api/tokens`, `DELETE /api/tokens/{id}` | list, create (the token is in the answer this once), revoke API tokens | |
+| `POST /mcp` | the MCP server (see below) | R/M |
 
 Every change raises the revision and sends connected agents and the hub their new desired state.
 A failed hub reconcile (hub API briefly unreachable, a refused call) is retried after 1 second,
@@ -197,6 +198,31 @@ device and one for the hub, as pure functions. The topology is a star:
 - a Syncthing device ID is one peer, even if two devices report it; the store turns away a
   device whose Syncthing ID already belongs to another one.
 
+## MCP server
+
+`crates/zentrale/src/mcp`: the Zentrale answers the [Model Context
+Protocol](https://modelcontextprotocol.io/specification) at `POST /mcp`, so assistants such as
+Claude Code can steer it. Streamable HTTP in its simplest form: each POST carries one JSON-RPC
+message and gets one JSON answer (`202` for a notification); there are no sessions and no
+server-sent events, so `GET` and `DELETE` are `405`. It speaks the protocol versions 2025-11-25
+back to 2024-11-05 and answers `initialize`, `ping`, `tools/list` and `tools/call`.
+
+Only API tokens get in (`401` with `WWW-Authenticate: Bearer` otherwise); `tools/list` shows a
+token the tools of its scope. A request with an `Origin` of another host is refused.
+
+| Module | Does |
+|---|---|
+| `rpc` | JSON-RPC messages, errors, version negotiation, the `initialize` answer |
+| `tools` | the seven tools with their annotations (`readOnlyHint`, `destructiveHint`), and what each calls in the Zentrale |
+| `schemas` | the JSON Schemas of the tools' arguments |
+| `views` | pure functions: devices and folders by ID or name, and a draft checked against the configuration, with the paths it gets (the store's default for a new share) and a description with the folder's size |
+
+`preview_shares` and `apply_shares` take the same draft: cells of folder, device, mode
+(`sendReceive`, `sendOnly`, `receiveOnly`, `off`) and an optional path. The preview runs the
+same check and changes nothing; applying writes the cells that change in one revision through
+the same store function as `POST /api/shares`. The instructions sent on `initialize` tell the
+assistant the order: find, create, preview, ask, apply.
+
 ## Web UI
 
 `web/`: React with TanStack Router (file-based routes), Query and Table, Tailwind 4 with design
@@ -213,8 +239,8 @@ of the Zentrale embeds `web/dist`; paths outside `/api` fall back to `index.html
 - **Folders**: mode and local path per device; versions per file with restore; conflicts side by
   side; rename, ignore patterns (one per line, on every device and the hub), remove.
 - **Conflicts**: every conflict of every folder in one list.
-- **API tokens**: create a token for a script or assistant (shown once), see when each was last
-  used, revoke it.
+- **API tokens**: create a token for a script or assistant (shown once, with the command that adds
+  the MCP server to Claude Code), see when each was last used, revoke it.
 
 The [user guide](user-guide.md) describes each page in detail.
 

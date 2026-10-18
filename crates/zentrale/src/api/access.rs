@@ -29,10 +29,17 @@ pub fn bearer(headers: &HeaderMap) -> Option<&str> {
 
 /// What the caller may do.
 async fn caller_scope(parts: &mut Parts, app: &App) -> ApiResult<Scope> {
-    let Some(token) = bearer(&parts.headers) else {
-        Admin::from_request_parts(parts, app).await?;
-        return Ok(Scope::Manage);
-    };
+    if bearer(&parts.headers).is_some() {
+        return token_scope(app, &parts.headers).await;
+    }
+    Admin::from_request_parts(parts, app).await?;
+    Ok(Scope::Manage)
+}
+
+/// The scope of the API token the request carries; without a known token it is refused.
+pub async fn token_scope(app: &App, headers: &HeaderMap) -> ApiResult<Scope> {
+    let token = bearer(headers)
+        .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "an API token is needed"))?;
     let token = app
         .store()
         .use_api_token(&token_hash(token), now())
