@@ -57,7 +57,11 @@ async fn the_picker_lists_a_directory_on_a_connected_device() {
         .await
         .unwrap();
     let paths: Vec<&str> = found.dirs.iter().map(|e| e.path.as_str()).collect();
-    let thrones = tmp.path().join("Media/Serien/Game.of.Thrones");
+    let thrones = tmp
+        .path()
+        .join("Media")
+        .join("Serien")
+        .join("Game.of.Thrones");
     assert_eq!(paths, [thrones.to_string_lossy()]);
     assert!(!found.truncated);
 

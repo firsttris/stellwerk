@@ -161,7 +161,12 @@ mod tests {
         assert_eq!(names(&found), ["Game.of.Thrones", "Game of Thrones"]);
         assert_eq!(
             found.dirs[1].path,
-            text(&dir.path().join("Media/Serien/Game of Thrones"))
+            text(
+                &dir.path()
+                    .join("Media")
+                    .join("Serien")
+                    .join("Game of Thrones")
+            )
         );
         assert_eq!(found.root, text(dir.path()));
         assert!(!found.truncated);

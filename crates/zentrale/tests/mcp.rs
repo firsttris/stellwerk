@@ -78,7 +78,7 @@ async fn an_assistant_finds_a_folder_and_syncs_it_to_another_device() {
     .await;
 
     let media = tmp.path().join("media");
-    let thrones = media.join("Serien/Game.of.Thrones");
+    let thrones = media.join("Serien").join("Game.of.Thrones");
     std::fs::create_dir_all(thrones.join("S01")).unwrap();
     std::fs::write(thrones.join("S01/E01.txt"), "Winter is coming").unwrap();
 
@@ -133,7 +133,7 @@ async fn an_assistant_finds_a_folder_and_syncs_it_to_another_device() {
         .unwrap();
     assert_eq!(folder["label"], "Game of Thrones");
 
-    let target = tmp.path().join("laptop-files/Game of Thrones");
+    let target = tmp.path().join("laptop-files").join("Game of Thrones");
     let draft = json!({ "changes": [
         { "folder": "Game of Thrones", "device": "nas", "mode": "sendOnly", "path": source },
         { "folder": "Game of Thrones", "device": "laptop", "mode": "receiveOnly",
