@@ -1,5 +1,5 @@
-//! The folder picker end to end: the UI's request goes through the Zentrale to a real agent
-//! and its listing of the device's directories comes back.
+//! The folder picker and the search end to end: the request goes through the Zentrale to a
+//! real agent and its listing of the device's directories comes back.
 
 mod common;
 
@@ -45,6 +45,25 @@ async fn the_picker_lists_a_directory_on_a_connected_device() {
         matches!(missing, Err(BrowseError::Failed(_))),
         "{missing:?}"
     );
+
+    std::fs::create_dir_all(tmp.path().join("Media/Serien/Game.of.Thrones/S01")).unwrap();
+    let found = zentrale
+        .app
+        .search(
+            &device.id,
+            tmp.path().to_string_lossy().into_owned(),
+            "game of thrones".into(),
+        )
+        .await
+        .unwrap();
+    let paths: Vec<&str> = found.dirs.iter().map(|e| e.path.as_str()).collect();
+    let thrones = tmp
+        .path()
+        .join("Media")
+        .join("Serien")
+        .join("Game.of.Thrones");
+    assert_eq!(paths, [thrones.to_string_lossy()]);
+    assert!(!found.truncated);
 
     agent.stop().await;
     wait_for("the device to go offline", || async {

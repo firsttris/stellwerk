@@ -194,6 +194,23 @@ export const directorySchema = z.object({
 });
 export type Directory = z.infer<typeof directorySchema>;
 
+export const tokenScopeSchema = z.enum(["read", "manage"]);
+export type TokenScope = z.infer<typeof tokenScopeSchema>;
+
+/** An API token for scripts and AI assistants; the token itself is never listed. */
+export const apiTokenSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  scope: tokenScopeSchema,
+  createdAt: z.number(),
+  lastUsedAt: z.number().nullable(),
+});
+export type ApiToken = z.infer<typeof apiTokenSchema>;
+
+/** A new token with its secret, shown this once. */
+export const createdTokenSchema = apiTokenSchema.extend({ secret: z.string() });
+export type CreatedToken = z.infer<typeof createdTokenSchema>;
+
 export type Keep = "original" | "copy" | "both";
 
 /** One cell of the matrix as the API takes it; `mode: null` is "off". */
@@ -231,6 +248,9 @@ export type Api = {
   resolveConflict(folderId: string, path: string, keep: Keep): Promise<void>;
   versions(folderId: string): Promise<FileVersions[]>;
   restoreVersion(folderId: string, path: string, versionTime: string): Promise<void>;
+  tokens(): Promise<ApiToken[]>;
+  createToken(name: string, scope: TokenScope): Promise<CreatedToken>;
+  deleteToken(id: string): Promise<void>;
 };
 
 export class ApiError extends Error {

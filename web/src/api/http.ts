@@ -2,7 +2,9 @@ import type { z } from "zod";
 import {
   type Api,
   ApiError,
+  apiTokenSchema,
   conflictContentSchema,
+  createdTokenSchema,
   deviceSchema,
   directorySchema,
   enrollmentSchema,
@@ -127,5 +129,11 @@ export function httpApi(): Api {
     },
     events: (limit = 20) =>
       request("GET", `/api/events?limit=${limit}`).then(parsed(eventSchema.array())),
+    tokens: () => request("GET", "/api/tokens").then(parsed(apiTokenSchema.array())),
+    createToken: (name, scope) =>
+      request("POST", "/api/tokens", { name, scope }).then(parsed(createdTokenSchema)),
+    deleteToken: async (id) => {
+      await request("DELETE", `/api/tokens/${encodeURIComponent(id)}`);
+    },
   };
 }

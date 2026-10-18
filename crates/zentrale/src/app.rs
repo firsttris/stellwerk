@@ -4,16 +4,17 @@
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
 
 use tokio::sync::watch;
 
 use stellwerk_engine::Client;
 use stellwerk_engine::files::Conflict;
 use stellwerk_engine::monitor::Snapshot;
-use stellwerk_protocol::messages::Directory;
+use stellwerk_protocol::messages::{Directory, Matches};
 use stellwerk_protocol::status::FolderStatus;
 
-use crate::browse::{self, BrowseError, Jobs};
+use crate::browse::{self, BrowseError, Jobs, Request};
 use crate::ca::Ca;
 use crate::live::{DeviceLive, Live};
 use crate::model::Hub;
@@ -196,8 +197,30 @@ impl App {
 
     /// A directory on a connected device, for the folder picker.
     pub async fn browse(&self, device_id: &str, path: String) -> Result<Directory, BrowseError> {
+        let request = Request::Browse { path };
+        browse::listing(self.ask(device_id, request, browse::ANSWER_TIMEOUT).await?)
+    }
+
+    /// Directories on a connected device whose name matches `query`, below `path` (its home
+    /// directory when empty).
+    pub async fn search(
+        &self,
+        device_id: &str,
+        path: String,
+        query: String,
+    ) -> Result<Matches, BrowseError> {
+        let request = Request::Search { path, query };
+        browse::matches(self.ask(device_id, request, browse::SEARCH_TIMEOUT).await?)
+    }
+
+    async fn ask(
+        &self,
+        device_id: &str,
+        request: Request,
+        timeout: Duration,
+    ) -> Result<browse::Answer, BrowseError> {
         let jobs = self.online().get(device_id).map(|c| c.jobs.clone());
-        browse::ask(jobs, path, browse::ANSWER_TIMEOUT).await
+        browse::ask(jobs, request, timeout).await
     }
 
     pub fn ca(&self) -> Option<&Ca> {

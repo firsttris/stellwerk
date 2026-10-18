@@ -12,6 +12,7 @@ pub mod discovery;
 pub mod files;
 pub mod hub;
 pub mod live;
+pub mod mcp;
 pub mod model;
 pub mod pairing;
 pub mod server;

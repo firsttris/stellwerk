@@ -236,6 +236,59 @@ copy is shown in full.
 The change is made on the server and synced to every device from there. Nothing is lost: a
 discarded side can be restored from the **Versions** tab.
 
+## API tokens
+
+**API tokens** in the sidebar: tokens for scripts and AI assistants such as Claude Code. Give a
+token a name (where it is used) and a scope, and click **Create token**. The token
+(`stw_…`) is shown this once; copy it then. Only its hash is stored, so a lost token cannot be
+shown again: revoke it and create a new one.
+
+| Scope | May |
+|---|---|
+| **Read** | the overview, live status, activity, and the folders on a device (the folder picker) |
+| **Manage** | also create and rename folders, set ignore patterns and apply shares |
+
+Removing or blocking devices, pairing, deleting folders, conflicts, versions and the tokens
+themselves need the login in the browser, whatever the scope. The list shows when each token was
+created and last used. **Revoke** turns it away at once. Setting a new admin password revokes
+every token.
+
+A token is sent as `Authorization: Bearer stw_…`:
+
+```sh
+curl -H "Authorization: Bearer stw_…" https://sync.example.org/api/overview
+```
+
+### Claude Code and other assistants (MCP)
+
+The Zentrale is an [MCP](https://modelcontextprotocol.io) server at `/mcp`, so an AI assistant
+can set up syncing for you: "Sync Game of Thrones from the NAS to my laptop." After creating a
+token, the page shows the command that adds it to Claude Code:
+
+```sh
+claude mcp add --transport http --scope user stellwerk https://sync.example.org/mcp \
+  --header "Authorization: Bearer stw_…"
+```
+
+`claude mcp list` should then show `stellwerk … Connected`. Other MCP clients take the same URL
+and header (transport "Streamable HTTP").
+
+| Tool | Does | Scope |
+|---|---|---|
+| `list_devices` | the paired devices, online or not | Read |
+| `list_folders` | the folders with their size on the server and, per device, mode, path and sync state | Read |
+| `browse_device` | the subdirectories of a directory on an online device, like the folder picker | Read |
+| `search_device` | directories on an online device by name ("game of thrones" finds `Game.of.Thrones.S01`), from the home directory or a given path | Read |
+| `preview_shares` | checks a draft of modes and paths and describes it, with the folder's size; changes nothing | Read |
+| `create_folder` | a new folder on the server | Manage |
+| `apply_shares` | applies the draft as one revision, like **Apply** in the matrix | Manage |
+
+The assistant is told to show you the preview, including how much space the folder needs on the
+server and on each receiving device, before it applies anything; Claude Code also asks before
+each tool that changes something. Applying changes the configuration only: switching a device
+**off** for a folder leaves its files where they are. A device has to be online to be searched
+or browsed; an agent older than v0.1.10 does not answer a search.
+
 ## What happens on a device
 
 - The agent runs in the background as the user who installed it, without admin rights

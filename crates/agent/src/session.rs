@@ -10,7 +10,7 @@ use futures_util::{SinkExt, StreamExt};
 use stellwerk_engine::Client;
 use stellwerk_engine::monitor::Snapshot;
 use stellwerk_protocol::messages::{
-    AgentMessage, Applied, ApplyError, Directory, Hello, ServerMessage, Status,
+    AgentMessage, Applied, ApplyError, Directory, Hello, Matches, ServerMessage, Status,
 };
 use stellwerk_protocol::{DesiredState, DeviceId};
 use tokio::sync::watch;
@@ -83,6 +83,9 @@ pub async fn run(
     ping.set_missed_tick_behavior(MissedTickBehavior::Delay);
     let mut deadline = Instant::now() + heartbeat.silence;
     let mut welcomed = false;
+    // Folder listings and searches run on their own and send their answer through here, so a
+    // search of up to 10 s holds up neither the desired state nor the folder picker.
+    let (answer_tx, mut answers) = tokio::sync::mpsc::unbounded_channel();
     loop {
         tokio::select! {
             frame = tokio::time::timeout_at(deadline, next_frame(&mut stream)) => {
@@ -113,13 +116,24 @@ pub async fn run(
                         tracing::info!(%fingerprint, "waiting for approval in the Zentrale's UI; check that it shows this fingerprint");
                     }
                     ServerMessage::Browse { id, path } => {
-                        let result = browse(path).await;
-                        send(&mut sink, &AgentMessage::Listing { id, result }).await?;
+                        let answer = answer_tx.clone();
+                        tokio::spawn(async move {
+                            let result = browse(path).await;
+                            let _ = answer.send(AgentMessage::Listing { id, result });
+                        });
+                    }
+                    ServerMessage::Search { id, path, query } => {
+                        let answer = answer_tx.clone();
+                        tokio::spawn(async move {
+                            let result = search(path, query).await;
+                            let _ = answer.send(AgentMessage::Matches { id, result });
+                        });
                     }
                     ServerMessage::Rejected { reason } => return Ok(End::Rejected(reason)),
                     ServerMessage::Challenge { .. } => {}
                 }
             }
+            Some(answer) = answers.recv() => send(&mut sink, &answer).await?,
             _ = ping.tick() => sink.send(Message::Ping(Default::default())).await?,
             changed = status.changed(), if welcomed => {
                 if changed.is_err() {
@@ -153,6 +167,20 @@ async fn browse(path: String) -> Result<Directory, String> {
     tokio::task::spawn_blocking(move || crate::browse::list(&path, dirs::home_dir().as_deref()))
         .await
         .unwrap_or_else(|err| Err(err.to_string()))
+}
+
+/// Directories found by name, searched off the async runtime.
+async fn search(path: String, query: String) -> Result<Matches, String> {
+    tokio::task::spawn_blocking(move || {
+        crate::search::search(
+            &path,
+            &query,
+            dirs::home_dir().as_deref(),
+            crate::search::LIMITS,
+        )
+    })
+    .await
+    .unwrap_or_else(|err| Err(err.to_string()))
 }
 
 /// Reconciles the local Syncthing; whatever fails becomes an error in the report.
@@ -358,5 +386,50 @@ mod tests {
         assert_eq!(id, 42);
         let names: Vec<String> = result.unwrap().dirs.into_iter().map(|e| e.name).collect();
         assert_eq!(names, ["Fotos"]);
+    }
+
+    #[tokio::test]
+    async fn a_running_search_does_not_hold_up_a_browse_request() {
+        // Enough directories that walking them all takes far longer than listing one.
+        let dir = tempfile::tempdir().unwrap();
+        for a in 0..30 {
+            for b in 0..30 {
+                for c in 0..30 {
+                    std::fs::create_dir_all(dir.path().join(format!("{a}/{b}/{c}"))).unwrap();
+                }
+            }
+        }
+        let path = dir.path().to_string_lossy().into_owned();
+        let (first_tx, first_rx) = tokio::sync::oneshot::channel();
+        let url = zentrale(move |mut socket| async move {
+            let search = ServerMessage::Search {
+                id: 1,
+                path: path.clone(),
+                query: "nowhere to be found".into(),
+            };
+            let browse = ServerMessage::Browse { id: 2, path };
+            for message in [search, browse] {
+                let text = serde_json::to_string(&message).unwrap();
+                socket.send(Message::text(text)).await.unwrap();
+            }
+            while let Some(Ok(frame)) = socket.next().await {
+                let Message::Text(text) = frame else { continue };
+                if let Ok(AgentMessage::Listing { id, .. } | AgentMessage::Matches { id, .. }) =
+                    serde_json::from_str(&text)
+                {
+                    let _ = first_tx.send(id);
+                    break;
+                }
+            }
+            tokio::time::sleep(Duration::from_secs(10)).await;
+        })
+        .await;
+        let running = tokio::spawn(session(url));
+        let first = tokio::time::timeout(Duration::from_secs(20), first_rx)
+            .await
+            .unwrap()
+            .unwrap();
+        running.abort();
+        assert_eq!(first, 2, "the listing should not wait for the search");
     }
 }

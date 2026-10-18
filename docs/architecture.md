@@ -87,6 +87,8 @@ field (`crates/protocol/src/messages.rs`).
 | Zentrale → agent | `waiting` | LAN pairing: the agent is unknown and came without a code; its key's fingerprint. The socket stays open until the UI decides |
 | Zentrale → agent | `browse` | the folder picker: a request ID and a path (empty for the home directory) |
 | agent → Zentrale | `listing` | the answer under the same ID: the directory, its parent, its subdirectories by name and path, the home directory and the file system roots; or why it could not be read |
+| Zentrale → agent | `search` | a request ID, a path to start at (empty for the home directory) and a name to look for |
+| agent → Zentrale | `matches` | the answer under the same ID: the start directory, the directories whose name holds every word of the query (shallower first, nothing listed below a match), and whether the search stopped early; or why it could not start |
 | Zentrale → agent | `rejected` | why; the socket closes |
 
 The desired state is always complete, never a diff: an agent that was offline for three days just
@@ -145,6 +147,7 @@ SQLite with migrations embedded in the binary (`crates/zentrale/migrations`).
 | `config_rev` | one revision number, raised in the same transaction as every change |
 | `events` | at, device, folder, kind, text (activity feed) |
 | `admin`, `sessions` | login |
+| `api_tokens` | id, name, scope, token_hash, created_at, last_used_at |
 
 ### Login and API
 
@@ -153,21 +156,30 @@ sets an HttpOnly, SameSite=Strict session cookie (Secure behind HTTPS) and retur
 the UI sends back in `X-CSRF-Token` on every change. Only hashes of session tokens and pairing
 codes are stored.
 
-| Endpoint | Does |
-|---|---|
-| `GET /api/session`, `POST /api/login`, `POST /api/logout` | login state, log in, log out |
-| `GET /api/overview` | revision, hub, devices (with online state), folders, shares |
-| `POST /api/folders`, `PATCH`/`DELETE /api/folders/{id}` | create; rename or set ignore patterns; remove a folder |
-| `POST /api/shares` | apply a draft of modes and paths as one revision |
-| `PATCH`/`DELETE /api/devices/{id}` | rename, block, unblock, remove a device |
-| `GET /api/devices/{id}/browse?path=` | the folder picker: a directory on an online device, asked of its agent (409 offline, 504 no answer) |
-| `POST /api/enrollments`, `POST /api/enrollments/status` | new pairing code, has a device used it yet |
-| `POST /api/waiting/{fingerprint}/approve`, `…/reject` | decide about a device waiting in the LAN |
-| `GET /api/folders/{id}/conflicts/content`, `POST …/conflicts/resolve` | both sides of a conflict, resolve it |
-| `GET /api/folders/{id}/versions`, `POST …/versions/restore` | versions on the hub, restore one |
-| `GET /api/events` | activity feed |
-| `GET /api/status` | live status of devices and hub |
-| `GET /api/ws` | WebSocket with an `update` per change: revision, online devices, live status |
+Scripts and AI assistants use an API token instead (`Authorization: Bearer stw_…`, no CSRF
+token; `crates/zentrale/src/api/access.rs`). Its scope decides what it may call: **read** the
+endpoints marked R below, **manage** also those marked M. Everything else needs the browser
+login, and a request with a token gets `403` there. A new password revokes every token.
+
+| Endpoint | Does | Token |
+|---|---|---|
+| `GET /api/session`, `POST /api/login`, `POST /api/logout` | login state, log in, log out | |
+| `GET /api/overview` | revision, hub, devices (with online state), folders, shares | R |
+| `POST /api/folders`, `PATCH /api/folders/{id}` | create; rename or set ignore patterns | M |
+| `DELETE /api/folders/{id}` | remove a folder | |
+| `POST /api/shares` | apply a draft of modes and paths as one revision | M |
+| `PATCH`/`DELETE /api/devices/{id}` | rename, block, unblock, remove a device | |
+| `GET /api/devices/{id}/browse?path=` | the folder picker: a directory on an online device, asked of its agent (409 offline, 504 no answer) | R |
+| `GET /api/devices/{id}/search?q=&path=` | directories on an online device whose name matches `q`, below `path` (the home directory when empty); asked of its agent like `browse` | R |
+| `POST /api/enrollments`, `POST /api/enrollments/status` | new pairing code, has a device used it yet | |
+| `POST /api/waiting/{fingerprint}/approve`, `…/reject` | decide about a device waiting in the LAN | |
+| `GET /api/folders/{id}/conflicts/content`, `POST …/conflicts/resolve` | both sides of a conflict, resolve it | |
+| `GET /api/folders/{id}/versions`, `POST …/versions/restore` | versions on the hub, restore one | |
+| `GET /api/events` | activity feed | R |
+| `GET /api/status` | live status of devices and hub | R |
+| `GET /api/ws` | WebSocket with an `update` per change: revision, online devices, live status | |
+| `GET`/`POST /api/tokens`, `DELETE /api/tokens/{id}` | list, create (the token is in the answer this once), revoke API tokens | |
+| `POST /mcp` | the MCP server (see below) | R/M |
 
 Every change raises the revision and sends connected agents and the hub their new desired state.
 A failed hub reconcile (hub API briefly unreachable, a refused call) is retried after 1 second,
@@ -186,6 +198,31 @@ device and one for the hub, as pure functions. The topology is a star:
 - a Syncthing device ID is one peer, even if two devices report it; the store turns away a
   device whose Syncthing ID already belongs to another one.
 
+## MCP server
+
+`crates/zentrale/src/mcp`: the Zentrale answers the [Model Context
+Protocol](https://modelcontextprotocol.io/specification) at `POST /mcp`, so assistants such as
+Claude Code can steer it. Streamable HTTP in its simplest form: each POST carries one JSON-RPC
+message and gets one JSON answer (`202` for a notification); there are no sessions and no
+server-sent events, so `GET` and `DELETE` are `405`. It speaks the protocol versions 2025-11-25
+back to 2024-11-05 and answers `initialize`, `ping`, `tools/list` and `tools/call`.
+
+Only API tokens get in (`401` with `WWW-Authenticate: Bearer` otherwise); `tools/list` shows a
+token the tools of its scope. A request with an `Origin` of another host is refused.
+
+| Module | Does |
+|---|---|
+| `rpc` | JSON-RPC messages, errors, version negotiation, the `initialize` answer |
+| `tools` | the seven tools with their annotations (`readOnlyHint`, `destructiveHint`), and what each calls in the Zentrale |
+| `schemas` | the JSON Schemas of the tools' arguments |
+| `views` | pure functions: devices and folders by ID or name, and a draft checked against the configuration, with the paths it gets (the store's default for a new share) and a description with the folder's size |
+
+`preview_shares` and `apply_shares` take the same draft: cells of folder, device, mode
+(`sendReceive`, `sendOnly`, `receiveOnly`, `off`) and an optional path. The preview runs the
+same check and changes nothing; applying writes the cells that change in one revision through
+the same store function as `POST /api/shares`. The instructions sent on `initialize` tell the
+assistant the order: find, create, preview, ask, apply.
+
 ## Web UI
 
 `web/`: React with TanStack Router (file-based routes), Query and Table, Tailwind 4 with design
@@ -202,6 +239,8 @@ of the Zentrale embeds `web/dist`; paths outside `/api` fall back to `index.html
 - **Folders**: mode and local path per device; versions per file with restore; conflicts side by
   side; rename, ignore patterns (one per line, on every device and the hub), remove.
 - **Conflicts**: every conflict of every folder in one list.
+- **API tokens**: create a token for a script or assistant (shown once, with the command that adds
+  the MCP server to Claude Code), see when each was last used, revoke it.
 
 The [user guide](user-guide.md) describes each page in detail.
 
@@ -279,6 +318,15 @@ while the Zentrale is unreachable, so syncing with the hub goes on with the last
 Syncthing runs with `--no-restart`: if it exits (a crash, or a restart asked for over its API),
 the agent exits with an error and the service manager starts both again. The Zentrale does the
 same with the hub Syncthing and leaves the restart to Docker or systemd.
+
+**Directories on request** (`crates/agent/src/browse.rs`, `search.rs`): `browse` lists the
+subdirectories of one directory for the folder picker; `search` walks breadth first from a start
+directory and returns the directories whose name holds every word of the query as word prefixes,
+in order ("game of thrones" finds `Game.of.Thrones.S01`), without looking below a match. It skips
+hidden directories, follows no symbolic links and stops after 8 levels, 50 matches or 10 seconds,
+saying so (`truncated`). Both run off the async runtime and next to each other, so a search
+holds up neither the folder picker nor a new desired state; an agent that does not know a request leaves it
+unanswered, and the Zentrale reports "update its agent" after its timeout.
 
 Its Syncthing listens on a random port on all interfaces, with discovery, relays and NAT
 traversal off: the device dials the hub at the address from the desired state, and the hub,

@@ -10,6 +10,7 @@ use axum::http::{HeaderMap, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
+use super::access::bearer;
 use super::error::{ApiError, ApiResult};
 use crate::app::App;
 use crate::auth::{new_token, same_token, token_hash, verify_password};
@@ -50,6 +51,12 @@ impl FromRequestParts<App> for Admin {
     type Rejection = ApiError;
 
     async fn from_request_parts(parts: &mut Parts, app: &App) -> Result<Self, Self::Rejection> {
+        if bearer(&parts.headers).is_some() {
+            return Err(ApiError::new(
+                StatusCode::FORBIDDEN,
+                "an API token cannot do this; log in to the web UI",
+            ));
+        }
         let session = current_session(&parts.headers, app)
             .await?
             .ok_or_else(ApiError::unauthorized)?;

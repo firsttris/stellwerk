@@ -1,5 +1,6 @@
 import type {
   ActivityEvent,
+  ApiToken,
   Conflict,
   ConflictContent,
   Device,
@@ -28,6 +29,7 @@ export type DemoState = {
   versions: Record<string, FileVersions[]>;
   /** Agents in the LAN waiting for approval. */
   waiting: WaitingDevice[];
+  tokens: ApiToken[];
 };
 
 export const DEMO_CONFLICT_PATH = "haul/src/config.sync-conflict-20261012-103112-WORKBEN.ts";
@@ -219,7 +221,16 @@ export function demoState(now: number): DemoState {
       since: now - 40,
     },
   ];
-  return { revision: 12, devices, folders, shares, events, conflicts, versions, waiting };
+  const tokens: ApiToken[] = [
+    {
+      id: "token-claude",
+      name: "Claude Code",
+      scope: "manage",
+      createdAt: now - 9 * DAY,
+      lastUsedAt: now - 2 * 3600,
+    },
+  ];
+  return { revision: 12, devices, folders, shares, events, conflicts, versions, waiting, tokens };
 }
 
 const folderView = (globalFiles: number, globalBytes: number, extra: Partial<FolderView> = {}) =>

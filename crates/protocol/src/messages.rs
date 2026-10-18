@@ -13,6 +13,9 @@
 //! 5. Zentrale → agent, any time after the welcome: [`ServerMessage::Browse`] when the UI's
 //!    folder picker opens a directory on the device; the agent answers with
 //!    [`AgentMessage::Listing`] under the same `id`. Agents up to v0.1.5 skip it unanswered.
+//! 6. Zentrale → agent, any time after the welcome: [`ServerMessage::Search`] when a script or
+//!    assistant looks for a directory by name; the agent answers with [`AgentMessage::Matches`]
+//!    under the same `id`. Agents up to v0.1.9 skip it unanswered.
 
 use serde::{Deserialize, Serialize};
 
@@ -51,6 +54,13 @@ pub enum ServerMessage {
         id: u64,
         path: String,
     },
+    /// Find the directories below `path` (absolute, or empty for the home directory) whose name
+    /// contains every word of `query`.
+    Search {
+        id: u64,
+        path: String,
+        query: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,6 +74,11 @@ pub enum AgentMessage {
     Listing {
         id: u64,
         result: Result<Directory, String>,
+    },
+    /// The answer to the [`ServerMessage::Search`] with this `id`.
+    Matches {
+        id: u64,
+        result: Result<Matches, String>,
     },
 }
 
@@ -86,6 +101,18 @@ pub struct Directory {
 pub struct Entry {
     pub name: String,
     pub path: String,
+}
+
+/// Directories found by name on a device. Only names and paths of directories leave it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Matches {
+    /// Where the search started, absolute.
+    pub root: String,
+    /// Shallower ones first; below a match nothing more is listed.
+    pub dirs: Vec<Entry>,
+    /// The search stopped early (too many matches, too deep, or out of time): there may be
+    /// more.
+    pub truncated: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -227,6 +254,35 @@ mod tests {
         };
         let json = serde_json::to_string(&listed).unwrap();
         assert_eq!(serde_json::from_str::<AgentMessage>(&json).unwrap(), listed);
+    }
+
+    #[test]
+    fn searching_carries_the_request_id() {
+        let json = serde_json::to_string(&ServerMessage::Search {
+            id: 9,
+            path: String::new(),
+            query: "game of thrones".into(),
+        })
+        .unwrap();
+        assert_eq!(
+            json,
+            r#"{"type":"search","id":9,"path":"","query":"game of thrones"}"#
+        );
+
+        let found = AgentMessage::Matches {
+            id: 9,
+            result: Ok(Matches {
+                root: "/home/a".into(),
+                dirs: vec![Entry {
+                    name: "Game.of.Thrones".into(),
+                    path: "/home/a/Serien/Game.of.Thrones".into(),
+                }],
+                truncated: false,
+            }),
+        };
+        let json = serde_json::to_string(&found).unwrap();
+        assert!(json.starts_with(r#"{"type":"matches","id":9,"#), "{json}");
+        assert_eq!(serde_json::from_str::<AgentMessage>(&json).unwrap(), found);
     }
 
     #[test]

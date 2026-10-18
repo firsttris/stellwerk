@@ -7,6 +7,7 @@ pub mod config;
 pub mod discover;
 pub mod identity;
 pub mod run;
+pub mod search;
 pub mod service;
 pub mod session;
 

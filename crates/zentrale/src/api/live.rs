@@ -8,6 +8,7 @@ use axum::extract::{State, WebSocketUpgrade};
 use axum::response::Response;
 use serde::Serialize;
 
+use super::access::Reader;
 use super::error::ApiResult;
 use super::session::Admin;
 use crate::app::App;
@@ -17,7 +18,7 @@ use crate::model::Config;
 /// Changes closer together than this go to the UI as one update.
 const THROTTLE: Duration = Duration::from_millis(300);
 
-pub async fn status(State(app): State<App>, _: Admin) -> ApiResult<Json<LiveView>> {
+pub async fn status(State(app): State<App>, _: Reader) -> ApiResult<Json<LiveView>> {
     let config = app.store().config().await?;
     Ok(Json(live_view(&app, &config)))
 }
