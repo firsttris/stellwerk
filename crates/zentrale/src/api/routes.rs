@@ -9,7 +9,7 @@ use super::access::{Manager, Reader};
 use super::error::{ApiError, ApiResult};
 use super::session::Admin;
 use stellwerk_engine::files::Keep;
-use stellwerk_protocol::messages::{Directory, fingerprint};
+use stellwerk_protocol::messages::{Directory, Matches, fingerprint};
 
 use crate::agents;
 use crate::app::App;
@@ -206,6 +206,31 @@ pub async fn browse_device(
 ) -> ApiResult<Json<Directory>> {
     app.store().device(&id).await?;
     Ok(Json(app.browse(&id, query.path).await?))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SearchQuery {
+    q: String,
+    #[serde(default)]
+    path: String,
+}
+
+/// Directories on the device whose name matches `q`, below `path` (its home directory when
+/// empty): where are the files a script or assistant was asked to sync?
+pub async fn search_device(
+    State(app): State<App>,
+    _: Reader,
+    Path(id): Path<String>,
+    Query(query): Query<SearchQuery>,
+) -> ApiResult<Json<Matches>> {
+    if query.q.trim().is_empty() {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "the search needs a name",
+        ));
+    }
+    app.store().device(&id).await?;
+    Ok(Json(app.search(&id, query.path, query.q).await?))
 }
 
 /// LAN pairing: lets a waiting agent in as a new device.

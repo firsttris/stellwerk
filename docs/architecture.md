@@ -87,6 +87,8 @@ field (`crates/protocol/src/messages.rs`).
 | Zentrale → agent | `waiting` | LAN pairing: the agent is unknown and came without a code; its key's fingerprint. The socket stays open until the UI decides |
 | Zentrale → agent | `browse` | the folder picker: a request ID and a path (empty for the home directory) |
 | agent → Zentrale | `listing` | the answer under the same ID: the directory, its parent, its subdirectories by name and path, the home directory and the file system roots; or why it could not be read |
+| Zentrale → agent | `search` | a request ID, a path to start at (empty for the home directory) and a name to look for |
+| agent → Zentrale | `matches` | the answer under the same ID: the start directory, the directories whose name holds every word of the query (shallower first, nothing listed below a match), and whether the search stopped early; or why it could not start |
 | Zentrale → agent | `rejected` | why; the socket closes |
 
 The desired state is always complete, never a diff: an agent that was offline for three days just
@@ -168,6 +170,7 @@ login, and a request with a token gets `403` there. A new password revokes every
 | `POST /api/shares` | apply a draft of modes and paths as one revision | M |
 | `PATCH`/`DELETE /api/devices/{id}` | rename, block, unblock, remove a device | |
 | `GET /api/devices/{id}/browse?path=` | the folder picker: a directory on an online device, asked of its agent (409 offline, 504 no answer) | R |
+| `GET /api/devices/{id}/search?q=&path=` | directories on an online device whose name matches `q`, below `path` (the home directory when empty); asked of its agent like `browse` | R |
 | `POST /api/enrollments`, `POST /api/enrollments/status` | new pairing code, has a device used it yet | |
 | `POST /api/waiting/{fingerprint}/approve`, `…/reject` | decide about a device waiting in the LAN | |
 | `GET /api/folders/{id}/conflicts/content`, `POST …/conflicts/resolve` | both sides of a conflict, resolve it | |
@@ -289,6 +292,14 @@ while the Zentrale is unreachable, so syncing with the hub goes on with the last
 Syncthing runs with `--no-restart`: if it exits (a crash, or a restart asked for over its API),
 the agent exits with an error and the service manager starts both again. The Zentrale does the
 same with the hub Syncthing and leaves the restart to Docker or systemd.
+
+**Directories on request** (`crates/agent/src/browse.rs`, `search.rs`): `browse` lists the
+subdirectories of one directory for the folder picker; `search` walks breadth first from a start
+directory and returns the directories whose name holds every word of the query as word prefixes,
+in order ("game of thrones" finds `Game.of.Thrones.S01`), without looking below a match. It skips
+hidden directories, follows no symbolic links and stops after 8 levels, 50 matches or 10 seconds,
+saying so. Both run off the async runtime; an agent that does not know a request leaves it
+unanswered, and the Zentrale reports "update its agent" after its timeout.
 
 Its Syncthing listens on a random port on all interfaces, with discovery, relays and NAT
 traversal off: the device dials the hub at the address from the desired state, and the hub,

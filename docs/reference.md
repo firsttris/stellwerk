@@ -125,6 +125,8 @@ the Zentrale is out of reach.
 | conflict diff | text files up to 256 KB |
 | versions on the hub | staggered, kept for 365 days |
 | default path of a new share | `~/Stellwerk/<folder name>` |
+| search on a device | 8 levels deep, 50 matches, 10 s on the device; the Zentrale waits 15 s |
+| folder picker answer | the Zentrale waits 5 s |
 
 ## REST API
 

@@ -10,7 +10,7 @@ use futures_util::{SinkExt, StreamExt};
 use stellwerk_engine::Client;
 use stellwerk_engine::monitor::Snapshot;
 use stellwerk_protocol::messages::{
-    AgentMessage, Applied, ApplyError, Directory, Hello, ServerMessage, Status,
+    AgentMessage, Applied, ApplyError, Directory, Hello, Matches, ServerMessage, Status,
 };
 use stellwerk_protocol::{DesiredState, DeviceId};
 use tokio::sync::watch;
@@ -116,6 +116,10 @@ pub async fn run(
                         let result = browse(path).await;
                         send(&mut sink, &AgentMessage::Listing { id, result }).await?;
                     }
+                    ServerMessage::Search { id, path, query } => {
+                        let result = search(path, query).await;
+                        send(&mut sink, &AgentMessage::Matches { id, result }).await?;
+                    }
                     ServerMessage::Rejected { reason } => return Ok(End::Rejected(reason)),
                     ServerMessage::Challenge { .. } => {}
                 }
@@ -153,6 +157,20 @@ async fn browse(path: String) -> Result<Directory, String> {
     tokio::task::spawn_blocking(move || crate::browse::list(&path, dirs::home_dir().as_deref()))
         .await
         .unwrap_or_else(|err| Err(err.to_string()))
+}
+
+/// Directories found by name, searched off the async runtime.
+async fn search(path: String, query: String) -> Result<Matches, String> {
+    tokio::task::spawn_blocking(move || {
+        crate::search::search(
+            &path,
+            &query,
+            dirs::home_dir().as_deref(),
+            crate::search::LIMITS,
+        )
+    })
+    .await
+    .unwrap_or_else(|err| Err(err.to_string()))
 }
 
 /// Reconciles the local Syncthing; whatever fails becomes an error in the report.

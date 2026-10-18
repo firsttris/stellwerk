@@ -13,7 +13,7 @@ use axum::response::Response;
 use stellwerk_protocol::messages::{AgentMessage, Applied, Hello, ServerMessage};
 
 use crate::app::App;
-use crate::browse::{Job, Pending};
+use crate::browse::{Answer, Job, Pending};
 use crate::desired;
 use crate::model::{Device, DeviceKind};
 use crate::pairing::{code_hash, new_nonce, verify_hello};
@@ -81,7 +81,7 @@ async fn session(app: App, mut socket: WebSocket) {
 }
 
 /// Sends the desired state now and after every change, records what the agent applied, and
-/// passes the folder picker's requests on to the agent and its answers back.
+/// passes the folder picker's and searches' requests on to the agent and its answers back.
 async fn serve(app: &App, device_id: &str, socket: &mut WebSocket, mut jobs: mpsc::Receiver<Job>) {
     let mut revisions = app.revisions();
     revisions.mark_changed();
@@ -104,16 +104,21 @@ async fn serve(app: &App, device_id: &str, socket: &mut WebSocket, mut jobs: mps
                     return;
                 }
             }
-            Some(Job { path, reply }) = jobs.recv() => {
+            Some(Job { request, reply }) = jobs.recv() => {
                 let id = pending.add(reply);
-                if send(socket, &ServerMessage::Browse { id, path }).await.is_err() {
+                if send(socket, &request.message(id)).await.is_err() {
                     return;
                 }
             }
             message = receive_alive(socket, &mut heartbeat) => match message {
                 Some(AgentMessage::Applied(applied)) => record_applied(app, device_id, applied).await,
                 Some(AgentMessage::Status(status)) => app.set_device_status(device_id, status.folders, now()),
-                Some(AgentMessage::Listing { id, result }) => pending.answer(id, result),
+                Some(AgentMessage::Listing { id, result }) => {
+                    pending.answer(id, result.map(Answer::Listing));
+                }
+                Some(AgentMessage::Matches { id, result }) => {
+                    pending.answer(id, result.map(Answer::Matches));
+                }
                 Some(AgentMessage::Hello(_)) => {}
                 None => return,
             },

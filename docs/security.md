@@ -119,6 +119,10 @@ browser ──HTTPS (proxy)──▶ Zentrale ◀──WSS (proxy)── agent
   running it. Syncthing's own auto-upgrade is off.
 - It never touches another Syncthing on the same machine; its own runs with its own home
   directory and ports.
+- On request of the Zentrale it lists the subdirectories of a directory (the folder picker) or
+  searches for directories by name. Only names and paths of directories leave the device, never
+  files or their contents; a search skips hidden directories, follows no symbolic links and stops
+  after 8 levels, 50 matches or 10 seconds.
 
 ## Updates and releases
 

@@ -33,7 +33,7 @@ pub fn list(requested: &str, home: Option<&Path>) -> Result<Directory, String> {
 }
 
 /// The path to list: `requested` with `~` expanded, the home directory when empty.
-fn resolve(requested: &str, home: Option<&Path>) -> Result<PathBuf, String> {
+pub(crate) fn resolve(requested: &str, home: Option<&Path>) -> Result<PathBuf, String> {
     let requested = requested.trim();
     let tilde = requested
         .strip_prefix('~')
@@ -51,7 +51,7 @@ fn resolve(requested: &str, home: Option<&Path>) -> Result<PathBuf, String> {
     }
 }
 
-fn text(path: &Path) -> String {
+pub(crate) fn text(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 

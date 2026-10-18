@@ -484,6 +484,16 @@ async fn api_tokens_may_do_what_their_scope_allows() {
         .await;
     assert_eq!(status, StatusCode::OK);
 
+    // Searching is reading; it needs a name and a known device.
+    let (status, _) = reader
+        .send(&router, "GET", "/api/devices/unknown/search?q=got", None)
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _) = reader
+        .send(&router, "GET", "/api/devices/unknown/search?q=%20", None)
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
     // Removing, pairing and the tokens themselves need the browser.
     let folder_uri = format!("/api/folders/{}", folder["id"].as_str().unwrap());
     let (status, _) = manager.send(&router, "DELETE", &folder_uri, None).await;
