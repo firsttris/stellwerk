@@ -4,7 +4,7 @@
 //! (<https://github.com/syncthing/syncthing/releases/tag/v2.1.6>). Raising the version means
 //! updating all of them and running the integration tests.
 
-pub const SYNCTHING_VERSION: &str = "v2.1.6";
+pub const SYNCTHING_VERSION: &str = "v2.1.7";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ArchiveKind {
