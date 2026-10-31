@@ -31,7 +31,7 @@ jobs:
       web: ${{ steps.diff.outputs.web }}
       docker: ${{ steps.diff.outputs.docker }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           filter: blob:none
@@ -52,7 +52,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -61,7 +61,7 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       # The pinned Syncthing for the integration tests; the key changes with the pin
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .syncthing-cache
           key: syncthing-${{ runner.os }}-${{ hashFiles('crates/engine/src/pin.rs') }}
@@ -101,9 +101,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 26
           cache: pnpm
@@ -134,7 +134,7 @@ jobs:
       image: ${{ needs.e2e-image.outputs.image }}
       options: --ipc=host
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: corepack enable && pnpm install --frozen-lockfile
       - run: pnpm --filter e2e lint
       - run: pnpm --filter e2e test
@@ -150,7 +150,7 @@ jobs:
       contents: read
       packages: write   # keeps the build cache in ghcr.io/firsttris/stellwerk-buildcache
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: firsttris/workflows/actions/docker-build@v1
         with:
           dockerfile: docker/Dockerfile
