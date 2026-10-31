@@ -1,7 +1,7 @@
 //! The one Syncthing version agent, hub and tests run with.
 //!
 //! Checksums from `sha256sum.txt.asc` of the GitHub release
-//! (<https://github.com/syncthing/syncthing/releases/tag/v2.1.6>). Raising the version means
+//! (<https://github.com/syncthing/syncthing/releases/tag/v2.1.7>). Raising the version means
 //! updating all of them and running the integration tests.
 
 pub const SYNCTHING_VERSION: &str = "v2.1.7";
@@ -24,12 +24,12 @@ pub struct Asset {
 }
 
 impl Asset {
-    /// `syncthing-linux-amd64-v2.1.6`
+    /// `syncthing-linux-amd64-v2.1.7`
     pub fn dir_name(&self) -> String {
         format!("{}-{SYNCTHING_VERSION}", self.stem)
     }
 
-    /// `syncthing-linux-amd64-v2.1.6.tar.gz`
+    /// `syncthing-linux-amd64-v2.1.7.tar.gz`
     pub fn file_name(&self) -> String {
         let ext = match self.kind {
             ArchiveKind::TarGz => "tar.gz",
@@ -66,27 +66,27 @@ pub fn asset_for(os: &str, arch: &str) -> Option<Asset> {
         ("linux", "x86_64") => asset(
             "syncthing-linux-amd64",
             TarGz,
-            "524ef4e1df1850b719e2378c8369956f4e5f2ab9a46fdf7f45f2b925012147aa",
+            "2edc416e7ed136b7c858ed5f3f02a3b8316589605e54c380228ceea7acbf0142",
         ),
         ("linux", "aarch64") => asset(
             "syncthing-linux-arm64",
             TarGz,
-            "f054de02462d5d58bd126908f2f92b63aba74f162a5be85e50e96d656e7db47d",
+            "48e456690cd2b97e7d26b02b5ac35f62a3b36172267b144cfeaf02c993ab955c",
         ),
         ("macos", "x86_64" | "aarch64") => asset(
             "syncthing-macos-universal",
             Zip,
-            "83d2898de5607d12c25d66856b1e3aa40326814e8ded6af98ab8ba68c2a545bc",
+            "a98fb709c79412e5586c81a1586bfb256b6e5a97b067ddf7447155bcdf6aac3f",
         ),
         ("windows", "x86_64") => asset(
             "syncthing-windows-amd64",
             Zip,
-            "589098269cabb9a5a1703a934305b4153609d7623e978e1c94f0f49d77ae5e9f",
+            "3ce7da770f546a8d02b65b2e7ee31f2a3b8b7c3f990ede045590cca4172ecfe1",
         ),
         ("windows", "aarch64") => asset(
             "syncthing-windows-arm64",
             Zip,
-            "ddb25a3cf556157e329263bd3331d889ea7bb952b85a5f530320175105bab072",
+            "d535ffd611b3af223de64bc5dfc60c378881eb13d5c8ecb1431b7407094c15ff",
         ),
         _ => return None,
     };
@@ -102,7 +102,7 @@ mod tests {
         let asset = asset_for("linux", "x86_64").unwrap();
         assert_eq!(
             asset.url(),
-            "https://github.com/syncthing/syncthing/releases/download/v2.1.6/syncthing-linux-amd64-v2.1.6.tar.gz"
+            "https://github.com/syncthing/syncthing/releases/download/v2.1.7/syncthing-linux-amd64-v2.1.7.tar.gz"
         );
         assert_eq!(asset.binary, "syncthing");
     }
@@ -110,7 +110,7 @@ mod tests {
     #[test]
     fn windows_is_a_zip_with_an_exe() {
         let asset = asset_for("windows", "x86_64").unwrap();
-        assert_eq!(asset.file_name(), "syncthing-windows-amd64-v2.1.6.zip");
+        assert_eq!(asset.file_name(), "syncthing-windows-amd64-v2.1.7.zip");
         assert_eq!(asset.binary, "syncthing.exe");
     }
 
