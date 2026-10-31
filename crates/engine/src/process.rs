@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::process::{ExitStatus, Stdio};
 use std::time::Duration;
 
-use rand::Rng;
+use rand::RngExt;
 use rand::distr::Alphanumeric;
 use tokio::process::{Child, Command};
 

@@ -3,7 +3,7 @@
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use ed25519_dalek::{Signer, SigningKey};
-use rand::Rng;
+use rand::RngExt;
 use stellwerk_protocol::messages::{Hello, hello_payload};
 
 /// A fresh secret key, base64.
