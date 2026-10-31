@@ -217,7 +217,7 @@ The full documentation, with search, is at **[firsttris.github.io/stellwerk](htt
 
 ## 🛠️ Development
 
-Requires Rust (stable), Node 22 and pnpm.
+Requires Rust (stable), Node 26 and pnpm.
 
 ```bash
 git clone https://github.com/firsttris/stellwerk && cd stellwerk
