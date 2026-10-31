@@ -213,7 +213,7 @@ dependencies = [
  "sha1 0.10.7",
  "sync_wrapper",
  "tokio",
- "tokio-tungstenite",
+ "tokio-tungstenite 0.29.0",
  "tower",
  "tower-layer",
  "tower-service",
@@ -2576,19 +2576,19 @@ dependencies = [
  "futures-util",
  "hostname",
  "mdns-sd",
- "rand 0.9.5",
+ "rand 0.10.3",
  "rcgen",
  "reqwest",
  "rustls",
  "rustls-native-certs",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "stellwerk-engine",
  "stellwerk-protocol",
  "tempfile",
  "tokio",
- "tokio-tungstenite",
+ "tokio-tungstenite 0.30.0",
  "tracing",
  "tracing-subscriber",
 ]
@@ -2598,11 +2598,11 @@ name = "stellwerk-engine"
 version = "0.1.10"
 dependencies = [
  "flate2",
- "rand 0.9.5",
+ "rand 0.10.3",
  "reqwest",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "stellwerk-protocol",
  "tar",
  "tempfile",
@@ -2619,7 +2619,7 @@ dependencies = [
  "base64 0.23.1",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2 0.11.0",
 ]
 
 [[package]]
@@ -2635,13 +2635,13 @@ dependencies = [
  "futures-util",
  "hostname",
  "mdns-sd",
- "rand 0.9.5",
+ "rand 0.10.3",
  "rcgen",
  "rust-embed",
  "rustls",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "sqlx",
  "stellwerk-agent",
  "stellwerk-engine",
@@ -2650,7 +2650,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-rustls",
- "tokio-tungstenite",
+ "tokio-tungstenite 0.30.0",
  "tower",
  "tracing",
  "tracing-subscriber",
@@ -2909,12 +2909,24 @@ checksum = "8f72a05e828585856dacd553fba484c242c46e391fb0e58917c942ee9202915c"
 dependencies = [
  "futures-util",
  "log",
+ "tokio",
+ "tungstenite 0.29.0",
+]
+
+[[package]]
+name = "tokio-tungstenite"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17a073bfed563fa236697a068031408a93cd9522e08abf9933ead3e73411bd71"
+dependencies = [
+ "futures-util",
+ "log",
  "rustls",
  "rustls-native-certs",
  "rustls-pki-types",
  "tokio",
  "tokio-rustls",
- "tungstenite",
+ "tungstenite 0.30.0",
 ]
 
 [[package]]
@@ -3057,9 +3069,25 @@ dependencies = [
  "httparse",
  "log",
  "rand 0.9.5",
+ "sha1 0.10.7",
+ "thiserror",
+]
+
+[[package]]
+name = "tungstenite"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e48ac77174b19c110a50ab2128b24215ac9cb40e0e12e093fb602d175c569d22"
+dependencies = [
+ "bytes",
+ "data-encoding",
+ "http",
+ "httparse",
+ "log",
+ "rand 0.10.3",
  "rustls",
  "rustls-pki-types",
- "sha1 0.10.7",
+ "sha1 0.11.0",
  "thiserror",
 ]
 

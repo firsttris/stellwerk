@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use rand::Rng;
+use rand::RngExt;
 use serde::Deserialize;
 use sqlx::{FromRow, Sqlite, Transaction};
 use stellwerk_protocol::{FolderMode, Versioning};
