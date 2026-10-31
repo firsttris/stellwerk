@@ -62,7 +62,7 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
     os,
     syncthingId: `${name.toUpperCase()}-SYNCTHING-ID`,
     agentVersion: "0.1.0",
-    syncthingVersion: "v2.1.6",
+    syncthingVersion: "v2.1.7",
     approved: true,
     createdAt: nowSeconds(),
     lastSeen: nowSeconds(),
