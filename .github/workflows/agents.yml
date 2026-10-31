@@ -41,7 +41,7 @@ jobs:
       # Pinned, so a new zig or cargo-zigbuild cannot break a release build; the versions of
       # v0.1.1. Both from PyPI as prebuilt binaries: seconds instead of compiling cargo-zigbuild.
       - if: matrix.zig
-        run: pip install ziglang==0.17.0 cargo-zigbuild==0.23.4
+        run: pip install ziglang==0.17.0 cargo-zigbuild==0.24.0
       - name: Build
         shell: bash
         run: |
