@@ -124,10 +124,12 @@ token.
 
 ## Changing Syncthing's version
 
-The version and the SHA-256 of every platform's archive are in `crates/engine/src/pin.rs`. To
-raise it, put in the new version and checksums from the release's `sha256sum.txt.asc`, and run
-`cargo test`: the integration tests must be green with the new version. The Syncthing sources
-(`lib/config`, `lib/api`) are the reference for anything the engine relies on.
+The version and the SHA-256 of every platform's archive are in `crates/engine/src/pin.rs`.
+Renovate (`.github/renovate.json5`) opens a pull request for each new Syncthing release; on its
+branch `syncthing-pin.yml` puts in the checksums from the release's `sha256sum.txt.asc` and starts
+CI, whose integration tests must be green with the new version. By hand: put in the version and
+the checksums, and run `cargo test`. The Syncthing sources (`lib/config`, `lib/api`) are the
+reference for anything the engine relies on.
 
 ## Documentation
 

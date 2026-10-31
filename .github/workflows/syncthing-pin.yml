@@ -1,0 +1,71 @@
+name: Syncthing pin
+
+# On a Renovate branch that raises Syncthing (.github/renovate.json5): Renovate changes only
+# SYNCTHING_VERSION in crates/engine/src/pin.rs, so this sets the SHA-256 of every platform's
+# archive from the release's sha256sum.txt.asc and the version in the file's doc link and tests,
+# commits them and starts CI on the new commit (the integration tests download and check the new
+# release). A commit pushed with the workflow's token starts no workflow by itself, hence the
+# explicit CI run.
+on:
+  push:
+    branches: ["renovate/**"]
+    paths: ["crates/engine/src/pin.rs"]
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: syncthing-pin-${{ github.ref }}
+
+jobs:
+  pin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set the checksums of the pinned release
+        run: |
+          set -euo pipefail
+          file=crates/engine/src/pin.rs
+          version=$(grep -oP 'SYNCTHING_VERSION: &str = "\Kv[^"]+' "$file")
+          curl -fsSL -o "$RUNNER_TEMP/sha256sum.txt.asc" \
+            "https://github.com/syncthing/syncthing/releases/download/$version/sha256sum.txt.asc"
+          python3 - "$file" "$version" "$RUNNER_TEMP/sha256sum.txt.asc" <<'PY'
+          import re, sys
+          file, version, sums = sys.argv[1:]
+          checksums = {}
+          for line in open(sums):
+              parts = line.split()
+              if len(parts) == 2 and re.fullmatch(r"[0-9a-f]{64}", parts[0]):
+                  checksums[parts[1]] = parts[0]
+          text = open(file).read()
+          # Every version in pin.rs is Syncthing's: the doc link and the tests' file names
+          text = re.sub(r"\bv\d+\.\d+\.\d+\b", version, text)
+          # asset("syncthing-linux-amd64", TarGz, "<sha256>"): the archive's name from stem and kind
+          def sha(m):
+              head, stem, kind = m.groups()
+              name = f"{stem}-{version}.{'tar.gz' if kind == 'TarGz' else 'zip'}"
+              if name not in checksums:
+                  sys.exit(f"::error::{name} is not in sha256sum.txt.asc of {version}")
+              return f'{head}{checksums[name]}"'
+          text, n = re.subn(r'("(syncthing-[a-z0-9-]+)",\s*(TarGz|Zip),\s*")[0-9a-f]{64}"', sha, text)
+          if n == 0:
+              sys.exit("::error::no asset(...) entries found in pin.rs")
+          open(file, "w").write(text)
+          print(f"{version}: {n} checksums")
+          PY
+          git diff --stat
+      - name: Commit and start CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet; then
+            echo "checksums already match"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Pin the checksums of the Syncthing release"
+          git push
+          gh workflow run ci.yml --ref "$GITHUB_REF_NAME"
