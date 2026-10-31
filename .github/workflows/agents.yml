@@ -30,7 +30,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -72,7 +72,7 @@ jobs:
         name: Installer test
         shell: bash
         run: scripts/installer-smoke.sh "dist/stellwerk-agent-setup-${{ matrix.name }}.exe"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: agent-${{ matrix.name }}
           path: dist/*
@@ -82,8 +82,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: agent-*
           merge-multiple: true
@@ -97,7 +97,7 @@ jobs:
             sed "s/{{VERSION}}/$version/g" "installer/$script" > "agents/$script"
           done
           ! grep -l '{{VERSION}}' agents/install.*
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: agents
           path: agents/*
