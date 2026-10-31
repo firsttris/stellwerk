@@ -151,7 +151,7 @@ jobs:
       packages: write   # keeps the build cache in ghcr.io/firsttris/stellwerk-buildcache
     steps:
       - uses: actions/checkout@v4
-      - uses: firsttris/workflows/actions/docker-build@ccr-161f105b-9ns022
+      - uses: firsttris/workflows/actions/docker-build@v1
         with:
           dockerfile: docker/Dockerfile
           tags: stellwerk:ci
