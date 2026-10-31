@@ -1,17 +1,15 @@
 // Renovate (GitHub App, https://github.com/apps/renovate): a pull request for each new release of
-// what Stellwerk builds on, plus the "Dependency Dashboard" issue listing what is open.
-// Only those: Syncthing (crates/engine/src/pin.rs, the one version agent, hub and tests run with),
-// the zig toolchain the Linux agents are cross-built with, Node (image, CI, docs) and the
-// cargo-chef of the image. The crates, the npm packages and the actions are not tracked here;
-// Rust (rust:1-bookworm, dtolnay stable) floats on purpose. Check with
-// `npx --package renovate renovate-config-validator .github/renovate.json5`.
+// what Stellwerk builds on, plus the "Dependency Dashboard" issue listing what is open. Their own
+// pull requests: Syncthing (crates/engine/src/pin.rs, the one version agent, hub and tests run
+// with), the zig toolchain the Linux agents are cross-built with, Node (image, CI, docs) and the
+// cargo-chef of the image. Rust (rust:1-bookworm, dtolnay stable) floats on purpose.
+// Everything else (the other packages, the actions, the images) comes with the shared settings of
+// firsttris/workflows (renovate/default.json5): minor and patch updates once a month in one pull
+// request that merges itself when CI is green, majors on request in the dashboard.
+// Check with `npx --package renovate renovate-config-validator .github/renovate.json5`.
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
-  extends: ["config:recommended"],
-  enabledManagers: ["dockerfile", "custom.regex"],
-  timezone: "Europe/Berlin",
-  labels: ["dependencies"],
-  automerge: false,
+  extends: ["github>firsttris/workflows//renovate/default.json5"],
   customManagers: [
     {
       // Syncthing: Renovate changes SYNCTHING_VERSION only; the workflow syncthing-pin.yml then
@@ -79,6 +77,9 @@
       prBodyNotes: [
         "Agent, hub and the integration tests run this one release (`crates/engine/src/pin.rs`). `syncthing-pin.yml` sets the SHA-256 of every archive from the release's `sha256sum.txt.asc` on this branch and starts CI, whose Rust job downloads it on Linux, Windows and macOS and runs the integration tests and the service smoke test against it. Before merging: read the release notes and the changes in `lib/config` and `lib/api` since the old tag (`confighandler.go`: what `PUT`/`PATCH`/`DELETE` on `/rest/config/...` do); the reconciler (`engine::reconcile::plan`) relies on them. A new major or minor: check the defaults the engine sets and the docs that name Syncthing's behaviour. Existing installations get the new Syncthing only with the next Stellwerk release (docs/installation.md, Updates).",
       ],
+      schedule: ["at any time"],
+      automerge: false,
+      dependencyDashboardApproval: false,
     },
     {
       matchPackageNames: ["ziglang", "cargo-zigbuild"],
@@ -86,6 +87,9 @@
       prBodyNotes: [
         "The static musl agents for Linux (x86_64, aarch64) are built with these. `agents.yml` does not run on pull requests: start **Actions → Agents → Run workflow** on this branch and check that both Linux agents build.",
       ],
+      schedule: ["at any time"],
+      automerge: false,
+      dependencyDashboardApproval: false,
     },
     {
       // Node of the image's web stage, CI and the docs, in one PR so they stay on one major
@@ -95,6 +99,9 @@
       prBodyNotes: [
         "The image's `web` stage (`node:<major>-bookworm-slim`), `node-version` in ci.yml and the requirement in README.md and docs/development.md move together. CI's docker job builds and starts the image.",
       ],
+      schedule: ["at any time"],
+      automerge: false,
+      dependencyDashboardApproval: false,
     },
     {
       matchPackageNames: ["cargo-chef"],
