@@ -1,0 +1,105 @@
+// Renovate (GitHub App, https://github.com/apps/renovate): a pull request for each new release of
+// what Stellwerk builds on, plus the "Dependency Dashboard" issue listing what is open.
+// Only those: Syncthing (crates/engine/src/pin.rs, the one version agent, hub and tests run with),
+// the zig toolchain the Linux agents are cross-built with, Node (image, CI, docs) and the
+// cargo-chef of the image. The crates, the npm packages and the actions are not tracked here;
+// Rust (rust:1-bookworm, dtolnay stable) floats on purpose. Check with
+// `npx --package renovate renovate-config-validator .github/renovate.json5`.
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: ["config:recommended"],
+  enabledManagers: ["dockerfile", "custom.regex"],
+  timezone: "Europe/Berlin",
+  labels: ["dependencies"],
+  automerge: false,
+  customManagers: [
+    {
+      // Syncthing: Renovate changes SYNCTHING_VERSION only; the workflow syncthing-pin.yml then
+      // sets the SHA-256 of every platform's archive and the version in the file's doc link and
+      // tests on the Renovate branch. The demo fixtures show the same version in the screenshots.
+      customType: "regex",
+      managerFilePatterns: ["/^crates/engine/src/pin\\.rs$/", "/^web/src/demo/(api|fixtures)\\.ts$/"],
+      matchStrings: [
+        'SYNCTHING_VERSION: &str = "(?<currentValue>v\\d+\\.\\d+\\.\\d+)"',
+        'syncthingVersion: "(?<currentValue>v\\d+\\.\\d+\\.\\d+)"',
+      ],
+      depNameTemplate: "syncthing/syncthing",
+      datasourceTemplate: "github-releases",
+      // v2.1.7; release candidates (v2.1.7-rc.1) do not match and are left out
+      versioningTemplate: "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$",
+    },
+    {
+      // `pip install ziglang==… cargo-zigbuild==…` in agents.yml, pinned so a new zig cannot
+      // break a release build
+      customType: "regex",
+      managerFilePatterns: ["/^\\.github/workflows/agents\\.yml$/"],
+      matchStrings: ["(?<depName>ziglang|cargo-zigbuild)==(?<currentValue>[^\\s]+)"],
+      datasourceTemplate: "pypi",
+    },
+    {
+      // The Node of CI's web job
+      customType: "regex",
+      managerFilePatterns: ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
+      matchStrings: ["node-version: (?<currentValue>\\d+)\\n"],
+      depNameTemplate: "node",
+      datasourceTemplate: "node-version",
+      versioningTemplate: "node",
+    },
+    {
+      // The Node major README.md and docs/development.md ask for
+      customType: "regex",
+      managerFilePatterns: ["/^README\\.md$/", "/^docs/development\\.md$/"],
+      matchStrings: ["Node (?<currentValue>\\d+) and pnpm"],
+      depNameTemplate: "node",
+      datasourceTemplate: "node-version",
+      versioningTemplate: "node",
+    },
+    {
+      // `cargo install cargo-chef --version x.y.z` in docker/Dockerfile
+      customType: "regex",
+      managerFilePatterns: ["/^docker/Dockerfile$/"],
+      matchStrings: ["cargo install cargo-chef --version (?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      depNameTemplate: "cargo-chef",
+      datasourceTemplate: "crate",
+    },
+  ],
+  packageRules: [
+    {
+      // Rust floats on purpose (rust:1-bookworm); the distroless runtime (cc-debian12:nonroot)
+      // has no version tag and moves with the next Debian by hand, together with the builder.
+      // Stellwerk's own image moves with its releases.
+      matchPackageNames: ["rust", "docker.io/tristanteu/**", "tristanteu/**"],
+      enabled: false,
+    },
+    {
+      matchPackageNames: ["syncthing/syncthing"],
+      groupName: "Syncthing",
+      sourceUrl: "https://github.com/syncthing/syncthing",
+      commitMessageTopic: "Syncthing",
+      prBodyNotes: [
+        "Agent, hub and the integration tests run this one release (`crates/engine/src/pin.rs`). `syncthing-pin.yml` sets the SHA-256 of every archive from the release's `sha256sum.txt.asc` on this branch and starts CI, whose Rust job downloads it on Linux, Windows and macOS and runs the integration tests and the service smoke test against it. Before merging: read the release notes and the changes in `lib/config` and `lib/api` since the old tag (`confighandler.go`: what `PUT`/`PATCH`/`DELETE` on `/rest/config/...` do); the reconciler (`engine::reconcile::plan`) relies on them. A new major or minor: check the defaults the engine sets and the docs that name Syncthing's behaviour. Existing installations get the new Syncthing only with the next Stellwerk release (docs/installation.md, Updates).",
+      ],
+    },
+    {
+      matchPackageNames: ["ziglang", "cargo-zigbuild"],
+      groupName: "zig cross-build",
+      prBodyNotes: [
+        "The static musl agents for Linux (x86_64, aarch64) are built with these. `agents.yml` does not run on pull requests: start **Actions → Agents → Run workflow** on this branch and check that both Linux agents build.",
+      ],
+    },
+    {
+      // Node of the image's web stage, CI and the docs, in one PR so they stay on one major
+      matchPackageNames: ["node"],
+      groupName: "Node",
+      sourceUrl: "https://github.com/nodejs/node",
+      prBodyNotes: [
+        "The image's `web` stage (`node:<major>-bookworm-slim`), `node-version` in ci.yml and the requirement in README.md and docs/development.md move together. CI's docker job builds and starts the image.",
+      ],
+    },
+    {
+      matchPackageNames: ["cargo-chef"],
+      sourceUrl: "https://github.com/LukeMathWalker/cargo-chef",
+      commitMessageTopic: "cargo-chef",
+    },
+  ],
+}
