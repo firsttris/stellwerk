@@ -2575,7 +2575,7 @@ dependencies = [
  "rustls-native-certs",
  "serde",
  "serde_json",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "stellwerk-engine",
  "stellwerk-protocol",
  "tempfile",
@@ -2594,7 +2594,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "stellwerk-protocol",
  "tar",
  "tempfile",
@@ -2611,7 +2611,7 @@ dependencies = [
  "base64 0.23.1",
  "serde",
  "serde_json",
- "sha2 0.11.0",
+ "sha2 0.11.1",
 ]
 
 [[package]]
@@ -2633,7 +2633,7 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "sqlx",
  "stellwerk-agent",
  "stellwerk-engine",
