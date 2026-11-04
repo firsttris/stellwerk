@@ -5,8 +5,8 @@
   "type": "module",
   "license": "AGPL-3.0-only",
   "scripts": {
-    "test": "playwright test --grep-invert @screenshots",
-    "screenshots": "playwright test --grep @screenshots",
+    "test": "bun --bun playwright test --grep-invert @screenshots",
+    "screenshots": "bun --bun playwright test --grep @screenshots",
     "lint": "biome check ."
   },
   "devDependencies": {

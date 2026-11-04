@@ -36,10 +36,10 @@ Green before every push, then check CI:
 ```sh
 cargo fmt --all --check
 cargo clippy --all-targets -- -D warnings
-cargo test                # downloads the pinned Syncthing once into .syncthing-cache/
-pnpm --filter web check   # Biome, tsc --noEmit, Vitest, vite build
-pnpm e2e                  # Playwright on the demo build; PW_CHROMIUM=/path/to/chrome outside the image
-mkdocs build --strict     # when docs/ or mkdocs.yml changed
+cargo test                   # downloads the pinned Syncthing once into .syncthing-cache/
+bun run --filter web check   # Biome, tsc --noEmit, Vitest, vite build
+bun run e2e                  # Playwright (bun --bun playwright test) on the demo build; PW_CHROMIUM=/path/to/chrome outside the image
+mkdocs build --strict        # when docs/ or mkdocs.yml changed
 ```
 
 ## Pull requests
@@ -77,7 +77,7 @@ split it past ~400 lines, a function past ~80. A refactor changes no behaviour.
 ## Stellwerk specifics
 
 - The UI (`web/`) talks to the Zentrale only through `src/api/types.ts` (Zod schemas mirroring
-  `crates/zentrale/src/api`). Change both together. `pnpm dev:demo` runs it on fixtures
+  `crates/zentrale/src/api`). Change both together. `bun run dev:demo` runs it on fixtures
   (`src/demo/`), which E2E tests and screenshots use too; keep the fixtures in step.
 - Every text in the UI comes from `web/messages/de.json` and `en.json` (Paraglide, German is the
   base locale); add a key to both. Singular and plural are separate keys (`…_one`/`…_other`),

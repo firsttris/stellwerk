@@ -1,16 +1,15 @@
 # syntax=docker/dockerfile:1
 # The Zentrale with its web UI and the pinned Syncthing for the hub.
 
-FROM node:26-bookworm-slim AS web
+# The Bun of `packageManager` in package.json (Renovate moves both together)
+FROM oven/bun:1.4.4-slim AS web
 WORKDIR /src
-# Node 25+ no longer ships corepack, so it comes from npm.
-RUN npm install --global corepack@latest && corepack enable
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json bun.lock bunfig.toml ./
 COPY web/package.json web/
 COPY e2e/package.json e2e/
-RUN pnpm install --frozen-lockfile --filter web
+RUN bun install --frozen-lockfile --filter web
 COPY web web
-RUN pnpm --filter web build
+RUN bun run --filter web build
 
 # cargo-chef splits the build: the dependencies are cooked from a recipe of the manifests alone,
 # a layer the build cache keeps until Cargo.toml or Cargo.lock change in more than the

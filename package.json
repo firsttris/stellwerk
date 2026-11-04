@@ -1,12 +1,18 @@
 {
   "name": "stellwerk",
   "private": true,
-  "packageManager": "pnpm@12.16.1",
+  "packageManager": "bun@1.4.4",
+  "workspaces": [
+    "web",
+    "e2e"
+  ],
   "scripts": {
-    "dev": "pnpm --filter web dev",
-    "dev:demo": "pnpm --filter web dev:demo",
-    "check": "pnpm --filter web check",
-    "screenshots": "pnpm --filter e2e screenshots && node scripts/social-preview/render.mjs",
-    "e2e": "pnpm --filter e2e test"
+    "dev": "if [ -t 1 ]; then export FORCE_COLOR=1 CARGO_TERM_COLOR=always; fi && bun run --parallel dev:server dev:web",
+    "dev:server": "cargo run -p stellwerk-zentrale -- --data-dir /tmp/stw/zentrale --listen 127.0.0.1:8080 --hub-listen tcp://127.0.0.1:22101 --lan-pairing false",
+    "dev:web": "bun run --cwd web dev",
+    "dev:demo": "bun run --filter web dev:demo",
+    "check": "bun run --filter web check",
+    "screenshots": "bun run --filter e2e screenshots && bun scripts/social-preview/render.mjs",
+    "e2e": "bun run --filter e2e test"
   }
 }

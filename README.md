@@ -217,13 +217,13 @@ The full documentation, with search, is at **[firsttris.github.io/stellwerk](htt
 
 ## 🛠️ Development
 
-Requires Rust (stable), Node 26 and pnpm.
+Requires Rust (stable) and Bun.
 
 ```bash
 git clone https://github.com/firsttris/stellwerk && cd stellwerk
-pnpm install && pnpm dev:demo   # the UI on demo data, no server needed
-cargo test                      # downloads the pinned Syncthing once and runs real instances
-pnpm e2e                        # Playwright against the UI in demo mode
+bun install && bun run dev:demo   # the UI on demo data, no server needed
+cargo test                        # downloads the pinned Syncthing once and runs real instances
+bun run e2e                       # Playwright against the UI in demo mode
 ```
 
 Rust workspace: `protocol` (messages, desired state), `engine` (Syncthing control and
@@ -235,7 +235,7 @@ Running a real Zentrale and agent locally, the tests and releases:
 
 Issues and pull requests are welcome. A good bug report names the OS, the Stellwerk and Syncthing
 versions and what the Zentrale showed. Please run `cargo fmt --all --check`,
-`cargo clippy --all-targets -- -D warnings`, `cargo test` and `pnpm check` before opening a pull
+`cargo clippy --all-targets -- -D warnings`, `cargo test` and `bun run check` before opening a pull
 request.
 
 ---

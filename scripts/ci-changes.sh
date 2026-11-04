@@ -16,10 +16,10 @@ fi
 files=$(git diff --name-only "$base" "$head" |
     grep -vE '^(docs/|LICENSE$|mkdocs\.yml$|requirements-docs\.txt$)|\.md$' || true)
 # Files only the UI checks depend on, and files only the Rust jobs depend on
-web_only='^(web/|e2e/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$)'
+web_only='^(web/|e2e/|package\.json$|bun\.lock$|bunfig\.toml$)'
 rust_only='^(crates/|Cargo\.toml$|Cargo\.lock$|installer/|scripts/service-smoke\.sh$|\.cargo/)'
 # What the image is built from beyond the code the other jobs build and test
-docker_files='^(docker/|\.dockerignore$|Cargo\.lock$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|web/package\.json$|\.github/workflows/ci\.yml$)'
+docker_files='^(docker/|\.dockerignore$|Cargo\.lock$|package\.json$|bun\.lock$|bunfig\.toml$|web/package\.json$|\.github/workflows/ci\.yml$)'
 
 if [[ -z "$files" ]]; then
     printf 'rust=false\nweb=false\ndocker=false\n'
