@@ -226,7 +226,10 @@ assistant the order: find, create, preview, ask, apply.
 ## Web UI
 
 `web/`: React with TanStack Router (file-based routes), Query and Table, Tailwind 4 with design
-tokens for light and dark, components in shadcn style on Radix, lucide icons. The release build
+tokens for light and dark, components in shadcn style on Radix, lucide icons. The build swaps the
+React runtime for [TanStack Redact](https://github.com/TanStack/redact) (a Vite plugin; the code
+keeps importing from `react`), which renders synchronously and makes the initial JavaScript about
+a third smaller; Vitest stays on React, the E2E tests run the build with Redact. The release build
 of the Zentrale embeds `web/dist`; paths outside `/api` fall back to `index.html`.
 
 - **Overview**: devices online, folders, revision; the folder × device matrix. Clicks collect in
