@@ -12,7 +12,7 @@ how a release is made. The rules for changes are in
 | `crates/engine` | everything about Syncthing: the pinned version, download, starting it, REST client, reconciler, monitor, conflict and version files |
 | `crates/agent` | `stellwerk-agent`: pairing, the connection to the Zentrale, the background service; `src/bin/background.rs` is the Windows program without a console |
 | `crates/zentrale` | `stellwerk`: axum server, SQLite store with migrations, desired-state derivation, hub, live status, pairing, mDNS, the embedded UI |
-| `web/` | the web UI: React, TanStack Router and Query, Tailwind, Paraglide; `src/demo/` holds the demo data |
+| `web/` | the web UI: React (built with the TanStack Redact runtime), TanStack Router and Query, Tailwind, Paraglide; `src/demo/` holds the demo data |
 | `e2e/` | Playwright tests and the screenshots, against the UI in demo mode |
 | `docker/Dockerfile` | the Zentrale's image |
 | `installer/windows/` | the NSIS script of the Windows installer |
