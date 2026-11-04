@@ -6,12 +6,15 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
 // `vite` talks to a Zentrale on :8080; `vite --mode demo` uses the fixtures instead.
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ command, mode }) => ({
   plugins: [
     paraglideVitePlugin({
       project: "./project.inlang",
       outdir: "./src/paraglide",
-      outputStructure: "message-modules",
+      // Paraglide 2's default: one module per locale in the dev server and tests (a few requests),
+      // one per message in production builds (tree shaking). v3 would serve virtual modules only Vite
+      // can resolve.
+      outputStructure: command === "build" ? "message-modules" : "locale-modules",
       strategy: ["localStorage", "preferredLanguage", "baseLocale"],
     }),
     tanstackRouter({ target: "react", autoCodeSplitting: true }),
