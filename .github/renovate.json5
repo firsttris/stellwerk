@@ -1,12 +1,12 @@
 // Renovate (GitHub App, https://github.com/apps/renovate): a pull request for each new release of
 // what Stellwerk builds on, plus the "Dependency Dashboard" issue listing what is open. Their own
 // pull requests: Syncthing (crates/engine/src/pin.rs, the one version agent, hub and tests run
-// with), the zig toolchain the Linux agents are cross-built with, Node (image, CI, docs) and the
-// cargo-chef of the image. Rust (rust:1-bookworm, dtolnay stable) floats on purpose.
+// with), the zig toolchain the Linux agents are cross-built with, Bun (image and package.json) and
+// the cargo-chef of the image. Rust (rust:1-bookworm, dtolnay stable) floats on purpose.
 // Everything else (the other packages, the actions, the images) comes with the shared settings of
 // firsttris/workflows (renovate/default.json5): minor and patch updates once a month in one pull
 // request that merges itself when CI is green, majors on request in the dashboard.
-// Check with `npx --package renovate renovate-config-validator .github/renovate.json5`.
+// Check with `bunx --package renovate renovate-config-validator .github/renovate.json5`.
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   extends: ["github>firsttris/workflows//renovate/default.json5"],
@@ -35,22 +35,15 @@
       datasourceTemplate: "pypi",
     },
     {
-      // The Node of CI's web job
+      // "packageManager": "bun@x.y.z": the Bun of every workflow (setup-bun's bun-version-file,
+      // and the npm-installed Bun in the Playwright image); the image's oven/bun comes with the
+      // dockerfile manager
       customType: "regex",
-      managerFilePatterns: ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
-      matchStrings: ["node-version: (?<currentValue>\\d+)\\n"],
-      depNameTemplate: "node",
-      datasourceTemplate: "node-version",
-      versioningTemplate: "node",
-    },
-    {
-      // The Node major README.md and docs/development.md ask for
-      customType: "regex",
-      managerFilePatterns: ["/^README\\.md$/", "/^docs/development\\.md$/"],
-      matchStrings: ["Node (?<currentValue>\\d+) and pnpm"],
-      depNameTemplate: "node",
-      datasourceTemplate: "node-version",
-      versioningTemplate: "node",
+      managerFilePatterns: ["/^package\\.json$/"],
+      matchStrings: ['"packageManager": "bun@(?<currentValue>\\d+\\.\\d+\\.\\d+)"'],
+      depNameTemplate: "oven-sh/bun",
+      datasourceTemplate: "github-releases",
+      extractVersionTemplate: "^bun-v(?<version>.+)$",
     },
     {
       // `cargo install cargo-chef --version x.y.z` in docker/Dockerfile
@@ -92,12 +85,14 @@
       dependencyDashboardApproval: false,
     },
     {
-      // Node of the image's web stage, CI and the docs, in one PR so they stay on one major
-      matchPackageNames: ["node"],
-      groupName: "Node",
-      sourceUrl: "https://github.com/nodejs/node",
+      // Bun: the image's web stage (oven/bun) and packageManager in package.json in one PR, so CI
+      // tests the Bun the image builds with
+      matchPackageNames: ["docker.io/oven/bun", "oven/bun", "oven-sh/bun"],
+      enabled: true,
+      groupName: "Bun",
+      sourceUrl: "https://github.com/oven-sh/bun",
       prBodyNotes: [
-        "The image's `web` stage (`node:<major>-bookworm-slim`), `node-version` in ci.yml and the requirement in README.md and docs/development.md move together. CI's docker job builds and starts the image.",
+        "The image's `web` stage (`oven/bun:<version>-slim` in docker/Dockerfile) and `packageManager` in package.json (CI's `bun-version-file`, and the `npm install bun@…` of the e2e and screenshots jobs in the Playwright image) move together. Bun installs the packages and runs the scripts and the Playwright runner. CI's docker job builds and starts the image.",
       ],
       schedule: ["at any time"],
       automerge: false,

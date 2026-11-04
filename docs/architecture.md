@@ -256,8 +256,8 @@ Zentrale's `version` for the sidebar.
 
 Live updates come through `/api/ws` (see above); polling every 30 seconds is only the fallback.
 `src/api/types.ts` checks every answer with Zod.
-`pnpm dev:demo` runs the UI on fixtures (`src/demo/`) without a Zentrale. The Playwright tests in
-`e2e/` and the screenshots (`pnpm screenshots`, or **Actions → Update screenshots**) use the same
+`bun run dev:demo` runs the UI on fixtures (`src/demo/`) without a Zentrale. The Playwright tests in
+`e2e/` and the screenshots (`bun run screenshots`, or **Actions → Update screenshots**) use the same
 demo mode, so they need neither Rust nor Syncthing.
 
 ## Live status and activity

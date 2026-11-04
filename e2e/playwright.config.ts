@@ -19,8 +19,11 @@ export default defineConfig({
     launchOptions: process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {},
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // `bun --bun vite`: Vite on Bun, as the runner (`bunx vite` would start it on Node through the
+  // binary's shebang)
   webServer: {
-    command: `pnpm --filter web build:demo && pnpm --filter web preview:demo`,
+    command: `bun --bun vite build --mode demo --outDir dist-demo && bun --bun vite preview --outDir dist-demo --host 127.0.0.1 --strictPort --port ${port}`,
+    cwd: "../web",
     url: `http://127.0.0.1:${port}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

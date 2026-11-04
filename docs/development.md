@@ -22,14 +22,15 @@ how a release is made. The rules for changes are in
 ## Prerequisites
 
 - Rust stable (the workspace needs at least 1.94, edition 2024)
-- Node 26 and pnpm (`corepack enable`)
+- [Bun](https://bun.com) (the version in `packageManager` of `package.json`): installs the
+  packages and runs the scripts, Vite and the Playwright runner
 - for the docs: Python and `pip install -r requirements-docs.txt`
 
 ## Building
 
 ```bash
-pnpm install
-pnpm --filter web build          # web/dist, embedded into the Zentrale's release build
+bun install
+bun run --filter web build       # web/dist, embedded into the Zentrale's release build
 cargo build --release            # target/release/stellwerk and stellwerk-agent
 docker build -f docker/Dockerfile -t tristanteu/stellwerk .   # the image, UI included
 ```
@@ -42,25 +43,32 @@ build the UI first. Debug builds read `web/dist` from disk at run time.
 **The UI alone**, on demo data, without Rust or Syncthing:
 
 ```bash
-pnpm dev:demo                    # http://localhost:5173
+bun run dev:demo                 # http://localhost:5173
 ```
 
 **A real Zentrale and agent** on one machine, with ports that do not collide with a Syncthing
 you run yourself:
 
 ```bash
-# terminal 1: the Zentrale
+# once: the admin password
 cargo run -p stellwerk-zentrale -- --data-dir /tmp/stw/zentrale set-password <<< 'dev'
-cargo run -p stellwerk-zentrale -- --data-dir /tmp/stw/zentrale \
-  --listen 127.0.0.1:8080 --hub-listen tcp://127.0.0.1:22101 --lan-pairing false
 
-# terminal 2: the UI with hot reload, /api proxied to :8080
-pnpm dev
+# terminal 1: the Zentrale (:8080) and the UI with hot reload (:5173, /api proxied to :8080)
+bun run dev
 
-# terminal 3: an agent, after "Pair device" in the UI
+# terminal 2: an agent, after "Pair device" in the UI
 cargo run -p stellwerk-agent -- --data-dir /tmp/stw/agent join --server http://127.0.0.1:8080 <CODE>
 cargo run -p stellwerk-agent -- --data-dir /tmp/stw/agent run --name dev-agent
 ```
+
+`bun run dev` runs `bun run --parallel dev:server dev:web`: `dev:server` is
+`cargo run -p stellwerk-zentrale -- --data-dir /tmp/stw/zentrale --listen 127.0.0.1:8080
+--hub-listen tcp://127.0.0.1:22101 --lan-pairing false`, `dev:web` the Vite dev server
+(`bun run --cwd web dev`; under `bun run --filter` it would not stop with the other). Both run
+side by side, each line prefixed with its script's name, and when one exits with an error the
+other is stopped. Ctrl+C, Ctrl+Z and closing the terminal reach both, as the terminal signals the
+whole foreground process group; `fg` resumes them after Ctrl+Z. In a terminal both keep their
+colours (`FORCE_COLOR`, `CARGO_TERM_COLOR`).
 
 Two agents on one machine need two data directories. Never start a test Syncthing on 8384 or
 22000, and never touch a Syncthing you did not start.
@@ -70,8 +78,8 @@ Two agents on one machine need two data directories. Never start a test Syncthin
 | Command | What runs |
 |---|---|
 | `cargo test` | unit tests of every crate, and the integration tests in `crates/*/tests` against real Syncthing instances (the pinned version is downloaded once into `.syncthing-cache/`) |
-| `pnpm --filter web check` | Biome, `tsc --noEmit`, Vitest, `vite build` |
-| `pnpm e2e` | Playwright against the demo build; `PW_CHROMIUM=/path/to/chrome` outside the Playwright image, `PW_PORT` when 4173 is taken |
+| `bun run --filter web check` | Biome, `tsc --noEmit`, Vitest, `vite build` |
+| `bun run e2e` | Playwright against the demo build, its runner and Vite on Bun (`bun --bun playwright test`); `PW_CHROMIUM=/path/to/chrome` outside the Playwright image, `PW_PORT` when 4173 is taken |
 | `mkdocs build --strict` | the docs, with broken links as errors |
 
 The integration tests are the gates of the roadmap:
@@ -138,7 +146,7 @@ pip install -r requirements-docs.txt
 mkdocs serve                     # http://127.0.0.1:8000, reloads on change
 ```
 
-Pictures come from `pnpm screenshots` or **Actions → Update screenshots**; never edit them by
+Pictures come from `bun run screenshots` or **Actions → Update screenshots**; never edit them by
 hand. The same command renders `docs/social-preview.png` (1280 × 640) from
 `scripts/social-preview/social-preview.html` and the dark screenshot; upload it under
 **Settings → General → Social preview** when it changed. Links between pages are relative (`installation.md#…`); links from the README go to the
