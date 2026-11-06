@@ -55,6 +55,10 @@ pub const HEARTBEAT: Heartbeat = Heartbeat {
     lists: Duration::from_secs(10),
 };
 
+/// The longest pause between attempts to apply a changed list that keeps failing: every attempt
+/// writes to `agent.log` and adds an event in the Zentrale, so it must not stay at 10 s.
+const LISTS_RETRY_MAX: Duration = Duration::from_secs(3600);
+
 /// Runs one connection until it closes. `status` is the monitor's latest snapshot, sent on
 /// connecting and on change.
 pub async fn run(
@@ -97,6 +101,8 @@ pub async fn run(
     let lists_dir = local_ignores::dir(data_dir);
     let mut last: Option<DesiredState> = None;
     let mut lists_seen = String::new();
+    let mut lists_pause = heartbeat.lists;
+    let mut lists_retry = Instant::now();
     let mut lists_tick =
         tokio::time::interval_at(Instant::now() + heartbeat.lists, heartbeat.lists);
     lists_tick.set_missed_tick_behavior(MissedTickBehavior::Delay);
@@ -124,6 +130,8 @@ pub async fn run(
                     }
                     ServerMessage::DesiredState(state) => {
                         lists_seen = local_ignores::read_lists(&lists_dir);
+                        lists_pause = heartbeat.lists;
+                        lists_retry = Instant::now();
                         let applied = apply(syncthing, &with_lists(&state, &lists_seen)).await;
                         last = Some(state);
                         send(&mut sink, &AgentMessage::Applied(applied)).await?;
@@ -177,10 +185,17 @@ pub async fn run(
             _ = ping.tick() => sink.send(Message::Ping(Default::default())).await?,
             _ = lists_tick.tick(), if last.is_some() => {
                 let lists = local_ignores::read_lists(&lists_dir);
-                if lists != lists_seen && let Some(state) = &last {
+                if lists != lists_seen && Instant::now() >= lists_retry && let Some(state) = &last {
                     tracing::info!("exclusion lists changed; applying them");
                     let applied = apply(syncthing, &with_lists(state, &lists)).await;
-                    lists_seen = lists;
+                    // Failed, the lists count as unseen: the Zentrale sends no state again.
+                    if applied.errors.is_empty() {
+                        lists_seen = lists;
+                        lists_pause = heartbeat.lists;
+                    } else {
+                        lists_retry = Instant::now() + lists_pause;
+                        lists_pause = (lists_pause * 2).min(LISTS_RETRY_MAX);
+                    }
                     send(&mut sink, &AgentMessage::Applied(applied)).await?;
                 }
             }
