@@ -36,12 +36,15 @@ pub fn read_lists(dir: &Path) -> String {
         .join("\n")
 }
 
-/// The absolute paths in the lists' text; comments, blank and relative lines are skipped.
+/// The absolute paths in the lists' text; comments, blank and relative lines are skipped. A
+/// path is taken as written: its spaces belong to the name.
 pub fn paths(lists: &str) -> Vec<PathBuf> {
     lists
         .lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .filter(|l| {
+            let line = l.trim();
+            !line.is_empty() && !line.starts_with('#')
+        })
         .map(PathBuf::from)
         .filter(|p| p.is_absolute())
         .collect()
