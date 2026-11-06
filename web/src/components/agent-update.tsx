@@ -7,7 +7,7 @@ import { errorMessage } from "../lib/errors";
 import { m } from "../paraglide/messages.js";
 import { Button } from "./ui/button";
 
-const UPDATING_DOCS = "https://firsttris.github.io/stellwerk/installation/#updating";
+const UPDATING_DOCS = "https://firsttris.github.io/stellwerk/installation.html#updating";
 
 /** Tells that a device's agent is older than the Zentrale and updates it, or shows how to. */
 export function AgentUpdate({
