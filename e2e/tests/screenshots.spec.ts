@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-// Pictures for the README and the docs, from the demo data: `pnpm screenshots`. In English,
+// Pictures for the README and the docs, from the demo data: `bun run screenshots`. In English,
 // for readers on GitHub; the language test covers the English UI too.
 
 test.use({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, locale: "en-US" });

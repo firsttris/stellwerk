@@ -20,7 +20,7 @@ pub async fn serve(uri: Uri) -> Response {
         Some(response) => response,
         None => (
             StatusCode::NOT_FOUND,
-            "The web UI is not built: run `pnpm --filter web build`, then build the Zentrale again.",
+            "The web UI is not built: run `bun run --filter web build`, then build the Zentrale again.",
         )
             .into_response(),
     }

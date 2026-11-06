@@ -71,6 +71,27 @@ browser ──HTTPS (proxy)──▶ Zentrale ◀──WSS (proxy)── agent
 - Behind a TLS proxy, the cookie gets `Secure` only if the proxy sets `X-Forwarded-Proto: https`
   (the examples in [installation](installation.md#reverse-proxy-and-tls) do).
 
+## API tokens
+
+- For scripts and AI assistants, the admin creates API tokens in the web UI (**API tokens**).
+  A token is 32 random bytes with the prefix `stw_`; the database stores only its SHA-256, and
+  the UI shows it once.
+- A token is sent as `Authorization: Bearer …`. The browser never sends it on its own, so it
+  needs no CSRF token.
+- Its scope limits it: **Read** sees the overview, status, activity and the folders on devices;
+  **Manage** also creates and renames folders, sets ignore patterns and applies shares. Removing
+  or blocking devices, pairing, deleting folders, conflicts, versions and the tokens themselves
+  are refused (`403`) to every token, so a leaked token cannot let a device in or throw one out.
+- A **Manage** token can still share a folder with any paired device, at any path there: treat it
+  like the admin password. Prefer **Read** where that is enough, give each script or assistant
+  its own token, and revoke the ones you no longer use (the list shows when each was last used).
+- A new admin password revokes every token, since whoever knew the old one may have made one.
+- The MCP server at `/mcp` takes only API tokens, never the session cookie, and offers a token
+  only the tools of its scope. It refuses requests whose `Origin` names another host, so a web
+  page cannot reach it through your browser. An assistant with a **Manage** token can set up
+  any share a person could in the matrix; Claude Code asks before each tool that changes
+  something, so keep that prompt on for `apply_shares`.
+
 ## Pairing and device sign-in
 
 - **One-time code.** Random, valid for 15 minutes, usable once; the database stores only its
@@ -103,19 +124,28 @@ browser ──HTTPS (proxy)──▶ Zentrale ◀──WSS (proxy)── agent
   running it. Syncthing's own auto-upgrade is off.
 - It never touches another Syncthing on the same machine; its own runs with its own home
   directory and ports.
+- On request of the Zentrale it lists the subdirectories of a directory (the folder picker) or
+  searches for directories by name. Only names and paths of directories leave the device, never
+  files or their contents; a search skips hidden directories, follows no symbolic links and stops
+  after 8 levels, 50 matches or 10 seconds.
 
 ## Updates and releases
 
 Release images and agents are built by GitHub Actions from the tagged source, after the full test
-suite. Each release lists the agents' SHA-256 sums in `SHA256SUMS`. The planned self-update of
-the agents will only install a new version whose signature matches a public key built into the
-agent ([roadmap](architecture.md#roadmap)), so a compromised Zentrale cannot push its own
-program to the devices.
+suite. Each release lists the agents' SHA-256 sums in `SHA256SUMS`.
+
+An agent updates itself only when asked from the UI. The Zentrale names just a version: the agent
+downloads it over HTTPS from the fixed address of the project's GitHub releases, checks it against
+`SHA256SUMS` and installs only a newer `x.y.z`. So a compromised Zentrale can ask for a genuine
+newer release, but cannot push its own program to the devices or go back to an older one. There is
+no signature on top: whoever controls the project's GitHub releases could publish a harmful
+version, and the agents would trust it.
 
 ## Checklist
 
 - [ ] The web port is reachable from outside only through HTTPS.
 - [ ] The admin password is long and used nowhere else.
+- [ ] Only the API tokens in use exist, each with the narrowest scope that works.
 - [ ] The data directory (or volume) is backed up, and the backup is protected like the server.
 - [ ] Waiting devices are approved only after comparing the fingerprint.
 - [ ] A lost or sold device is **blocked** or **removed** in the UI.

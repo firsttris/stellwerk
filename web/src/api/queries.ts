@@ -29,6 +29,11 @@ export const eventsQuery = queryOptions({
   refetchInterval: 60_000,
 });
 
+export const tokensQuery = queryOptions({
+  queryKey: ["tokens"],
+  queryFn: () => api.tokens(),
+});
+
 export function refresh(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: overviewQuery.queryKey }),

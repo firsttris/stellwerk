@@ -5,6 +5,7 @@ mod auth;
 mod devices;
 mod events;
 mod folders;
+mod tokens;
 
 use std::path::Path;
 use std::str::FromStr;
@@ -16,7 +17,8 @@ use sqlx::{Sqlite, SqlitePool, Transaction};
 pub use auth::Session;
 pub use devices::{DeviceUpdate, Enrolled, NewDevice};
 pub use events::Event;
-pub use folders::ShareChange;
+pub use folders::{ShareChange, default_path};
+pub use tokens::{ApiToken, Scope};
 
 use crate::model::Config;
 

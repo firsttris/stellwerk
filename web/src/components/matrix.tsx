@@ -8,7 +8,7 @@ import type { Device, Folder, Live, Overview } from "../api/types";
 import { errorMessage } from "../lib/errors";
 import { deviceStatus, nowSeconds } from "../lib/format";
 import { byCount } from "../lib/i18n";
-import { completion, folderBadge, folderSize, holders } from "../lib/live";
+import { folderBadge, folderSize, holders, syncProgress } from "../lib/live";
 import {
   type CellMode,
   cellKey,
@@ -352,7 +352,7 @@ function MatrixCell({
   const mode = cellMode(overview, draft, folder.id, device.id);
   const changed = draft.has(cellKey(folder.id, device.id));
   const waiting = !changed && mode !== "off" && isWaiting(device, overview.revision);
-  const percent = completion(live, folder.id, device.id)?.percent ?? 100;
+  const percent = syncProgress(live, folder.id, device.id)?.percent ?? 100;
   const progress =
     !changed && !waiting && mode !== "off" && device.online && percent < 100
       ? Math.floor(percent)

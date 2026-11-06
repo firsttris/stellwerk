@@ -1,5 +1,5 @@
 // Renders social-preview.html to docs/social-preview.png (1280 × 640), from the screenshots in
-// docs/, so run it after them: `pnpm screenshots` does both.
+// docs/, so run it after them: `bun run screenshots` does both.
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

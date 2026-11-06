@@ -8,8 +8,10 @@ pub mod discover;
 pub mod identity;
 pub mod local_ignores;
 pub mod run;
+pub mod search;
 pub mod service;
 pub mod session;
+pub mod update;
 
 use anyhow::Context;
 

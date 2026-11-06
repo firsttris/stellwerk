@@ -87,6 +87,8 @@ field (`crates/protocol/src/messages.rs`).
 | Zentrale → agent | `waiting` | LAN pairing: the agent is unknown and came without a code; its key's fingerprint. The socket stays open until the UI decides |
 | Zentrale → agent | `browse` | the folder picker: a request ID and a path (empty for the home directory) |
 | agent → Zentrale | `listing` | the answer under the same ID: the directory, its parent, its subdirectories by name and path, the home directory and the file system roots; or why it could not be read |
+| Zentrale → agent | `search` | a request ID, a path to start at (empty for the home directory) and a name to look for |
+| agent → Zentrale | `matches` | the answer under the same ID: the start directory, the directories whose name holds every word of the query (shallower first, nothing listed below a match), and whether the search stopped early; or why it could not start |
 | Zentrale → agent | `rejected` | why; the socket closes |
 
 The desired state is always complete, never a diff: an agent that was offline for three days just
@@ -145,6 +147,7 @@ SQLite with migrations embedded in the binary (`crates/zentrale/migrations`).
 | `config_rev` | one revision number, raised in the same transaction as every change |
 | `events` | at, device, folder, kind, text (activity feed) |
 | `admin`, `sessions` | login |
+| `api_tokens` | id, name, scope, token_hash, created_at, last_used_at |
 
 ### Login and API
 
@@ -153,21 +156,30 @@ sets an HttpOnly, SameSite=Strict session cookie (Secure behind HTTPS) and retur
 the UI sends back in `X-CSRF-Token` on every change. Only hashes of session tokens and pairing
 codes are stored.
 
-| Endpoint | Does |
-|---|---|
-| `GET /api/session`, `POST /api/login`, `POST /api/logout` | login state, log in, log out |
-| `GET /api/overview` | revision, hub, devices (with online state), folders, shares |
-| `POST /api/folders`, `PATCH`/`DELETE /api/folders/{id}` | create; rename or set ignore patterns; remove a folder |
-| `POST /api/shares` | apply a draft of modes and paths as one revision |
-| `PATCH`/`DELETE /api/devices/{id}` | rename, block, unblock, remove a device |
-| `GET /api/devices/{id}/browse?path=` | the folder picker: a directory on an online device, asked of its agent (409 offline, 504 no answer) |
-| `POST /api/enrollments`, `POST /api/enrollments/status` | new pairing code, has a device used it yet |
-| `POST /api/waiting/{fingerprint}/approve`, `…/reject` | decide about a device waiting in the LAN |
-| `GET /api/folders/{id}/conflicts/content`, `POST …/conflicts/resolve` | both sides of a conflict, resolve it |
-| `GET /api/folders/{id}/versions`, `POST …/versions/restore` | versions on the hub, restore one |
-| `GET /api/events` | activity feed |
-| `GET /api/status` | live status of devices and hub |
-| `GET /api/ws` | WebSocket with an `update` per change: revision, online devices, live status |
+Scripts and AI assistants use an API token instead (`Authorization: Bearer stw_…`, no CSRF
+token; `crates/zentrale/src/api/access.rs`). Its scope decides what it may call: **read** the
+endpoints marked R below, **manage** also those marked M. Everything else needs the browser
+login, and a request with a token gets `403` there. A new password revokes every token.
+
+| Endpoint | Does | Token |
+|---|---|---|
+| `GET /api/session`, `POST /api/login`, `POST /api/logout` | login state, log in, log out | |
+| `GET /api/overview` | revision, hub, devices (with online state), folders, shares | R |
+| `POST /api/folders`, `PATCH /api/folders/{id}` | create; rename or set ignore patterns | M |
+| `DELETE /api/folders/{id}` | remove a folder | |
+| `POST /api/shares` | apply a draft of modes and paths as one revision | M |
+| `PATCH`/`DELETE /api/devices/{id}` | rename, block, unblock, remove a device | |
+| `GET /api/devices/{id}/browse?path=` | the folder picker: a directory on an online device, asked of its agent (409 offline, 504 no answer) | R |
+| `GET /api/devices/{id}/search?q=&path=` | directories on an online device whose name matches `q`, below `path` (the home directory when empty); asked of its agent like `browse` | R |
+| `POST /api/enrollments`, `POST /api/enrollments/status` | new pairing code, has a device used it yet | |
+| `POST /api/waiting/{fingerprint}/approve`, `…/reject` | decide about a device waiting in the LAN | |
+| `GET /api/folders/{id}/conflicts/content`, `POST …/conflicts/resolve` | both sides of a conflict, resolve it | |
+| `GET /api/folders/{id}/versions`, `POST …/versions/restore` | versions on the hub, restore one | |
+| `GET /api/events` | activity feed | R |
+| `GET /api/status` | live status of devices and hub | R |
+| `GET /api/ws` | WebSocket with an `update` per change: revision, online devices, live status | |
+| `GET`/`POST /api/tokens`, `DELETE /api/tokens/{id}` | list, create (the token is in the answer this once), revoke API tokens | |
+| `POST /mcp` | the MCP server (see below) | R/M |
 
 Every change raises the revision and sends connected agents and the hub their new desired state.
 A failed hub reconcile (hub API briefly unreachable, a refused call) is retried after 1 second,
@@ -186,10 +198,38 @@ device and one for the hub, as pure functions. The topology is a star:
 - a Syncthing device ID is one peer, even if two devices report it; the store turns away a
   device whose Syncthing ID already belongs to another one.
 
+## MCP server
+
+`crates/zentrale/src/mcp`: the Zentrale answers the [Model Context
+Protocol](https://modelcontextprotocol.io/specification) at `POST /mcp`, so assistants such as
+Claude Code can steer it. Streamable HTTP in its simplest form: each POST carries one JSON-RPC
+message and gets one JSON answer (`202` for a notification); there are no sessions and no
+server-sent events, so `GET` and `DELETE` are `405`. It speaks the protocol versions 2025-11-25
+back to 2024-11-05 and answers `initialize`, `ping`, `tools/list` and `tools/call`.
+
+Only API tokens get in (`401` with `WWW-Authenticate: Bearer` otherwise); `tools/list` shows a
+token the tools of its scope. A request with an `Origin` of another host is refused.
+
+| Module | Does |
+|---|---|
+| `rpc` | JSON-RPC messages, errors, version negotiation, the `initialize` answer |
+| `tools` | the seven tools with their annotations (`readOnlyHint`, `destructiveHint`), and what each calls in the Zentrale |
+| `schemas` | the JSON Schemas of the tools' arguments |
+| `views` | pure functions: devices and folders by ID or name, and a draft checked against the configuration, with the paths it gets (the store's default for a new share) and a description with the folder's size |
+
+`preview_shares` and `apply_shares` take the same draft: cells of folder, device, mode
+(`sendReceive`, `sendOnly`, `receiveOnly`, `off`) and an optional path. The preview runs the
+same check and changes nothing; applying writes the cells that change in one revision through
+the same store function as `POST /api/shares`. The instructions sent on `initialize` tell the
+assistant the order: find, create, preview, ask, apply.
+
 ## Web UI
 
 `web/`: React with TanStack Router (file-based routes), Query and Table, Tailwind 4 with design
-tokens for light and dark, components in shadcn style on Radix, lucide icons. The release build
+tokens for light and dark, components in shadcn style on Radix, lucide icons. The build swaps the
+React runtime for [TanStack Redact](https://github.com/TanStack/redact) (a Vite plugin; the code
+keeps importing from `react`), which renders synchronously and makes the initial JavaScript about
+a third smaller; Vitest stays on React, the E2E tests run the build with Redact. The release build
 of the Zentrale embeds `web/dist`; paths outside `/api` fall back to `index.html`.
 
 - **Overview**: devices online, folders, revision; the folder × device matrix. Clicks collect in
@@ -202,6 +242,8 @@ of the Zentrale embeds `web/dist`; paths outside `/api` fall back to `index.html
 - **Folders**: mode and local path per device; versions per file with restore; conflicts side by
   side; rename, ignore patterns (one per line, on every device and the hub), remove.
 - **Conflicts**: every conflict of every folder in one list.
+- **API tokens**: create a token for a script or assistant (shown once, with the command that adds
+  the MCP server to Claude Code), see when each was last used, revoke it.
 
 The [user guide](user-guide.md) describes each page in detail.
 
@@ -217,8 +259,8 @@ Zentrale's `version` for the sidebar.
 
 Live updates come through `/api/ws` (see above); polling every 30 seconds is only the fallback.
 `src/api/types.ts` checks every answer with Zod.
-`pnpm dev:demo` runs the UI on fixtures (`src/demo/`) without a Zentrale. The Playwright tests in
-`e2e/` and the screenshots (`pnpm screenshots`, or **Actions → Update screenshots**) use the same
+`bun run dev:demo` runs the UI on fixtures (`src/demo/`) without a Zentrale. The Playwright tests in
+`e2e/` and the screenshots (`bun run screenshots`, or **Actions → Update screenshots**) use the same
 demo mode, so they need neither Rust nor Syncthing.
 
 ## Live status and activity
@@ -229,7 +271,11 @@ reads `/rest/db/status` for every folder whenever something happened, at most on
 - Each agent sends the result as `status` over its WebSocket.
 - The Zentrale watches the hub the same way and also reads `/rest/db/completion` for every
   folder and device: how much of a folder a device has, known from its index even while it is
-  offline ("214 changes wait on the server").
+  offline ("214 changes wait on the server"). Items changed locally in a receive-only folder
+  count as missing there too, because Syncthing announces them as invalid with an empty version.
+  Only the device itself can tell them apart, so its `status` also carries `need_items` and
+  `local_changes`, and the UI shows "In sync, 1,903 local changes" instead of "Loading". Older
+  agents leave both out; the UI then keeps the hub's numbers.
 - Changes that arrive at the hub (`RemoteChangeDetected`, with the short ID of the device that
   made them) are counted per device and folder over 30 seconds and written to the activity feed
   ("laptop changed 18 files in Projekte"), as are pairings, connects and disconnects.
@@ -286,6 +332,15 @@ listed path inside a folder becomes a rooted, escaped pattern for exactly that p
 (`engine::ignore::anchored_pattern`, checked against the pinned Syncthing in
 `crates/engine/tests/anchored_ignores.rs`). The lists are read again every 10 seconds; a
 changed list is applied to the last desired state at once.
+
+**Directories on request** (`crates/agent/src/browse.rs`, `search.rs`): `browse` lists the
+subdirectories of one directory for the folder picker; `search` walks breadth first from a start
+directory and returns the directories whose name holds every word of the query as word prefixes,
+in order ("game of thrones" finds `Game.of.Thrones.S01`), without looking below a match. It skips
+hidden directories, follows no symbolic links and stops after 8 levels, 50 matches or 10 seconds,
+saying so (`truncated`). Both run off the async runtime and next to each other, so a search
+holds up neither the folder picker nor a new desired state; an agent that does not know a request leaves it
+unanswered, and the Zentrale reports "update its agent" after its timeout.
 
 Its Syncthing listens on a random port on all interfaces, with discovery, relays and NAT
 traversal off: the device dials the hub at the address from the desired state, and the hub,
@@ -351,4 +406,4 @@ configuration; removing a folder leaves its files alone.
 | 0 · Spike ✅ | engine starts Syncthing, reconciler applies a fixed desired state | integration test "file from A arrives on B" is green |
 | 1 · MVP ✅ | Zentrale with SQLite, agent over WebSocket, pairing with a one-time code, hub Syncthing, matrix and device list in the UI | 3-node test with an offline device green (`crates/zentrale/tests/phase1_gate.rs`), own devices one week in daily use (open) |
 | 2 · Comfort ✅ | live status, activity, conflicts on the hub, versions, ignore patterns, German and English | E2E green, conflict and restore in the integration test (`crates/zentrale/tests/phase2_gate.rs`) |
-| 3 · Distribution | Docker image and Quadlet ✅, LAN discovery ✅, agent as a service and Windows installer ✅, CI on Linux, Windows and macOS ✅; self-update with signature (open) | v1.0 published through `release.yml` |
+| 3 · Distribution | Docker image and Quadlet ✅, LAN discovery ✅, agent as a service and Windows installer ✅, CI on Linux, Windows and macOS ✅; self-update of the agent on Linux and macOS ✅, on Windows (open) | v1.0 published through `release.yml` |

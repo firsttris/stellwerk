@@ -108,6 +108,10 @@ export const folderViewSchema = z.object({
   globalBytes: z.number(),
   needFiles: z.number(),
   needBytes: z.number(),
+  /** Reported by the device itself; missing from older agents. */
+  needItems: z.number().optional(),
+  localChanges: z.number().optional(),
+  localChangesOnHub: z.number().optional(),
   errors: z.number(),
   error: z.string().optional(),
 });
@@ -146,7 +150,11 @@ export type WaitingDevice = z.infer<typeof waitingSchema>;
 export const liveSchema = z.object({
   devices: z.record(
     z.string(),
-    z.object({ at: z.number(), folders: z.record(z.string(), folderViewSchema) }),
+    z.object({
+      at: z.number(),
+      folders: z.record(z.string(), folderViewSchema),
+      canUpdate: z.boolean().optional(),
+    }),
   ),
   hub: z.object({
     folders: z.record(z.string(), folderViewSchema),
@@ -194,6 +202,23 @@ export const directorySchema = z.object({
 });
 export type Directory = z.infer<typeof directorySchema>;
 
+export const tokenScopeSchema = z.enum(["read", "manage"]);
+export type TokenScope = z.infer<typeof tokenScopeSchema>;
+
+/** An API token for scripts and AI assistants; the token itself is never listed. */
+export const apiTokenSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  scope: tokenScopeSchema,
+  createdAt: z.number(),
+  lastUsedAt: z.number().nullable(),
+});
+export type ApiToken = z.infer<typeof apiTokenSchema>;
+
+/** A new token with its secret, shown this once. */
+export const createdTokenSchema = apiTokenSchema.extend({ secret: z.string() });
+export type CreatedToken = z.infer<typeof createdTokenSchema>;
+
 export type Keep = "original" | "copy" | "both";
 
 /** One cell of the matrix as the API takes it; `mode: null` is "off". */
@@ -219,6 +244,8 @@ export type Api = {
   applyShares(changes: ShareChange[]): Promise<{ revision: number }>;
   updateDevice(id: string, patch: DevicePatch): Promise<Device>;
   deleteDevice(id: string): Promise<void>;
+  /** Replaces the device's agent with the Zentrale's version; resolves when it is in place. */
+  updateAgent(id: string): Promise<void>;
   /** The directory at `path` on the device; its home directory for an empty path. */
   browse(deviceId: string, path: string): Promise<Directory>;
   createEnrollment(): Promise<Enrollment>;
@@ -231,6 +258,9 @@ export type Api = {
   resolveConflict(folderId: string, path: string, keep: Keep): Promise<void>;
   versions(folderId: string): Promise<FileVersions[]>;
   restoreVersion(folderId: string, path: string, versionTime: string): Promise<void>;
+  tokens(): Promise<ApiToken[]>;
+  createToken(name: string, scope: TokenScope): Promise<CreatedToken>;
+  deleteToken(id: string): Promise<void>;
 };
 
 export class ApiError extends Error {

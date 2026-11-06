@@ -87,8 +87,11 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
                 session::HEARTBEAT,
             )
             .await;
+            if matches!(result, Ok(End::Updated)) {
+                return;
+            }
             let problem = match &result {
-                Ok(End::Closed) => None,
+                Ok(End::Closed | End::Updated) => None,
                 Ok(End::Rejected(reason)) => {
                     Some(format!("the Zentrale turned the agent away: {reason}"))
                 }
@@ -112,8 +115,12 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
     // Syncthing runs with --no-restart: when it exits, the agent exits with an error and the
     // service manager (systemd Restart=on-failure, launchd KeepAlive, the task's
     // RestartOnFailure) starts both again, instead of the agent reporting a dead Syncthing.
+    let mut updated = false;
     let exited = tokio::select! {
-        () = connect => None,
+        () = connect => {
+            updated = true;
+            None
+        }
         () = shutdown => None,
         status = syncthing.exited() => Some(status),
     };
@@ -123,6 +130,8 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
         anyhow::bail!("Syncthing exited ({how})");
     }
     syncthing.stop().await?;
+    // Not a clean exit: systemd's Restart=on-failure starts a service only after a failure.
+    anyhow::ensure!(!updated, "updated, restarting into the new version");
     Ok(())
 }
 
@@ -131,7 +140,7 @@ pub async fn run(options: Options, shutdown: impl Future<Output = ()>) -> anyhow
 /// minute after being turned away. A session that ended without an error starts over at 1 s.
 fn backoff(ended: Option<&End>, pause: Duration) -> (Duration, Duration) {
     match ended {
-        Some(End::Closed) => (MIN_PAUSE, MIN_PAUSE),
+        Some(End::Closed | End::Updated) => (MIN_PAUSE, MIN_PAUSE),
         Some(End::Rejected(_)) => (REJECTED_PAUSE, MIN_PAUSE),
         None => (pause, (pause * 2).min(MAX_PAUSE)),
     }

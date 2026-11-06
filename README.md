@@ -111,6 +111,18 @@ first run is in [Getting started](https://firsttris.github.io/stellwerk/getting-
   the agent at login as the current user, without admin rights, on Linux, macOS and Windows.
 - **Signed sign-in**: after pairing, the agent signs in with its own Ed25519 key; a device can be
   blocked or removed in the UI.
+- **API tokens**: scripts and AI assistants get their own token, read-only or allowed to manage
+  folders and shares; devices, pairing and the tokens themselves stay with the browser login.
+
+### 🤖 Ask Claude to set it up
+
+- **MCP server built in**: the Zentrale speaks the Model Context Protocol at `/mcp`. Add it to
+  Claude Code with the command shown when you create a token, then say "Sync Game of Thrones
+  from the NAS to my laptop".
+- **Finds the files for you**: the assistant searches the device by name, creates the folder and
+  shows a preview with the size before anything is applied.
+- **Safe by scope**: a read-only token can look and preview; only a "manage" token applies, and
+  devices, pairing and deleting stay with the browser login.
 
 ### 🗄️ The server holds everything
 
@@ -205,13 +217,13 @@ The full documentation, with search, is at **[firsttris.github.io/stellwerk](htt
 
 ## 🛠️ Development
 
-Requires Rust (stable), Node 22 and pnpm.
+Requires Rust (stable) and Bun.
 
 ```bash
 git clone https://github.com/firsttris/stellwerk && cd stellwerk
-pnpm install && pnpm dev:demo   # the UI on demo data, no server needed
-cargo test                      # downloads the pinned Syncthing once and runs real instances
-pnpm e2e                        # Playwright against the UI in demo mode
+bun install && bun run dev:demo   # the UI on demo data, no server needed
+cargo test                        # downloads the pinned Syncthing once and runs real instances
+bun run e2e                       # Playwright against the UI in demo mode
 ```
 
 Rust workspace: `protocol` (messages, desired state), `engine` (Syncthing control and
@@ -223,7 +235,7 @@ Running a real Zentrale and agent locally, the tests and releases:
 
 Issues and pull requests are welcome. A good bug report names the OS, the Stellwerk and Syncthing
 versions and what the Zentrale showed. Please run `cargo fmt --all --check`,
-`cargo clippy --all-targets -- -D warnings`, `cargo test` and `pnpm check` before opening a pull
+`cargo clippy --all-targets -- -D warnings`, `cargo test` and `bun run check` before opening a pull
 request.
 
 ---

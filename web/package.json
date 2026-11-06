@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "0.1.9",
+  "version": "0.1.11",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-only",
@@ -9,18 +9,17 @@
     "dev": "vite",
     "dev:demo": "vite --mode demo",
     "build": "vite build",
-    "build:demo": "vite build --mode demo --outDir dist-demo",
-    "preview:demo": "vite preview --outDir dist-demo --host 127.0.0.1 --strictPort --port ${PW_PORT:-4173}",
-    "typecheck": "pnpm i18n && tsc --noEmit",
+    "typecheck": "bun run i18n && tsc --noEmit",
     "lint": "biome check .",
-    "test": "pnpm i18n && vitest run",
-    "check": "biome check . && pnpm typecheck && vitest run && vite build"
+    "test": "bun run i18n && vitest run",
+    "check": "biome check . && bun run typecheck && vitest run && vite build"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
     "@tanstack/react-query": "^5.104.2",
     "@tanstack/react-router": "^1.170.42",
+    "@tanstack/redact": "0.3.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.55.0",
@@ -32,7 +31,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
-    "@inlang/paraglide-js": "^2.27.0",
+    "@inlang/paraglide-js": "^3.0.0",
     "@inlang/plugin-message-format": "^4.5.2",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-plugin": "^1.168.43",

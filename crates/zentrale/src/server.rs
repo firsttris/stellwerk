@@ -17,7 +17,7 @@ use tokio::task::JoinHandle;
 use crate::app::App;
 use crate::model::Hub;
 use crate::store::Store;
-use crate::{agents, api, ca, files, hub, web};
+use crate::{agents, api, ca, files, hub, mcp, web};
 
 /// How long [`Running::stop`] waits for open HTTP requests.
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
@@ -55,6 +55,7 @@ pub fn router(app: App) -> Router {
         .route(AGENT_WS_PATH, get(agents::ws))
         .route("/ca.crt", get(ca::serve))
         .merge(api::router())
+        .merge(mcp::router())
         .fallback(web::serve)
         .with_state(app)
 }

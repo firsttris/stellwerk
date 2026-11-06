@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { overviewQuery, refresh } from "../api/queries";
 import type { Device, Enrollment } from "../api/types";
+import { copyToClipboard } from "../lib/clipboard";
 import { errorMessage } from "../lib/errors";
 import { osLabel } from "../lib/format";
 import { byCount } from "../lib/i18n";
@@ -69,15 +70,6 @@ function PairDialogContent({ onDone }: { onDone: () => void }) {
         />
       )}
     </DialogContent>
-  );
-}
-
-/** Whether the text reached the clipboard; `navigator.clipboard` needs a secure origin. */
-async function copyToClipboard(text: string): Promise<boolean> {
-  if (!navigator.clipboard) return false;
-  return navigator.clipboard.writeText(text).then(
-    () => true,
-    () => false,
   );
 }
 

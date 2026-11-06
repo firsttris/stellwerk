@@ -31,7 +31,7 @@ jobs:
       web: ${{ steps.diff.outputs.web }}
       docker: ${{ steps.diff.outputs.docker }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           filter: blob:none
@@ -52,7 +52,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -61,7 +61,7 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       # The pinned Syncthing for the integration tests; the key changes with the pin
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .syncthing-cache
           key: syncthing-${{ runner.os }}-${{ hashFiles('crates/engine/src/pin.rs') }}
@@ -101,17 +101,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter web lint
-      - run: pnpm --filter web typecheck
-      - run: pnpm --filter web test
-      - run: pnpm --filter web build
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun run --filter web lint
+      - run: bun run --filter web typecheck
+      - run: bun run --filter web test
+      - run: bun run --filter web build
 
   # The UI in demo mode in the official Playwright image of the version in the lockfile
   e2e-image:
@@ -124,7 +122,7 @@ jobs:
       - id: playwright
         uses: firsttris/workflows/actions/playwright-image@v1
         with:
-          lockfile: pnpm-lock.yaml
+          lockfile: bun.lock
 
   e2e:
     needs: e2e-image
@@ -134,10 +132,13 @@ jobs:
       image: ${{ needs.e2e-image.outputs.image }}
       options: --ipc=host
     steps:
-      - uses: actions/checkout@v4
-      - run: corepack enable && pnpm install --frozen-lockfile
-      - run: pnpm --filter e2e lint
-      - run: pnpm --filter e2e test
+      - uses: actions/checkout@v7
+      # The npm package brings the binary without curl or unzip, which the image lacks; node reads
+      # the version from `packageManager`, as setup-bun does elsewhere (the image has no jq)
+      - run: npm install --global "bun@$(node -p "require('./package.json').packageManager.split('@')[1]")"
+      - run: bun install --frozen-lockfile
+      - run: bun run --filter e2e lint
+      - run: bun run --filter e2e test
 
   # The image builds and starts, when a file it is built from beyond the code changes;
   # release.yml publishes it. Its build cache is the one the release's amd64 build reads.
@@ -150,8 +151,8 @@ jobs:
       contents: read
       packages: write   # keeps the build cache in ghcr.io/firsttris/stellwerk-buildcache
     steps:
-      - uses: actions/checkout@v4
-      - uses: firsttris/workflows/actions/docker-build@ccr-161f105b-9ns022
+      - uses: actions/checkout@v7
+      - uses: firsttris/workflows/actions/docker-build@v1
         with:
           dockerfile: docker/Dockerfile
           tags: stellwerk:ci

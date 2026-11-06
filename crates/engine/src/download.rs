@@ -119,7 +119,8 @@ fn extract_zip(
     let mut found = Vec::new();
     for index in 0..zip.len() {
         let mut file = zip.by_index(index).map_err(archive_err)?;
-        if let Some(name) = wanted_name(file.name(), prefix, wanted) {
+        let name = wanted_name(&file.name().map_err(archive_err)?, prefix, wanted);
+        if let Some(name) = name {
             let mut contents = Vec::new();
             file.read_to_end(&mut contents)
                 .map_err(|err| Error::Archive(err.to_string()))?;
