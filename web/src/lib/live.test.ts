@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Overview } from "../api/types";
+import type { FolderView, Overview } from "../api/types";
 import { demoLive, demoState } from "../demo/fixtures";
 import {
   deviceFolderCount,
@@ -70,6 +70,77 @@ describe("live state in words", () => {
     if (!photos) throw new Error("fixtures changed");
     photos.needItems = 0;
     expect(deviceSummary(o, onlyDeletes, device("workbench"))).toBe("Synchron");
+  });
+
+  describe("a receive-only device with local changes", () => {
+    // The hub cannot tell a locally changed item from a missing one, the device can: Syncthing
+    // announces local changes as invalid, with an empty version (lib/model/folder_recvonly.go).
+    function deviceWith(hub: { percent: number; needItems: number }, own: Partial<FolderView>) {
+      const o = overview();
+      const live = structuredClone(demoLive(now));
+      const device = o.devices.find((d) => d.id === "workbench");
+      const folder = live.devices.workbench?.folders.photos;
+      const done = live.hub.completion.photos?.workbench;
+      if (!device || !folder || !done) throw new Error("fixtures changed");
+      Object.assign(done, hub);
+      Object.assign(folder, { globalBytes: 1000, needBytes: 0, needItems: 0, ...own });
+      return { o, live, device };
+    }
+
+    it("is in sync when only local changes are left", () => {
+      const { o, live, device } = deviceWith(
+        { percent: 89.9, needItems: 1903 },
+        { localChanges: 1903 },
+      );
+      expect(deviceSummary(o, live, device)).toBe("Synchron, 1.903 lokale Änderungen");
+      expect(shareStatus(device, live, "photos", o.revision)).toBe(
+        "Synchron, 1.903 lokale Änderungen",
+      );
+      expect(deviceProgress(o, live, "workbench")).toBeUndefined();
+      expect(waitingChanges(o, live, "workbench")).toBe(0);
+    });
+
+    it("still loads what is really missing, and names the local changes", () => {
+      const { o, live, device } = deviceWith(
+        { percent: 80, needItems: 1910 },
+        { localChanges: 1903, needItems: 7, needBytes: 250 },
+      );
+      expect(deviceSummary(o, live, device)).toBe(
+        "Lädt 7 Änderungen · 75 % · 1.903 lokale Änderungen",
+      );
+      expect(shareStatus(device, live, "photos", o.revision)).toBe(
+        "Lädt 7 Änderungen · 75 % · 1.903 lokale Änderungen",
+      );
+    });
+
+    it("counts what the hub has and the device has not heard of yet", () => {
+      const { o, live, device } = deviceWith(
+        { percent: 80, needItems: 1910 },
+        { localChanges: 1903, needItems: 0 },
+      );
+      expect(deviceSummary(o, live, device)).toBe(
+        "Lädt 7 Änderungen · 99 % · 1.903 lokale Änderungen",
+      );
+    });
+
+    it("does not take files only the device has off what the hub still holds for it", () => {
+      // Files added on the device are in no global list, so the hub never counted them.
+      const { o, live, device } = deviceWith(
+        { percent: 99, needItems: 7 },
+        { localChanges: 1903, localChangesOnHub: 0, needItems: 0 },
+      );
+      device.online = false;
+      expect(waitingChanges(o, live, "workbench")).toBe(7);
+      expect(deviceSummary(o, live, device)).toBe("7 Änderungen warten auf dem Server");
+      expect(shareStatus(device, live, "photos", o.revision)).toBe(
+        "Offline · 7 Änderungen warten auf dem Server",
+      );
+    });
+
+    it("trusts the hub for an agent that does not report local changes", () => {
+      const { o, live, device } = deviceWith({ percent: 89.9, needItems: 1903 }, {});
+      expect(deviceSummary(o, live, device)).toBe("Lädt 1.903 Änderungen · 89 %");
+    });
   });
 
   it("counts failed files in the singular too", () => {

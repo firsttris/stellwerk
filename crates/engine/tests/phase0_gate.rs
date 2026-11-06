@@ -99,6 +99,141 @@ async fn wait_for_file(path: &Path, contents: &str) {
     }
 }
 
+/// A receive-only device that changed a file itself: it lacks nothing, but the other side
+/// counts the file as missing. Syncthing announces the change as invalid with an empty version
+/// (lib/model/folder_recvonly.go), and only the device itself can tell the two apart.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_local_change_on_a_receive_only_device_is_not_a_download() {
+    let binary = ensure_syncthing(&cache_dir()).await.unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    let a = start_instance(&binary, tmp.path().join("a/home")).await;
+    let b = start_instance(&binary, tmp.path().join("b/home")).await;
+    let a_id = DeviceId::new(a.client().my_id().await.unwrap());
+    let b_id = DeviceId::new(b.client().my_id().await.unwrap());
+    let a_data = tmp.path().join("a/data");
+    let b_data = tmp.path().join("b/data");
+    let want_a = desired(
+        &b_id,
+        b.listen_address(),
+        &a_data,
+        FolderMode::SendOnly,
+        Versioning::None,
+    );
+    let want_b = desired(
+        &a_id,
+        a.listen_address(),
+        &b_data,
+        FolderMode::ReceiveOnly,
+        Versioning::None,
+    );
+    calls_made(a.client(), &want_a).await;
+    calls_made(b.client(), &want_b).await;
+
+    std::fs::create_dir_all(&a_data).unwrap();
+    let contents = "from the server\n";
+    std::fs::write(a_data.join("hello.txt"), contents).unwrap();
+    a.client().scan(FOLDER).await.unwrap();
+    wait_for_file(&b_data.join("hello.txt"), contents).await;
+    wait_for_snapshot(a.client(), Options { completion: true }, |s| {
+        s.completion
+            .iter()
+            .any(|c| c.device == b_id.as_str() && c.percent >= 100.0)
+    })
+    .await;
+
+    std::fs::write(b_data.join("hello.txt"), "changed on this device\n").unwrap();
+    b.client().scan(FOLDER).await.unwrap();
+
+    wait_for_snapshot(b.client(), Options::default(), |s| {
+        s.folders
+            .iter()
+            .any(|f| f.folder == FOLDER && f.local_changes == Some(1) && f.need_items == Some(0))
+    })
+    .await;
+    wait_for_snapshot(a.client(), Options { completion: true }, |s| {
+        s.completion
+            .iter()
+            .any(|c| c.device == b_id.as_str() && c.need_items == 1 && c.percent < 100.0)
+    })
+    .await;
+
+    // A file only this device has is a local change too, but the hub never counted it.
+    std::fs::write(b_data.join("only-here.txt"), "added on this device\n").unwrap();
+    b.client().scan(FOLDER).await.unwrap();
+    wait_for_snapshot(b.client(), Options::default(), |s| {
+        s.folders.iter().any(|f| {
+            f.folder == FOLDER && f.local_changes == Some(2) && f.local_changes_on_hub == Some(1)
+        })
+    })
+    .await;
+
+    a.stop().await.unwrap();
+    b.stop().await.unwrap();
+}
+
+/// A deletion from the other side that a local change blocks: the directory still holds a file
+/// added on this device. Syncthing keeps it in `needDeletes` and the hub's `needItems` leaves it
+/// out (lib/model/model.go, `newFolderCompletion`), so `need_items` must too, or the device
+/// loads for ever at 0 bytes.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_deletion_blocked_by_a_local_change_is_not_something_to_fetch() {
+    let binary = ensure_syncthing(&cache_dir()).await.unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    let a = start_instance(&binary, tmp.path().join("a/home")).await;
+    let b = start_instance(&binary, tmp.path().join("b/home")).await;
+    let a_id = DeviceId::new(a.client().my_id().await.unwrap());
+    let b_id = DeviceId::new(b.client().my_id().await.unwrap());
+    let a_data = tmp.path().join("a/data");
+    let b_data = tmp.path().join("b/data");
+    let want_a = desired(
+        &b_id,
+        b.listen_address(),
+        &a_data,
+        FolderMode::SendOnly,
+        Versioning::None,
+    );
+    let want_b = desired(
+        &a_id,
+        a.listen_address(),
+        &b_data,
+        FolderMode::ReceiveOnly,
+        Versioning::None,
+    );
+    calls_made(a.client(), &want_a).await;
+    calls_made(b.client(), &want_b).await;
+
+    std::fs::create_dir_all(a_data.join("dir")).unwrap();
+    std::fs::write(a_data.join("dir/hello.txt"), "hello\n").unwrap();
+    std::fs::write(a_data.join("kept.txt"), "kept\n").unwrap();
+    a.client().scan(FOLDER).await.unwrap();
+    wait_for_file(&b_data.join("dir/hello.txt"), "hello\n").await;
+    wait_for_file(&b_data.join("kept.txt"), "kept\n").await;
+
+    std::fs::write(b_data.join("dir/mine.txt"), "mine\n").unwrap();
+    b.client().scan(FOLDER).await.unwrap();
+    wait_for_snapshot(b.client(), Options::default(), |s| {
+        s.folders.iter().any(|f| f.local_changes == Some(1))
+    })
+    .await;
+
+    std::fs::remove_dir_all(a_data.join("dir")).unwrap();
+    a.client().scan(FOLDER).await.unwrap();
+    wait_for_snapshot(a.client(), Options { completion: true }, |s| {
+        s.completion
+            .iter()
+            .any(|c| c.device == b_id.as_str() && c.percent == 95.0 && c.need_items == 0)
+    })
+    .await;
+    let blocked = wait_for_snapshot(b.client(), Options::default(), |s| {
+        s.folders.iter().any(|f| f.errors > 0)
+    })
+    .await;
+    assert_eq!(blocked.folders[0].need_items, Some(0));
+
+    a.stop().await.unwrap();
+    b.stop().await.unwrap();
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn file_from_a_arrives_in_b_and_reapplying_changes_nothing() {
     let binary = ensure_syncthing(&cache_dir()).await.unwrap();

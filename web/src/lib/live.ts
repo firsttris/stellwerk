@@ -30,6 +30,28 @@ export function completion(live: Live | undefined, folderId: string, deviceId: s
   return live?.hub.completion[folderId]?.[deviceId];
 }
 
+/**
+ * What a device really still has to fetch. The hub counts every item changed locally in a
+ * receive-only folder as missing (not the ones only the device has, which it never heard of),
+ * so a device reporting such changes corrects its numbers:
+ * what it lacks itself, or what is left of the hub's count without them, whichever is more
+ * (the hub may hold changes the device has not heard of yet). `undefined` if unknown.
+ */
+export function syncProgress(live: Live | undefined, folderId: string, deviceId: string) {
+  const done = completion(live, folderId, deviceId);
+  if (!done) return undefined;
+  const own = live?.devices[deviceId]?.folders[folderId];
+  const localChanges = own?.localChanges ?? 0;
+  if (!own || localChanges === 0) {
+    return { percent: done.percent, missing: done.needItems, localChanges };
+  }
+  const counted = own.localChangesOnHub ?? localChanges;
+  const missing = Math.max(own.needItems ?? 0, done.needItems - counted);
+  if (missing === 0) return { percent: 100, missing, localChanges };
+  const have = own.globalBytes > 0 ? 100 * (1 - own.needBytes / own.globalBytes) : done.percent;
+  return { percent: Math.min(have, 99), missing, localChanges };
+}
+
 /** Devices holding the folder; a blocked device keeps its shares but gets nothing. */
 export function holders(overview: Overview, folderId: string): Device[] {
   const ids = new Set(
@@ -81,7 +103,7 @@ export function folderBadge(overview: Overview, live: Live | undefined, folderId
   }
   const running = holders(overview, folderId)
     .filter((d) => d.online)
-    .map((d) => completion(live, folderId, d.id)?.percent ?? 100)
+    .map((d) => syncProgress(live, folderId, d.id)?.percent ?? 100)
     .filter((p) => p < 100);
   const hub = live.hub.folders[folderId];
   if (running.length > 0) {
@@ -115,17 +137,31 @@ export function folderSize(live: Live | undefined, folderId: string): string | u
 export function waitingChanges(overview: Overview, live: Live | undefined, deviceId: string) {
   return overview.shares
     .filter((s) => s.deviceId === deviceId)
-    .reduce((sum, s) => sum + (completion(live, s.folderId, deviceId)?.needItems ?? 0), 0);
+    .reduce((sum, s) => sum + (syncProgress(live, s.folderId, deviceId)?.missing ?? 0), 0);
 }
 
 /** Lowest progress of a device over its folders, `undefined` when all are complete. */
 export function deviceProgress(overview: Overview, live: Live | undefined, deviceId: string) {
   const percents = overview.shares
     .filter((s) => s.deviceId === deviceId)
-    .map((s) => completion(live, s.folderId, deviceId)?.percent ?? 100)
+    .map((s) => syncProgress(live, s.folderId, deviceId)?.percent ?? 100)
     .filter((p) => p < 100);
   return percents.length > 0 ? Math.floor(Math.min(...percents)) : undefined;
 }
+
+/** "1.903 lokale Änderungen", `undefined` without any. */
+function localChangesText(count: number) {
+  if (count === 0) return undefined;
+  return byCount(count, m.local_changes_one, () =>
+    m.local_changes_other({ count: formatCount(count) }),
+  );
+}
+
+/** A status line with the local changes, which are no reason to call a device unfinished. */
+const inSyncWith = (inSync: string, local: string | undefined) =>
+  local ? `${inSync}, ${local}` : inSync;
+const loadingWith = (loading: string, local: string | undefined) =>
+  local ? `${loading} · ${local}` : loading;
 
 /** The second line of a device's status. */
 export function deviceSummary(overview: Overview, live: Live | undefined, device: Device): string {
@@ -137,12 +173,20 @@ export function deviceSummary(overview: Overview, live: Live | undefined, device
     return byCount(waiting, m.device_waiting_one, () => m.device_waiting_other({ count }));
   }
   const percent = deviceProgress(overview, live, device.id);
+  const local = localChangesText(
+    overview.shares
+      .filter((s) => s.deviceId === device.id)
+      .reduce((sum, s) => sum + (syncProgress(live, s.folderId, device.id)?.localChanges ?? 0), 0),
+  );
   // Below 100 % with nothing to fetch: only deletions are left, which is not "loading 0".
-  if (percent === undefined || waiting === 0) return m.device_in_sync();
-  return byCount(
-    waiting,
-    () => m.device_loading_one({ percent }),
-    () => m.device_loading_other({ count, percent }),
+  if (percent === undefined || waiting === 0) return inSyncWith(m.device_in_sync(), local);
+  return loadingWith(
+    byCount(
+      waiting,
+      () => m.device_loading_one({ percent }),
+      () => m.device_loading_other({ count, percent }),
+    ),
+    local,
   );
 }
 
@@ -153,8 +197,8 @@ export function shareStatus(
   folderId: string,
   revision: number,
 ) {
-  const done = completion(live, folderId, device.id);
-  const missing = done?.needItems ?? 0;
+  const done = syncProgress(live, folderId, device.id);
+  const missing = done?.missing ?? 0;
   const count = formatCount(missing);
   if (!device.online) {
     if (missing > 0) {
@@ -167,13 +211,17 @@ export function shareStatus(
   const error = live?.devices[device.id]?.folders[folderId]?.error;
   if (error) return m.share_error({ error });
   // As in deviceSummary: below 100 % with nothing to fetch means only deletions are left.
+  const local = localChangesText(done?.localChanges ?? 0);
   if (done && done.percent < 100 && missing > 0) {
     const percent = Math.floor(done.percent);
-    return byCount(
-      missing,
-      () => m.share_loading_one({ percent }),
-      () => m.share_loading_other({ count, percent }),
+    return loadingWith(
+      byCount(
+        missing,
+        () => m.share_loading_one({ percent }),
+        () => m.share_loading_other({ count, percent }),
+      ),
+      local,
     );
   }
-  return m.share_in_sync();
+  return inSyncWith(m.share_in_sync(), local);
 }

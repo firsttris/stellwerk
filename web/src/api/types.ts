@@ -108,6 +108,10 @@ export const folderViewSchema = z.object({
   globalBytes: z.number(),
   needFiles: z.number(),
   needBytes: z.number(),
+  /** Reported by the device itself; missing from older agents. */
+  needItems: z.number().optional(),
+  localChanges: z.number().optional(),
+  localChangesOnHub: z.number().optional(),
   errors: z.number(),
   error: z.string().optional(),
 });
