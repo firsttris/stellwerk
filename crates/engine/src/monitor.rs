@@ -244,6 +244,13 @@ mod tests {
     }
 
     #[test]
+    fn need_items_count_what_the_hub_counts_without_deletions() {
+        let summary: FolderSummary =
+            serde_json::from_str(r#"{"state":"idle","needTotalItems":7,"needDeletes":2}"#).unwrap();
+        assert_eq!(folder_status("f", &summary).need_items, Some(5));
+    }
+
+    #[test]
     fn only_remote_changes_are_picked_from_events() {
         let events: Vec<Event> = serde_json::from_str(
             r#"[{"id":1,"type":"StateChanged","data":{"folder":"f","to":"idle"}},
