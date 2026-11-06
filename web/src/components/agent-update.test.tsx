@@ -37,4 +37,22 @@ describe("AgentUpdate", () => {
       "https://firsttris.github.io/stellwerk/installation.html#updating",
     );
   });
+
+  it("promises no update from here to an offline agent that cannot do it", () => {
+    show(overview(), live(false), device({ online: false }));
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByText(/nicht selbst aktualisieren/)).toBeTruthy();
+  });
+
+  it("knows a Windows agent cannot update itself after the Zentrale restarted", () => {
+    show(overview(), { devices: {} } as unknown as Live, device({ os: "windows", online: false }));
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByText(/nicht selbst aktualisieren/)).toBeTruthy();
+  });
+
+  it("still offers an offline agent that can update itself the update for later", () => {
+    show(overview(), live(true), device({ online: false }));
+    expect(screen.getByRole("button", { name: "Aktualisieren" })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("status").textContent).toMatch(/offline/);
+  });
 });
