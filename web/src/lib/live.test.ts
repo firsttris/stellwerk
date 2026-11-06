@@ -123,6 +123,20 @@ describe("live state in words", () => {
       );
     });
 
+    it("does not take files only the device has off what the hub still holds for it", () => {
+      // Files added on the device are in no global list, so the hub never counted them.
+      const { o, live, device } = deviceWith(
+        { percent: 99, needItems: 7 },
+        { localChanges: 1903, localChangesOnHub: 0, needItems: 0 },
+      );
+      device.online = false;
+      expect(waitingChanges(o, live, "workbench")).toBe(7);
+      expect(deviceSummary(o, live, device)).toBe("7 Änderungen warten auf dem Server");
+      expect(shareStatus(device, live, "photos", o.revision)).toBe(
+        "Offline · 7 Änderungen warten auf dem Server",
+      );
+    });
+
     it("trusts the hub for an agent that does not report local changes", () => {
       const { o, live, device } = deviceWith({ percent: 89.9, needItems: 1903 }, {});
       expect(deviceSummary(o, live, device)).toBe("Lädt 1.903 Änderungen · 89 %");

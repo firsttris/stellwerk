@@ -156,6 +156,19 @@ async fn a_local_change_on_a_receive_only_device_is_not_a_download() {
             .any(|c| c.device == b_id.as_str() && c.need_items == 1 && c.percent < 100.0)
     })
     .await;
+
+    // A file only this device has is a local change too, but the hub never counted it.
+    std::fs::write(b_data.join("only-here.txt"), "added on this device\n").unwrap();
+    b.client().scan(FOLDER).await.unwrap();
+    wait_for_snapshot(b.client(), Options::default(), |s| {
+        s.folders.iter().any(|f| {
+            f.folder == FOLDER && f.local_changes == Some(2) && f.local_changes_on_hub == Some(1)
+        })
+    })
+    .await;
+
+    a.stop().await.unwrap();
+    b.stop().await.unwrap();
 }
 
 /// A deletion from the other side that a local change blocks: the directory still holds a file
@@ -216,6 +229,9 @@ async fn a_deletion_blocked_by_a_local_change_is_not_something_to_fetch() {
     })
     .await;
     assert_eq!(blocked.folders[0].need_items, Some(0));
+
+    a.stop().await.unwrap();
+    b.stop().await.unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread")]
