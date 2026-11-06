@@ -7,7 +7,7 @@
 //! patterns from the Zentrale. The lists stay on the device: other devices get the same
 //! patterns from their own lists, and the Zentrale's patterns are untouched.
 
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use stellwerk_engine::ignore::{anchored_pattern, exclusion_position};
 use stellwerk_protocol::DesiredState;
@@ -63,10 +63,26 @@ fn folder_root(path: &str, home: Option<&Path>) -> Option<PathBuf> {
     }
 }
 
+/// `path` with `..` resolved by its text.
+fn without_dots(path: &Path) -> PathBuf {
+    let mut clean = PathBuf::new();
+    for part in path.components() {
+        match part {
+            Component::ParentDir => {
+                clean.pop();
+            }
+            other => clean.push(other),
+        }
+    }
+    clean
+}
+
 /// `path` inside `root`, `/`-separated as Syncthing patterns are on every platform.
 fn relative_in(path: &Path, root: &Path) -> Option<String> {
+    let path = without_dots(path);
+    let root = without_dots(root);
     let parts = path
-        .strip_prefix(root)
+        .strip_prefix(&root)
         .ok()?
         .components()
         .map(|c| c.as_os_str().to_str())
