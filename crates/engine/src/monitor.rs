@@ -52,6 +52,9 @@ pub struct FolderSummary {
     pub need_deletes: u64,
     pub need_total_items: u64,
     pub receive_only_total_items: u64,
+    pub receive_only_changed_deletes: u64,
+    pub local_total_items: u64,
+    pub global_total_items: u64,
 }
 
 /// `GET /rest/db/completion` (lib/model/model.go, `FolderCompletion.Map`).
@@ -85,7 +88,19 @@ pub fn sync_state(state: &str) -> SyncState {
     }
 }
 
+/// The local changes other devices count as missing. Syncthing reports no count of items only
+/// this device has, but they are what the local total holds beyond the global one, once what it
+/// lacks (still to fetch, deleted here) and what it still has to delete are taken into account.
+fn local_changes_on_hub(summary: &FolderSummary, need_items: u64) -> u64 {
+    let added = (summary.local_total_items + need_items + summary.receive_only_changed_deletes)
+        .saturating_sub(summary.global_total_items + summary.need_deletes);
+    summary.receive_only_total_items.saturating_sub(added)
+}
+
 pub fn folder_status(folder: &str, summary: &FolderSummary) -> FolderStatus {
+    let need_items = summary
+        .need_total_items
+        .saturating_sub(summary.need_deletes);
     FolderStatus {
         folder: folder.to_string(),
         state: sync_state(&summary.state),
@@ -93,12 +108,9 @@ pub fn folder_status(folder: &str, summary: &FolderSummary) -> FolderStatus {
         global_bytes: summary.global_bytes,
         need_files: summary.need_files,
         need_bytes: summary.need_bytes,
-        need_items: Some(
-            summary
-                .need_total_items
-                .saturating_sub(summary.need_deletes),
-        ),
+        need_items: Some(need_items),
         local_changes: Some(summary.receive_only_total_items),
+        local_changes_on_hub: Some(local_changes_on_hub(summary, need_items)),
         errors: summary.errors,
         error: (!summary.error.is_empty()).then(|| summary.error.clone()),
     }
@@ -253,6 +265,30 @@ mod tests {
         let summary: FolderSummary =
             serde_json::from_str(r#"{"state":"idle","needTotalItems":7,"needDeletes":2}"#).unwrap();
         assert_eq!(folder_status("f", &summary).need_items, Some(5));
+    }
+
+    #[test]
+    fn items_only_this_device_has_are_not_on_the_hub() {
+        let on_hub = |json: &str| {
+            let summary: FolderSummary = serde_json::from_str(json).unwrap();
+            folder_status("f", &summary).local_changes_on_hub
+        };
+        // Two changed, one deleted, three added
+        assert_eq!(
+            on_hub(
+                r#"{"receiveOnlyTotalItems":6,"receiveOnlyChangedDeletes":1,
+                    "localTotalItems":12,"globalTotalItems":10}"#
+            ),
+            Some(3)
+        );
+        // Only changed, with one item still to fetch
+        assert_eq!(
+            on_hub(
+                r#"{"receiveOnlyTotalItems":4,"needTotalItems":1,
+                    "localTotalItems":9,"globalTotalItems":10}"#
+            ),
+            Some(4)
+        );
     }
 
     #[test]

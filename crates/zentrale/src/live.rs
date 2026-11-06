@@ -41,6 +41,8 @@ pub struct FolderView {
     pub need_items: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub local_changes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_changes_on_hub: Option<u64>,
     pub errors: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
@@ -95,6 +97,7 @@ fn folder_view(status: &FolderStatus) -> FolderView {
         need_bytes: status.need_bytes,
         need_items: status.need_items,
         local_changes: status.local_changes,
+        local_changes_on_hub: status.local_changes_on_hub,
         errors: status.errors,
         error: status.error.clone(),
     }

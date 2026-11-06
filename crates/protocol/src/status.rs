@@ -37,6 +37,11 @@ pub struct FolderStatus {
     /// only this device can tell them from a real download. `None` from older agents.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub local_changes: Option<u64>,
+    /// The part of [`Self::local_changes`] that other devices count as missing: changed and
+    /// deleted items. Items only this device has are in no global list, so nobody counts them.
+    /// `None` from older agents.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_changes_on_hub: Option<u64>,
     /// Files that failed to sync.
     pub errors: u64,
     /// Why the folder as a whole stopped, if it did (e.g. path missing).

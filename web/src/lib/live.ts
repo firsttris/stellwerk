@@ -32,7 +32,8 @@ export function completion(live: Live | undefined, folderId: string, deviceId: s
 
 /**
  * What a device really still has to fetch. The hub counts every item changed locally in a
- * receive-only folder as missing, so a device reporting such changes corrects its numbers:
+ * receive-only folder as missing (not the ones only the device has, which it never heard of),
+ * so a device reporting such changes corrects its numbers:
  * what it lacks itself, or what is left of the hub's count without them, whichever is more
  * (the hub may hold changes the device has not heard of yet). `undefined` if unknown.
  */
@@ -44,7 +45,8 @@ export function syncProgress(live: Live | undefined, folderId: string, deviceId:
   if (!own || localChanges === 0) {
     return { percent: done.percent, missing: done.needItems, localChanges };
   }
-  const missing = Math.max(own.needItems ?? 0, done.needItems - localChanges);
+  const counted = own.localChangesOnHub ?? localChanges;
+  const missing = Math.max(own.needItems ?? 0, done.needItems - counted);
   if (missing === 0) return { percent: 100, missing, localChanges };
   const have = own.globalBytes > 0 ? 100 * (1 - own.needBytes / own.globalBytes) : done.percent;
   return { percent: Math.min(have, 99), missing, localChanges };
