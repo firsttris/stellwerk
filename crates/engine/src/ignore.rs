@@ -33,9 +33,44 @@ pub fn anchored_pattern_with(relative: &str, escape: char) -> Option<String> {
     Some(out)
 }
 
+/// Where an exclusion goes in `patterns`: before the first line that can keep a file, because
+/// Syncthing stops at the first pattern that matches (`lib/ignore/ignore.go`, `Match`). Lines
+/// before that only ignore too, and an `#escape=` line has to stay on top.
+pub fn exclusion_position(patterns: &[String]) -> usize {
+    patterns
+        .iter()
+        .position(|line| can_keep_files(line))
+        .unwrap_or(patterns.len())
+}
+
+/// A `!` pattern, whichever way its prefixes are ordered (`parseLine`), or an `#include`, whose
+/// file may hold one.
+fn can_keep_files(line: &str) -> bool {
+    let mut line = line.trim();
+    while let Some(rest) = line
+        .strip_prefix("(?i)")
+        .or_else(|| line.strip_prefix("(?d)"))
+    {
+        line = rest;
+    }
+    line.starts_with('!') || line.starts_with("#include")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn exclusions_go_before_what_can_keep_a_file() {
+        let at = |lines: &[&str]| {
+            exclusion_position(&lines.iter().map(ToString::to_string).collect::<Vec<_>>())
+        };
+        assert_eq!(at(&[]), 0);
+        assert_eq!(at(&["#escape=|", "*.tmp"]), 2);
+        assert_eq!(at(&["*.tmp", "!*.sav", "*"]), 1);
+        assert_eq!(at(&["(?d)(?i)!*.sav"]), 0);
+        assert_eq!(at(&["*.tmp", "#include more.txt"]), 1);
+    }
 
     /// The same table as Spielstand's `foreign::anchored_pattern` (Linux), which reads these
     /// patterns back from `.stignore` to see whether its saves are excluded.

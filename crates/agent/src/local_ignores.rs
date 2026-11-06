@@ -9,7 +9,7 @@
 
 use std::path::{Path, PathBuf};
 
-use stellwerk_engine::ignore::anchored_pattern;
+use stellwerk_engine::ignore::{anchored_pattern, exclusion_position};
 use stellwerk_protocol::DesiredState;
 
 pub const DIR: &str = "ignore.d";
@@ -80,8 +80,9 @@ pub fn merge(state: &DesiredState, excluded: &[PathBuf], home: Option<&Path>) ->
             let Some(pattern) = relative_in(path, &root).and_then(|r| anchored_pattern(&r)) else {
                 continue;
             };
-            if !folder.ignore_patterns.contains(&pattern) {
-                folder.ignore_patterns.push(pattern);
+            let at = exclusion_position(&folder.ignore_patterns);
+            if !folder.ignore_patterns[..at].contains(&pattern) {
+                folder.ignore_patterns.insert(at, pattern);
             }
         }
     }
