@@ -90,15 +90,48 @@ fn relative_in(path: &Path, root: &Path) -> Option<String> {
     Some(parts.join("/"))
 }
 
-/// `state` with the excluded paths added to the folders they lie in.
+/// `path` with the links on the way to it followed, as far as it exists.
+pub fn real(path: &Path) -> PathBuf {
+    path.ancestors()
+        .find_map(|dir| {
+            let rest = path.strip_prefix(dir).ok()?;
+            Some(std::fs::canonicalize(dir).ok()?.join(rest))
+        })
+        .unwrap_or_else(|| path.to_path_buf())
+}
+
+/// A listed path with `real` applied to its directory only: a link in a folder is excluded as
+/// the link, which is what Syncthing sees there.
+fn real_listed(path: &Path, real: &impl Fn(&Path) -> PathBuf) -> PathBuf {
+    match (path.parent(), path.file_name()) {
+        (Some(dir), Some(name)) => real(dir).join(name),
+        _ => path.to_path_buf(),
+    }
+}
+
+/// `state` with the excluded paths added to the folders they lie in, by their text.
 pub fn merge(state: &DesiredState, excluded: &[PathBuf], home: Option<&Path>) -> DesiredState {
+    merge_with(state, excluded, home, Path::to_path_buf)
+}
+
+/// [`merge`] that also compares paths as `real` resolves them, so a path that reaches a folder
+/// through a link lies in it (on Fedora Atomic systems `/home` is a link to `/var/home`).
+pub fn merge_with(
+    state: &DesiredState,
+    excluded: &[PathBuf],
+    home: Option<&Path>,
+    real: impl Fn(&Path) -> PathBuf,
+) -> DesiredState {
     let mut merged = state.clone();
     for folder in &mut merged.folders {
         let Some(root) = folder_root(&folder.path, home) else {
             continue;
         };
+        let real_root = real(&root);
         for path in excluded {
-            let Some(pattern) = relative_in(path, &root).and_then(|r| anchored_pattern(&r)) else {
+            let relative = relative_in(&real_listed(path, &real), &real_root)
+                .or_else(|| relative_in(path, &root));
+            let Some(pattern) = relative.and_then(|r| anchored_pattern(&r)) else {
                 continue;
             };
             let at = exclusion_position(&folder.ignore_patterns);

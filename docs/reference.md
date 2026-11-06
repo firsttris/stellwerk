@@ -94,12 +94,17 @@ The synced folders are not in the data directory; they are wherever their paths 
 
 A program that moves some files itself, and must not have Syncthing write them too, puts a
 list into `ignore.d/<program>.list` in the agent's data directory: one absolute path per line,
-`#` starts a comment. Spielstand writes `spielstand.list` with the save files it synchronises.
+`#` starts a comment. Paths are taken as written, and one with a leading or trailing space gets
+no pattern, because Syncthing trims pattern lines. Spielstand writes `spielstand.list` with the
+save files it synchronises.
 
 The agent adds each listed path that lies inside a folder to that folder's ignore patterns, as
 a pattern rooted at the folder that matches exactly that path (characters Syncthing's patterns
-read specially are escaped, with `\` or on Windows `|`). It applies the lists with every desired state and reads them
-again every 10 seconds, so a changed list takes effect without the Zentrale. The lists stay on
+read specially are escaped, with `\` or on Windows `|`). A path that reaches the folder through a
+link counts as inside it. The pattern goes before the first `!` or `#include` line, because
+Syncthing stops at the first pattern that matches. The agent applies the lists with every desired
+state and reads them again every 10 seconds, so a changed list takes effect without the Zentrale;
+if applying one fails, it tries again after a pause that grows up to an hour. The lists stay on
 the device: the patterns from the Zentrale are unchanged, and every other device gets the same
 exclusions from its own list.
 

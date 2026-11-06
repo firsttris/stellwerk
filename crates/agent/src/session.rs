@@ -213,10 +213,11 @@ pub async fn run(
 
 /// The desired state with the exclusions of other programs on this device added.
 fn with_lists(state: &DesiredState, lists: &str) -> DesiredState {
-    local_ignores::merge(
+    local_ignores::merge_with(
         state,
         &local_ignores::paths(lists),
         dirs::home_dir().as_deref(),
+        local_ignores::real,
     )
 }
 
