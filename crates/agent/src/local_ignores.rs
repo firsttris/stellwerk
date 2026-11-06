@@ -18,7 +18,8 @@ pub fn dir(data_dir: &Path) -> PathBuf {
     data_dir.join(DIR)
 }
 
-/// The text of every `*.list` file, sorted by name: what is compared to see a change.
+/// The text of every `*.list` file, sorted by name: what is compared to see a change. Read
+/// lossily: a line in another encoding matches nothing, the lines next to it still count.
 pub fn read_lists(dir: &Path) -> String {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return String::new();
@@ -31,7 +32,8 @@ pub fn read_lists(dir: &Path) -> String {
     files.sort();
     files
         .iter()
-        .filter_map(|f| std::fs::read_to_string(f).ok())
+        .filter_map(|f| std::fs::read(f).ok())
+        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
         .collect::<Vec<_>>()
         .join("\n")
 }
