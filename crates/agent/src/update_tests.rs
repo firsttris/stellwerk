@@ -180,3 +180,30 @@ async fn a_missing_release_changes_nothing() {
     assert!(install(&base, &exe, "0.2.0", "x").await.is_err());
     assert_eq!(std::fs::read(&exe).unwrap(), b"old");
 }
+
+/// Takes every connection and never answers, like a link that died during a download.
+async fn silent_server() -> String {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        let mut open = Vec::new();
+        while let Ok((socket, _)) = listener.accept().await {
+            open.push(socket);
+        }
+    });
+    format!("http://{address}")
+}
+
+/// The session lets no second update through while one runs, so one that hangs would block the
+/// device until the agent restarts. 180 s is the Zentrale's `UPDATE_TIMEOUT`.
+#[tokio::test(start_paused = true)]
+async fn a_stalled_download_ends_before_the_zentrale_stops_waiting() {
+    let dir = tempfile::tempdir().unwrap();
+    let exe = dir.path().join("stellwerk-agent");
+    std::fs::write(&exe, "old").unwrap();
+    let base = silent_server().await;
+    let wait = std::time::Duration::from_secs(180);
+    let outcome = tokio::time::timeout(wait, install(&base, &exe, "0.2.0", "x")).await;
+    assert!(matches!(outcome, Ok(Err(_))), "{outcome:?}");
+    assert_eq!(std::fs::read(&exe).unwrap(), b"old");
+}
