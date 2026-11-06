@@ -207,3 +207,23 @@ async fn a_stalled_download_ends_before_the_zentrale_stops_waiting() {
     assert!(matches!(outcome, Ok(Err(_))), "{outcome:?}");
     assert_eq!(std::fs::read(&exe).unwrap(), b"old");
 }
+
+/// A session that drops during a download leaves that update running, and the next session
+/// takes a new request: two can be at this point at once.
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn two_updates_at_the_same_time_both_get_through() {
+    let dir = tempfile::tempdir().unwrap();
+    let exe = dir.path().join("stellwerk-agent");
+    let new = script(dir.path(), "new", "echo stellwerk-agent 0.2.0");
+    for round in 0..50 {
+        std::fs::write(&exe, "old").unwrap();
+        let (first, second) =
+            tokio::join!(replace(&exe, &new, "0.2.0"), replace(&exe, &new, "0.2.0"));
+        assert!(
+            first.is_ok() && second.is_ok(),
+            "round {round}: {first:?} {second:?}"
+        );
+        assert_eq!(std::fs::read(&exe).unwrap(), new);
+    }
+}
