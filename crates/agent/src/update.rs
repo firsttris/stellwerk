@@ -6,11 +6,16 @@
 //! ask for a genuine newer release but cannot hand a device a program of its own.
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use anyhow::Context;
 use sha2::{Digest, Sha256};
 
 const RELEASES: &str = "https://github.com/firsttris/stellwerk/releases/download";
+
+/// Below the Zentrale's `UPDATE_TIMEOUT`, so a download that hangs is reported in time. Without
+/// an end the session would refuse every further update until the agent restarts.
+const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(170);
 
 /// Whether this agent can update itself. Windows locks the running files and installs two of
 /// them; there the installer stays the way.
@@ -129,7 +134,9 @@ async fn fetch(client: &reqwest::Client, url: &str) -> anyhow::Result<Vec<u8>> {
 /// Downloads `version` from `releases`, checks it and replaces `exe`.
 async fn install(releases: &str, exe: &Path, version: &str, asset: &str) -> anyhow::Result<()> {
     let base = format!("{}/v{version}", releases.trim_end_matches('/'));
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(DOWNLOAD_TIMEOUT)
+        .build()?;
     let sums = fetch(&client, &format!("{base}/SHA256SUMS")).await?;
     let sums = String::from_utf8(sums).context("SHA256SUMS is not text")?;
     let expected = checksum(&sums, asset)?;
