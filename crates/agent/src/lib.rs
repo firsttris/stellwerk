@@ -10,6 +10,7 @@ pub mod run;
 pub mod search;
 pub mod service;
 pub mod session;
+pub mod update;
 
 use anyhow::Context;
 

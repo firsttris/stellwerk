@@ -132,10 +132,14 @@ browser ──HTTPS (proxy)──▶ Zentrale ◀──WSS (proxy)── agent
 ## Updates and releases
 
 Release images and agents are built by GitHub Actions from the tagged source, after the full test
-suite. Each release lists the agents' SHA-256 sums in `SHA256SUMS`. The planned self-update of
-the agents will only install a new version whose signature matches a public key built into the
-agent ([roadmap](architecture.md#roadmap)), so a compromised Zentrale cannot push its own
-program to the devices.
+suite. Each release lists the agents' SHA-256 sums in `SHA256SUMS`.
+
+An agent updates itself only when asked from the UI. The Zentrale names just a version: the agent
+downloads it over HTTPS from the fixed address of the project's GitHub releases, checks it against
+`SHA256SUMS` and installs only a newer `x.y.z`. So a compromised Zentrale can ask for a genuine
+newer release, but cannot push its own program to the devices or go back to an older one. There is
+no signature on top: whoever controls the project's GitHub releases could publish a harmful
+version, and the agents would trust it.
 
 ## Checklist
 

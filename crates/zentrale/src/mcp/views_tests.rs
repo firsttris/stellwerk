@@ -188,6 +188,7 @@ fn folders_show_size_shares_and_state() {
         "nas".into(),
         crate::live::DeviceLiveView {
             at: 1,
+            can_update: false,
             folders: BTreeMap::from([("serien".to_string(), live.hub.folders["serien"].clone())]),
         },
     );

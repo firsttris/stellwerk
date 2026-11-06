@@ -19,6 +19,7 @@ use crate::waiting::WaitingView;
 pub struct DeviceLive {
     pub at: i64,
     pub folders: Vec<FolderStatus>,
+    pub can_update: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -55,6 +56,8 @@ pub struct DeviceLiveView {
     pub at: i64,
     /// By folder ID.
     pub folders: BTreeMap<String, FolderView>,
+    /// The agent can update itself from the UI.
+    pub can_update: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
@@ -123,6 +126,7 @@ pub fn view(config: &Config, live: &Live, conflicts: &BTreeMap<String, Vec<Confl
             let view = DeviceLiveView {
                 at: device.at,
                 folders: folder_views(config, &device.folders),
+                can_update: device.can_update,
             };
             (id.clone(), view)
         })
@@ -255,6 +259,7 @@ mod tests {
                             status("st-docs", SyncState::Syncing),
                             status("gone", SyncState::Idle),
                         ],
+                        can_update: true,
                     },
                 ),
                 ("removed".into(), DeviceLive::default()),

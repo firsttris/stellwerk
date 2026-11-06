@@ -11,8 +11,7 @@ use tokio::sync::watch;
 use stellwerk_engine::Client;
 use stellwerk_engine::files::Conflict;
 use stellwerk_engine::monitor::Snapshot;
-use stellwerk_protocol::messages::{Directory, Matches};
-use stellwerk_protocol::status::FolderStatus;
+use stellwerk_protocol::messages::{Directory, Matches, Status};
 
 use crate::browse::{self, BrowseError, Jobs, Request};
 use crate::ca::Ca;
@@ -137,10 +136,19 @@ impl App {
         self.inner.ticks.subscribe()
     }
 
-    pub fn set_device_status(&self, device_id: &str, folders: Vec<FolderStatus>, at: i64) {
-        lock(&self.inner.live)
-            .devices
-            .insert(device_id.to_string(), DeviceLive { at, folders });
+    pub fn set_device_status(&self, device_id: &str, status: Status, at: i64) {
+        let Status {
+            folders,
+            can_update,
+        } = status;
+        lock(&self.inner.live).devices.insert(
+            device_id.to_string(),
+            DeviceLive {
+                at,
+                folders,
+                can_update,
+            },
+        );
         self.tick();
     }
 
@@ -211,6 +219,13 @@ impl App {
     ) -> Result<Matches, BrowseError> {
         let request = Request::Search { path, query };
         browse::matches(self.ask(device_id, request, browse::SEARCH_TIMEOUT).await?)
+    }
+
+    /// Asks a connected agent to replace itself with this Zentrale's version.
+    pub async fn update_agent(&self, device_id: &str) -> Result<(), BrowseError> {
+        let version = env!("CARGO_PKG_VERSION").to_string();
+        let request = Request::Update { version };
+        browse::updated(self.ask(device_id, request, browse::UPDATE_TIMEOUT).await?)
     }
 
     async fn ask(

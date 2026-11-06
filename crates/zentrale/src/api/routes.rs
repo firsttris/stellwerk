@@ -197,6 +197,23 @@ pub struct BrowseQuery {
     path: String,
 }
 
+/// Asks the device's agent to update itself; answers when the new version is in place.
+pub async fn update_agent(
+    State(app): State<App>,
+    _: Admin,
+    Path(id): Path<String>,
+) -> ApiResult<StatusCode> {
+    app.store().device(&id).await?;
+    if !app.live().devices.get(&id).is_some_and(|d| d.can_update) {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "this agent cannot update itself",
+        ));
+    }
+    app.update_agent(&id).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
 /// The folder picker: a directory on the device, its home directory for an empty `path`.
 pub async fn browse_device(
     State(app): State<App>,
