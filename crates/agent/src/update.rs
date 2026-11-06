@@ -84,9 +84,14 @@ fn current_exe() -> anyhow::Result<PathBuf> {
     )
 }
 
+/// One at a time: an update keeps running when its session ends, and the next session can start
+/// another, which would write to the same `.new` file while the first runs or renames it.
+static REPLACING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 /// Puts `binary` in place of `exe` if it runs and reports `version`; anything else changes
 /// nothing. The rename is atomic, and the running process keeps its old file until it exits.
 async fn replace(exe: &Path, binary: &[u8], version: &str) -> anyhow::Result<()> {
+    let _replacing = REPLACING.lock().await;
     let new = exe.with_extension("new");
     tokio::fs::write(&new, binary).await?;
     let checked = check(&new, version).await;
