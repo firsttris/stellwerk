@@ -28,7 +28,8 @@ pub struct FolderStatus {
     /// What this device still lacks.
     pub need_files: u64,
     pub need_bytes: u64,
-    /// What this device still lacks, in items of every kind; `None` from older agents.
+    /// Files, directories and symlinks this device still lacks, without deletions, as in
+    /// [`Completion::need_items`]; `None` from older agents.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub need_items: Option<u64>,
     /// Items changed here in a receive-only folder. Syncthing announces them as invalid with an

@@ -49,6 +49,7 @@ pub struct FolderSummary {
     pub global_bytes: u64,
     pub need_files: u64,
     pub need_bytes: u64,
+    pub need_deletes: u64,
     pub need_total_items: u64,
     pub receive_only_total_items: u64,
 }
@@ -92,7 +93,11 @@ pub fn folder_status(folder: &str, summary: &FolderSummary) -> FolderStatus {
         global_bytes: summary.global_bytes,
         need_files: summary.need_files,
         need_bytes: summary.need_bytes,
-        need_items: Some(summary.need_total_items),
+        need_items: Some(
+            summary
+                .need_total_items
+                .saturating_sub(summary.need_deletes),
+        ),
         local_changes: Some(summary.receive_only_total_items),
         errors: summary.errors,
         error: (!summary.error.is_empty()).then(|| summary.error.clone()),
