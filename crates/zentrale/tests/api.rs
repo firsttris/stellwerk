@@ -526,3 +526,33 @@ async fn api_tokens_may_do_what_their_scope_allows() {
     let (status, _) = unknown.send(&router, "GET", "/api/overview", None).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
+
+#[tokio::test]
+async fn only_an_agent_that_can_update_itself_is_asked_to() {
+    let (router, app, _dir) = app().await;
+    let mut browser = logged_in(&router, &app).await;
+    let (status, _) = browser
+        .send(&router, "POST", "/api/devices/nope/update", None)
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    let device = app
+        .store()
+        .add_device(
+            NewDevice {
+                name: "laptop".into(),
+                kind: DeviceKind::Laptop,
+                os: "linux".into(),
+                public_key: "key".into(),
+                syncthing_id: "LAPTOP".into(),
+                agent_version: "0.1.6".into(),
+                syncthing_version: "v2".into(),
+            },
+            now(),
+        )
+        .await
+        .unwrap();
+    let path = format!("/api/devices/{}/update", device.id);
+    let (status, _) = browser.send(&router, "POST", &path, None).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+}

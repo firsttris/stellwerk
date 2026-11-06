@@ -18,7 +18,7 @@ use tokio::time::{Instant, MissedTickBehavior};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::config::{self, AgentConfig};
-use crate::identity;
+use crate::{identity, update};
 
 /// What the agent tells the Zentrale about itself besides its key.
 #[derive(Debug, Clone)]
@@ -34,6 +34,8 @@ pub struct Report {
 pub enum End {
     Closed,
     Rejected(String),
+    /// A new version is in place: exit so that the service starts it.
+    Updated,
 }
 
 /// How the agent notices a connection that died without a word (suspend, NAT timeout, Wi-Fi
@@ -86,6 +88,7 @@ pub async fn run(
     // Folder listings and searches run on their own and send their answer through here, so a
     // search of up to 10 s holds up neither the desired state nor the folder picker.
     let (answer_tx, mut answers) = tokio::sync::mpsc::unbounded_channel();
+    let mut updating = false;
     loop {
         tokio::select! {
             frame = tokio::time::timeout_at(deadline, next_frame(&mut stream)) => {
@@ -129,18 +132,43 @@ pub async fn run(
                             let _ = answer.send(AgentMessage::Matches { id, result });
                         });
                     }
+                    // A download takes a while: heartbeat and desired state go on meanwhile.
+                    ServerMessage::Update { id, version } if !updating => {
+                        updating = true;
+                        let answer = answer_tx.clone();
+                        tokio::spawn(async move {
+                            tracing::info!(%version, "updating the agent");
+                            let result = update::to(&version).await.map_err(|err| format!("{err:#}"));
+                            let _ = answer.send(AgentMessage::Updated { id, result });
+                        });
+                    }
+                    ServerMessage::Update { id, .. } => {
+                        let result = Err("an update is already running".to_string());
+                        send(&mut sink, &AgentMessage::Updated { id, result }).await?;
+                    }
                     ServerMessage::Rejected { reason } => return Ok(End::Rejected(reason)),
                     ServerMessage::Challenge { .. } => {}
                 }
             }
-            Some(answer) = answers.recv() => send(&mut sink, &answer).await?,
+            Some(answer) = answers.recv() => {
+                send(&mut sink, &answer).await?;
+                match answer {
+                    AgentMessage::Updated { result: Ok(()), .. } => return Ok(End::Updated),
+                    AgentMessage::Updated { result: Err(reason), .. } => {
+                        tracing::warn!("update failed: {reason}");
+                        updating = false;
+                    }
+                    _ => {}
+                }
+            }
             _ = ping.tick() => sink.send(Message::Ping(Default::default())).await?,
             changed = status.changed(), if welcomed => {
                 if changed.is_err() {
                     return Ok(End::Closed);
                 }
                 let folders = status.borrow_and_update().folders.clone();
-                send(&mut sink, &AgentMessage::Status(Status { folders })).await?;
+                let can_update = update::SUPPORTED;
+                send(&mut sink, &AgentMessage::Status(Status { folders, can_update })).await?;
             }
         }
     }

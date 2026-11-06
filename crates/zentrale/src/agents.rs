@@ -112,12 +112,15 @@ async fn serve(app: &App, device_id: &str, socket: &mut WebSocket, mut jobs: mps
             }
             message = receive_alive(socket, &mut heartbeat) => match message {
                 Some(AgentMessage::Applied(applied)) => record_applied(app, device_id, applied).await,
-                Some(AgentMessage::Status(status)) => app.set_device_status(device_id, status.folders, now()),
+                Some(AgentMessage::Status(status)) => app.set_device_status(device_id, status, now()),
                 Some(AgentMessage::Listing { id, result }) => {
                     pending.answer(id, result.map(Answer::Listing));
                 }
                 Some(AgentMessage::Matches { id, result }) => {
                     pending.answer(id, result.map(Answer::Matches));
+                }
+                Some(AgentMessage::Updated { id, result }) => {
+                    pending.answer(id, result.map(|()| Answer::Updated));
                 }
                 Some(AgentMessage::Hello(_)) => {}
                 None => return,

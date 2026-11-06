@@ -149,7 +149,11 @@ export type WaitingDevice = z.infer<typeof waitingSchema>;
 export const liveSchema = z.object({
   devices: z.record(
     z.string(),
-    z.object({ at: z.number(), folders: z.record(z.string(), folderViewSchema) }),
+    z.object({
+      at: z.number(),
+      folders: z.record(z.string(), folderViewSchema),
+      canUpdate: z.boolean().optional(),
+    }),
   ),
   hub: z.object({
     folders: z.record(z.string(), folderViewSchema),
@@ -239,6 +243,8 @@ export type Api = {
   applyShares(changes: ShareChange[]): Promise<{ revision: number }>;
   updateDevice(id: string, patch: DevicePatch): Promise<Device>;
   deleteDevice(id: string): Promise<void>;
+  /** Replaces the device's agent with the Zentrale's version; resolves when it is in place. */
+  updateAgent(id: string): Promise<void>;
   /** The directory at `path` on the device; its home directory for an empty path. */
   browse(deviceId: string, path: string): Promise<Directory>;
   createEnrollment(): Promise<Enrollment>;

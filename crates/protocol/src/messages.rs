@@ -61,6 +61,12 @@ pub enum ServerMessage {
         path: String,
         query: String,
     },
+    /// Replace the agent with this release (`x.y.z`) and restart. Sent only to agents that said
+    /// they can ([`Status::can_update`]).
+    Update {
+        id: u64,
+        version: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -79,6 +85,12 @@ pub enum AgentMessage {
     Matches {
         id: u64,
         result: Result<Matches, String>,
+    },
+    /// The answer to the [`ServerMessage::Update`] with this `id`: the new version is in place
+    /// and the agent is about to restart, or why it is not.
+    Updated {
+        id: u64,
+        result: Result<(), String>,
     },
 }
 
@@ -118,6 +130,9 @@ pub struct Matches {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Status {
     pub folders: Vec<FolderStatus>,
+    /// The agent takes [`ServerMessage::Update`]; older agents and Windows do not.
+    #[serde(default)]
+    pub can_update: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -197,6 +212,12 @@ pub fn hello_payload(nonce: &str, hello: &Hello) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_status_from_an_older_agent_cannot_update() {
+        let status: Status = serde_json::from_str(r#"{"folders":[]}"#).unwrap();
+        assert!(!status.can_update);
+    }
 
     #[test]
     fn messages_carry_their_type() {

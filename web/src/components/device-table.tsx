@@ -5,6 +5,7 @@ import { ago, nowSeconds, osLabel } from "../lib/format";
 import { deviceFolderCount, deviceSummary, waitingChanges } from "../lib/live";
 import { isWaiting } from "../lib/matrix";
 import { m } from "../paraglide/messages.js";
+import { AgentUpdate } from "./agent-update";
 import { DeviceActions } from "./device-actions";
 import { DeviceIcon, StatusDot } from "./device-icon";
 import { Card } from "./ui/card";
@@ -122,6 +123,7 @@ function DeviceRow({
               ? m.devices_config_waiting()
               : deviceSummary(overview, live, d)}
           </span>
+          <AgentUpdate overview={overview} live={live} device={d} />
         </div>
       </td>
       <td className={cell}>{deviceFolderCount(overview, d)}</td>
