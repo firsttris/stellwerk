@@ -162,6 +162,29 @@ mod tests {
         );
     }
 
+    fn games(root: &Path, ignore_patterns: &[&str]) -> DesiredState {
+        let mut games = folder("games", root.to_str().unwrap());
+        games.ignore_patterns = ignore_patterns.iter().map(ToString::to_string).collect();
+        DesiredState {
+            revision: 1,
+            peers: vec![],
+            folders: vec![games],
+        }
+    }
+
+    /// Syncthing stops at the first pattern that matches (lib/ignore/ignore.go, `Match`).
+    #[test]
+    fn an_exclusion_comes_before_the_patterns_that_keep_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("Games");
+        let state = games(&root, &["*.tmp", "(?i)!*.sav", "*"]);
+        let merged = merge(&state, &[root.join("x.sav")], None);
+        assert_eq!(
+            merged.folders[0].ignore_patterns,
+            vec!["*.tmp", "/x.sav", "(?i)!*.sav", "*"]
+        );
+    }
+
     #[test]
     fn every_list_in_the_folder_is_read_in_name_order() {
         let tmp = tempfile::tempdir().unwrap();
