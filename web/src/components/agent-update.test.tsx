@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Device, Live, Overview } from "../api/types";
 import { AgentUpdate } from "./agent-update";
@@ -54,5 +55,20 @@ describe("AgentUpdate", () => {
     show(overview(), live(true), device({ online: false }));
     expect(screen.getByRole("button", { name: "Aktualisieren" })).toHaveProperty("disabled", true);
     expect(screen.getByRole("status").textContent).toMatch(/offline/);
+  });
+
+  it("offers the next version after an earlier update went through", async () => {
+    api.updateAgent.mockResolvedValue(undefined);
+    const client = new QueryClient();
+    const user = userEvent.setup();
+    const { rerender } = render(ui(overview("0.1.12"), live(true), device(), client));
+    await user.click(screen.getByRole("button", { name: "Aktualisieren" }));
+    expect(await screen.findByText(/Aktualisiert\./)).toBeTruthy();
+
+    // The tab stays open: the agent comes back up to date, later the Zentrale moves on.
+    rerender(ui(overview("0.1.12"), live(true), device({ agentVersion: "0.1.12" }), client));
+    rerender(ui(overview("0.1.13"), live(true), device({ agentVersion: "0.1.12" }), client));
+    expect(screen.getByRole("button", { name: "Aktualisieren" })).toHaveProperty("disabled", false);
+    expect(screen.queryByText(/Aktualisiert\./)).toBeNull();
   });
 });
