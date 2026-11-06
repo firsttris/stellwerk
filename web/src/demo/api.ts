@@ -143,6 +143,10 @@ export function demoApi(seed: DemoState = demoState(nowSeconds())): Api {
       if (patch.approved !== undefined) bump();
       return updated;
     },
+    updateAgent: async (id) => {
+      const device = state.devices.find((d) => d.id === id);
+      if (!device) throw new ApiError(404, "device not found");
+    },
     deleteDevice: async (id) => {
       state = {
         ...state,

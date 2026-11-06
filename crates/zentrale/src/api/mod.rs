@@ -44,6 +44,7 @@ pub fn router() -> Router<App> {
             "/api/devices/{id}",
             patch(routes::update_device).delete(routes::delete_device),
         )
+        .route("/api/devices/{id}/update", post(routes::update_agent))
         .route("/api/devices/{id}/browse", get(routes::browse_device))
         .route("/api/devices/{id}/search", get(routes::search_device))
         .route(

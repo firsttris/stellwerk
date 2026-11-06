@@ -76,3 +76,30 @@ async fn the_picker_lists_a_directory_on_a_connected_device() {
     );
     zentrale.stop().await.unwrap();
 }
+
+/// The way there and back through a real agent: it says it can update, takes the request and
+/// refuses its own version, and the reason arrives where the UI shows it.
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread")]
+async fn an_update_request_reaches_the_agent_and_its_answer_comes_back() {
+    let tmp = tempfile::tempdir().unwrap();
+    let zentrale = start_zentrale(tmp.path()).await;
+    let store = zentrale.app.store().clone();
+    let agent = pair_agent(&zentrale, tmp.path().join("laptop")).await;
+    let device = wait_for("the agent to report that it can update", || async {
+        let device = store.config().await.ok()?.devices.into_iter().next()?;
+        let live = zentrale.app.live();
+        live.devices
+            .get(&device.id)
+            .is_some_and(|d| d.can_update)
+            .then_some(device)
+    })
+    .await;
+
+    let refused = zentrale.app.update_agent(&device.id).await.unwrap_err();
+    let BrowseError::Failed(reason) = refused else {
+        panic!("{refused:?}");
+    };
+    assert!(reason.contains("not newer"), "{reason}");
+    drop(agent);
+}

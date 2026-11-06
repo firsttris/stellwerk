@@ -15,6 +15,9 @@ pub const ANSWER_TIMEOUT: Duration = Duration::from_secs(5);
 /// the way there and back.
 pub const SEARCH_TIMEOUT: Duration = Duration::from_secs(15);
 
+/// How long an agent has to download and check a new version.
+pub const UPDATE_TIMEOUT: Duration = Duration::from_secs(180);
+
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum BrowseError {
     #[error("the device is offline")]
@@ -30,6 +33,7 @@ pub enum BrowseError {
 pub enum Request {
     Browse { path: String },
     Search { path: String, query: String },
+    Update { version: String },
 }
 
 impl Request {
@@ -38,6 +42,7 @@ impl Request {
         match self {
             Self::Browse { path } => ServerMessage::Browse { id, path },
             Self::Search { path, query } => ServerMessage::Search { id, path, query },
+            Self::Update { version } => ServerMessage::Update { id, version },
         }
     }
 }
@@ -47,6 +52,7 @@ impl Request {
 pub enum Answer {
     Listing(Directory),
     Matches(Matches),
+    Updated,
 }
 
 pub type Reply = oneshot::Sender<Result<Answer, String>>;
@@ -82,7 +88,7 @@ pub async fn ask(
 pub fn listing(answer: Answer) -> Result<Directory, BrowseError> {
     match answer {
         Answer::Listing(directory) => Ok(directory),
-        Answer::Matches(_) => Err(unexpected()),
+        _ => Err(unexpected()),
     }
 }
 
@@ -90,7 +96,15 @@ pub fn listing(answer: Answer) -> Result<Directory, BrowseError> {
 pub fn matches(answer: Answer) -> Result<Matches, BrowseError> {
     match answer {
         Answer::Matches(matches) => Ok(matches),
-        Answer::Listing(_) => Err(unexpected()),
+        _ => Err(unexpected()),
+    }
+}
+
+/// That the agent took the update.
+pub fn updated(answer: Answer) -> Result<(), BrowseError> {
+    match answer {
+        Answer::Updated => Ok(()),
+        _ => Err(unexpected()),
     }
 }
 

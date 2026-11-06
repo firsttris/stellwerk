@@ -91,6 +91,9 @@ export function httpApi(): Api {
     deleteDevice: async (id) => {
       await request("DELETE", `/api/devices/${encodeURIComponent(id)}`);
     },
+    updateAgent: async (id) => {
+      await request("POST", `/api/devices/${encodeURIComponent(id)}/update`);
+    },
     browse: (deviceId, path) =>
       request(
         "GET",

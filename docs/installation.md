@@ -361,9 +361,13 @@ moving the binary, run `service install` again from the new place.
 compose up -d`, or `podman auto-update`). The database is migrated on start. Agents reconnect by
 themselves within 30 seconds.
 
-**Agents.** Until the self-update arrives: replace the binary with the new one at the same place
-(on Windows, run the new installer) and run `stellwerk-agent service install` again, which
-restarts it. Agent and Zentrale of neighbouring versions work together, with one exception:
+**Agents.** On Linux and macOS, **Devices** shows "Update available" next to an agent older than
+the Zentrale, with a button that updates it: the agent downloads the Zentrale's version from the
+GitHub release, checks it against `SHA256SUMS` and that it runs, replaces itself, and the service
+restarts it. So the device needs access to github.com. The agent must run as the service, and the
+first version with this button has to be installed by hand once. By hand, and always on Windows:
+replace the binary with the new one at the same place (on Windows, run the new installer) and run
+`stellwerk-agent service install` again, which restarts it. Agent and Zentrale of neighbouring versions work together, with one exception:
 agents up to v0.1.1 sign in the older way (over the nonce alone), which newer Zentralen turn
 away, so update those agents together with the Zentrale. The device list shows each agent's
 version.
