@@ -186,6 +186,17 @@ mod tests {
         );
     }
 
+    /// Syncthing trims pattern lines, so such a name cannot be matched; trimming it here would
+    /// exclude the file without the space instead.
+    #[test]
+    fn a_path_ending_in_a_space_leaves_its_neighbour_alone() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("Games");
+        let lists = format!("{}\n", root.join("save.dat ").display());
+        let merged = merge(&games(&root, &["*.tmp"]), &paths(&lists), None);
+        assert_eq!(merged.folders[0].ignore_patterns, vec!["*.tmp".to_string()]);
+    }
+
     #[test]
     fn every_list_in_the_folder_is_read_in_name_order() {
         let tmp = tempfile::tempdir().unwrap();
