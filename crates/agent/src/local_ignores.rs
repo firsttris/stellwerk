@@ -213,6 +213,16 @@ mod tests {
     }
 
     #[test]
+    fn dots_in_a_listed_path_are_resolved_before_it_is_placed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("Games");
+        let inside = root.join("sub").join("..").join("x.sav");
+        let outside = root.join("..").join("other").join("y.sav");
+        let merged = merge(&games(&root, &[]), &[inside, outside], None);
+        assert_eq!(merged.folders[0].ignore_patterns, vec!["/x.sav"]);
+    }
+
+    #[test]
     fn every_list_in_the_folder_is_read_in_name_order() {
         let tmp = tempfile::tempdir().unwrap();
         assert_eq!(read_lists(&tmp.path().join("missing")), "");
