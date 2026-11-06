@@ -357,13 +357,22 @@ mod tests {
     }
 
     async fn session_in(dir: &Path, server: String, heartbeat: Heartbeat) -> anyhow::Result<End> {
+        let syncthing = Client::new("http://127.0.0.1:9".parse().unwrap(), "unused");
+        session_with(dir, server, heartbeat, syncthing).await
+    }
+
+    async fn session_with(
+        dir: &Path,
+        server: String,
+        heartbeat: Heartbeat,
+        syncthing: Client,
+    ) -> anyhow::Result<End> {
         let mut config = AgentConfig {
             server,
             secret_key: identity::new_secret(),
             enrollment_code: None,
             ca: None,
         };
-        let syncthing = Client::new("http://127.0.0.1:9".parse().unwrap(), "unused");
         let report = Report {
             name: "laptop".into(),
             os: "linux".into(),
@@ -497,6 +506,60 @@ mod tests {
         let again = tokio::time::timeout(wait, applied_rx.recv()).await.unwrap();
         assert_eq!(again, Some(7), "the same state, applied with the new list");
         running.abort();
+    }
+
+    /// The Zentrale does not send a state again for a failed one, so nothing else would bring
+    /// the list to Syncthing.
+    #[tokio::test]
+    async fn a_list_that_could_not_be_applied_is_tried_again() {
+        let dir = tempfile::tempdir().unwrap();
+        // A Syncthing that drops every connection, and counts them.
+        let broken = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = broken.local_addr().unwrap();
+        let attempts = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counted = attempts.clone();
+        tokio::spawn(async move {
+            while let Ok((tcp, _)) = broken.accept().await {
+                counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                drop(tcp);
+            }
+        });
+        let (applied_tx, mut applied_rx) = tokio::sync::mpsc::unbounded_channel();
+        let url = zentrale(move |mut socket| async move {
+            let state = ServerMessage::DesiredState(DesiredState::default());
+            socket
+                .send(Message::text(serde_json::to_string(&state).unwrap()))
+                .await
+                .unwrap();
+            while let Some(Ok(frame)) = socket.next().await {
+                let Message::Text(text) = frame else { continue };
+                if let Ok(AgentMessage::Applied(applied)) = serde_json::from_str(&text) {
+                    let _ = applied_tx.send(applied.errors.len());
+                }
+            }
+        })
+        .await;
+        let data = dir.path().to_path_buf();
+        let patient = Heartbeat {
+            silence: Duration::from_secs(60),
+            ..QUICK
+        };
+        let syncthing = Client::new(format!("http://{address}").parse().unwrap(), "unused");
+        let running =
+            tokio::spawn(async move { session_with(&data, url, patient, syncthing).await });
+        let wait = Duration::from_secs(20);
+        tokio::time::timeout(wait, applied_rx.recv()).await.unwrap();
+
+        let lists = local_ignores::dir(dir.path());
+        std::fs::create_dir_all(&lists).unwrap();
+        std::fs::write(lists.join("spielstand.list"), "/home/t/Games/x.sav\n").unwrap();
+        let failed = tokio::time::timeout(wait, applied_rx.recv()).await.unwrap();
+        assert_eq!(failed, Some(1), "the broken Syncthing fails the apply");
+        let before = attempts.load(std::sync::atomic::Ordering::SeqCst);
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        let after = attempts.load(std::sync::atomic::Ordering::SeqCst);
+        running.abort();
+        assert!(after > before, "no new attempt after {before} connections");
     }
 
     #[tokio::test]
