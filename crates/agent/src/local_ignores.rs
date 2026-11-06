@@ -201,6 +201,16 @@ mod tests {
     }
 
     #[test]
+    fn a_line_that_is_not_utf8_costs_only_that_line() {
+        let tmp = tempfile::tempdir().unwrap();
+        let good = tmp.path().join("good.sav");
+        let mut list = format!("{}\n", good.display()).into_bytes();
+        list.extend_from_slice(b"/caf\xe9/old-encoding.sav\n");
+        std::fs::write(tmp.path().join("other.list"), list).unwrap();
+        assert!(paths(&read_lists(tmp.path())).contains(&good));
+    }
+
+    #[test]
     fn every_list_in_the_folder_is_read_in_name_order() {
         let tmp = tempfile::tempdir().unwrap();
         assert_eq!(read_lists(&tmp.path().join("missing")), "");
