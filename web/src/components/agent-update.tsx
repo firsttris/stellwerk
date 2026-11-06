@@ -25,7 +25,9 @@ export function AgentUpdate({
     onSuccess: () => refresh(queryClient),
   });
   if (!device.approved || !agentOutdated(device, overview.version)) return null;
-  const canUpdate = live?.devices[device.id]?.canUpdate ?? false;
+  // Without a report, as for an offline device after the Zentrale restarted, only Windows is sure.
+  const canUpdate =
+    live?.devices[device.id]?.canUpdate ?? (!device.online && device.os !== "windows");
   const status = () => {
     if (!device.online) return m.update_offline();
     if (update.isError) return errorMessage(update.error);
@@ -39,7 +41,7 @@ export function AgentUpdate({
         {m.update_available()} ·{" "}
         {m.update_versions({ from: device.agentVersion, to: overview.version })}
       </span>
-      {canUpdate || !device.online ? (
+      {canUpdate ? (
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
