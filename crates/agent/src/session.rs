@@ -577,6 +577,35 @@ mod tests {
         assert!(after > before, "no new attempt after {before} connections");
     }
 
+    /// On Fedora Atomic systems such as Bazzite `/home` is a link to `/var/home`: the same
+    /// folder has two spellings, and the program writing the list may use the other one.
+    #[cfg(unix)]
+    #[test]
+    fn a_path_through_a_link_still_lies_in_its_folder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let real = tmp.path().join("var").join("home");
+        let games = real.join("t").join("Games");
+        std::fs::create_dir_all(&games).unwrap();
+        std::fs::write(games.join("x.sav"), "save").unwrap();
+        let link = tmp.path().join("home");
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        let state = DesiredState {
+            folders: vec![stellwerk_protocol::Folder {
+                id: "games".into(),
+                label: "Games".into(),
+                path: games.to_str().unwrap().into(),
+                mode: stellwerk_protocol::FolderMode::SendReceive,
+                shared_with: vec![],
+                versioning: stellwerk_protocol::Versioning::None,
+                ignore_patterns: vec![],
+            }],
+            ..DesiredState::default()
+        };
+        let list = format!("{}\n", link.join("t").join("Games").join("x.sav").display());
+        let merged = with_lists(&state, &list);
+        assert_eq!(merged.folders[0].ignore_patterns, vec!["/x.sav"]);
+    }
+
     #[tokio::test]
     async fn a_running_search_does_not_hold_up_a_browse_request() {
         // Enough directories that walking them all takes far longer than listing one.
