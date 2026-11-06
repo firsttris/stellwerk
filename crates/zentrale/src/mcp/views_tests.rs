@@ -75,6 +75,8 @@ fn live_with_size(folder: &str, bytes: u64) -> LiveView {
             global_bytes: bytes,
             need_files: 0,
             need_bytes: 0,
+            need_items: None,
+            local_changes: None,
             errors: 0,
             error: None,
         },

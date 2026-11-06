@@ -271,7 +271,11 @@ reads `/rest/db/status` for every folder whenever something happened, at most on
 - Each agent sends the result as `status` over its WebSocket.
 - The Zentrale watches the hub the same way and also reads `/rest/db/completion` for every
   folder and device: how much of a folder a device has, known from its index even while it is
-  offline ("214 changes wait on the server").
+  offline ("214 changes wait on the server"). Items changed locally in a receive-only folder
+  count as missing there too, because Syncthing announces them as invalid with an empty version.
+  Only the device itself can tell them apart, so its `status` also carries `need_items` and
+  `local_changes`, and the UI shows "In sync, 1,903 local changes" instead of "Loading". Older
+  agents leave both out; the UI then keeps the hub's numbers.
 - Changes that arrive at the hub (`RemoteChangeDetected`, with the short ID of the device that
   made them) are counted per device and folder over 30 seconds and written to the activity feed
   ("laptop changed 18 files in Projekte"), as are pairings, connects and disconnects.

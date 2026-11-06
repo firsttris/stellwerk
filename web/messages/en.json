@@ -131,6 +131,8 @@
   "folders_on_devices_other": "on {count} devices",
   "folders_title": "Folders",
   "language": "Language",
+  "local_changes_one": "1 local change",
+  "local_changes_other": "{count} local changes",
   "login_error_no_password": "No password set yet.",
   "login_error_wrong_password": "Wrong password.",
   "login_no_password_after": " once.",

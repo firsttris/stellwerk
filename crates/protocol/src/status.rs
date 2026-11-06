@@ -28,6 +28,14 @@ pub struct FolderStatus {
     /// What this device still lacks.
     pub need_files: u64,
     pub need_bytes: u64,
+    /// What this device still lacks, in items of every kind; `None` from older agents.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub need_items: Option<u64>,
+    /// Items changed here in a receive-only folder. Syncthing announces them as invalid with an
+    /// empty version (lib/model/folder_recvonly.go), so other devices count them as missing;
+    /// only this device can tell them from a real download. `None` from older agents.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_changes: Option<u64>,
     /// Files that failed to sync.
     pub errors: u64,
     /// Why the folder as a whole stopped, if it did (e.g. path missing).

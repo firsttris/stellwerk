@@ -49,6 +49,8 @@ pub struct FolderSummary {
     pub global_bytes: u64,
     pub need_files: u64,
     pub need_bytes: u64,
+    pub need_total_items: u64,
+    pub receive_only_total_items: u64,
 }
 
 /// `GET /rest/db/completion` (lib/model/model.go, `FolderCompletion.Map`).
@@ -90,6 +92,8 @@ pub fn folder_status(folder: &str, summary: &FolderSummary) -> FolderStatus {
         global_bytes: summary.global_bytes,
         need_files: summary.need_files,
         need_bytes: summary.need_bytes,
+        need_items: Some(summary.need_total_items),
+        local_changes: Some(summary.receive_only_total_items),
         errors: summary.errors,
         error: (!summary.error.is_empty()).then(|| summary.error.clone()),
     }
@@ -224,6 +228,19 @@ mod tests {
             (3, 512, 2)
         );
         assert_eq!(status.error, None);
+        assert_eq!(status.need_items, Some(0));
+        assert_eq!(status.local_changes, Some(0));
+    }
+
+    #[test]
+    fn a_summary_tells_local_changes_from_what_is_missing() {
+        let summary: FolderSummary = serde_json::from_str(
+            r#"{"state":"idle","needTotalItems":7,"receiveOnlyTotalItems":1903}"#,
+        )
+        .unwrap();
+        let status = folder_status("f", &summary);
+        assert_eq!(status.need_items, Some(7));
+        assert_eq!(status.local_changes, Some(1903));
     }
 
     #[test]

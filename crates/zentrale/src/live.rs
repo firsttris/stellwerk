@@ -36,6 +36,10 @@ pub struct FolderView {
     pub global_bytes: u64,
     pub need_files: u64,
     pub need_bytes: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub need_items: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_changes: Option<u64>,
     pub errors: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
@@ -86,6 +90,8 @@ fn folder_view(status: &FolderStatus) -> FolderView {
         global_bytes: status.global_bytes,
         need_files: status.need_files,
         need_bytes: status.need_bytes,
+        need_items: status.need_items,
+        local_changes: status.local_changes,
         errors: status.errors,
         error: status.error.clone(),
     }
