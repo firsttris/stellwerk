@@ -18,7 +18,7 @@ use tokio::time::{Instant, MissedTickBehavior};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::config::{self, AgentConfig};
-use crate::{identity, update};
+use crate::{identity, local_ignores, update};
 
 /// What the agent tells the Zentrale about itself besides its key.
 #[derive(Debug, Clone)]
@@ -45,12 +45,19 @@ pub enum End {
 pub struct Heartbeat {
     pub every: Duration,
     pub silence: Duration,
+    /// How often the exclusion lists of other programs are read again (see [`local_ignores`]).
+    pub lists: Duration,
 }
 
 pub const HEARTBEAT: Heartbeat = Heartbeat {
     every: Duration::from_secs(30),
     silence: Duration::from_secs(90),
+    lists: Duration::from_secs(10),
 };
+
+/// The longest pause between attempts to apply a changed list that keeps failing: every attempt
+/// writes to `agent.log` and adds an event in the Zentrale, so it must not stay at 10 s.
+const LISTS_RETRY_MAX: Duration = Duration::from_secs(3600);
 
 /// Runs one connection until it closes. `status` is the monitor's latest snapshot, sent on
 /// connecting and on change.
@@ -89,6 +96,16 @@ pub async fn run(
     // search of up to 10 s holds up neither the desired state nor the folder picker.
     let (answer_tx, mut answers) = tokio::sync::mpsc::unbounded_channel();
     let mut updating = false;
+    // The last desired state and the exclusion lists it was applied with: a changed list is
+    // applied without waiting for the next state from the Zentrale.
+    let lists_dir = local_ignores::dir(data_dir);
+    let mut last: Option<DesiredState> = None;
+    let mut lists_seen = String::new();
+    let mut lists_pause = heartbeat.lists;
+    let mut lists_retry = Instant::now();
+    let mut lists_tick =
+        tokio::time::interval_at(Instant::now() + heartbeat.lists, heartbeat.lists);
+    lists_tick.set_missed_tick_behavior(MissedTickBehavior::Delay);
     loop {
         tokio::select! {
             frame = tokio::time::timeout_at(deadline, next_frame(&mut stream)) => {
@@ -112,7 +129,11 @@ pub async fn run(
                         status.mark_changed();
                     }
                     ServerMessage::DesiredState(state) => {
-                        let applied = apply(syncthing, &state).await;
+                        lists_seen = local_ignores::read_lists(&lists_dir);
+                        lists_pause = heartbeat.lists;
+                        lists_retry = Instant::now();
+                        let applied = apply(syncthing, &with_lists(&state, &lists_seen)).await;
+                        last = Some(state);
                         send(&mut sink, &AgentMessage::Applied(applied)).await?;
                     }
                     ServerMessage::Waiting { fingerprint } => {
@@ -162,6 +183,22 @@ pub async fn run(
                 }
             }
             _ = ping.tick() => sink.send(Message::Ping(Default::default())).await?,
+            _ = lists_tick.tick(), if last.is_some() => {
+                let lists = local_ignores::read_lists(&lists_dir);
+                if lists != lists_seen && Instant::now() >= lists_retry && let Some(state) = &last {
+                    tracing::info!("exclusion lists changed; applying them");
+                    let applied = apply(syncthing, &with_lists(state, &lists)).await;
+                    // Failed, the lists count as unseen: the Zentrale sends no state again.
+                    if applied.errors.is_empty() {
+                        lists_seen = lists;
+                        lists_pause = heartbeat.lists;
+                    } else {
+                        lists_retry = Instant::now() + lists_pause;
+                        lists_pause = (lists_pause * 2).min(LISTS_RETRY_MAX);
+                    }
+                    send(&mut sink, &AgentMessage::Applied(applied)).await?;
+                }
+            }
             changed = status.changed(), if welcomed => {
                 if changed.is_err() {
                     return Ok(End::Closed);
@@ -172,6 +209,16 @@ pub async fn run(
             }
         }
     }
+}
+
+/// The desired state with the exclusions of other programs on this device added.
+fn with_lists(state: &DesiredState, lists: &str) -> DesiredState {
+    local_ignores::merge_with(
+        state,
+        &local_ignores::paths(lists),
+        dirs::home_dir().as_deref(),
+        local_ignores::real,
+    )
 }
 
 /// The hello for this connection's nonce, signed with the device's key.
@@ -294,6 +341,7 @@ mod tests {
     const QUICK: Heartbeat = Heartbeat {
         every: Duration::from_millis(100),
         silence: Duration::from_millis(400),
+        lists: Duration::from_millis(100),
     };
 
     /// A Zentrale on 127.0.0.1 that welcomes the agent, then hands the socket to `then`.
@@ -321,13 +369,26 @@ mod tests {
 
     async fn session(server: String) -> anyhow::Result<End> {
         let dir = tempfile::tempdir().unwrap();
+        session_in(dir.path(), server, QUICK).await
+    }
+
+    async fn session_in(dir: &Path, server: String, heartbeat: Heartbeat) -> anyhow::Result<End> {
+        let syncthing = Client::new("http://127.0.0.1:9".parse().unwrap(), "unused");
+        session_with(dir, server, heartbeat, syncthing).await
+    }
+
+    async fn session_with(
+        dir: &Path,
+        server: String,
+        heartbeat: Heartbeat,
+        syncthing: Client,
+    ) -> anyhow::Result<End> {
         let mut config = AgentConfig {
             server,
             secret_key: identity::new_secret(),
             enrollment_code: None,
             ca: None,
         };
-        let syncthing = Client::new("http://127.0.0.1:9".parse().unwrap(), "unused");
         let report = Report {
             name: "laptop".into(),
             os: "linux".into(),
@@ -336,12 +397,12 @@ mod tests {
         };
         let (_snapshots, mut status) = watch::channel(Snapshot::default());
         run(
-            dir.path(),
+            dir,
             &mut config,
             &syncthing,
             &report,
             &mut status,
-            QUICK,
+            heartbeat,
         )
         .await
     }
@@ -414,6 +475,136 @@ mod tests {
         assert_eq!(id, 42);
         let names: Vec<String> = result.unwrap().dirs.into_iter().map(|e| e.name).collect();
         assert_eq!(names, ["Fotos"]);
+    }
+
+    /// A changed exclusion list is applied at once, without a new desired state.
+    #[tokio::test]
+    async fn a_changed_exclusion_list_is_applied_again() {
+        let dir = tempfile::tempdir().unwrap();
+        let (applied_tx, mut applied_rx) = tokio::sync::mpsc::unbounded_channel();
+        let url = zentrale(move |mut socket| async move {
+            let state = ServerMessage::DesiredState(DesiredState {
+                revision: 7,
+                ..DesiredState::default()
+            });
+            socket
+                .send(Message::text(serde_json::to_string(&state).unwrap()))
+                .await
+                .unwrap();
+            while let Some(Ok(frame)) = socket.next().await {
+                let Message::Text(text) = frame else { continue };
+                if let Ok(AgentMessage::Applied(applied)) = serde_json::from_str(&text) {
+                    let _ = applied_tx.send(applied.revision);
+                }
+            }
+        })
+        .await;
+        let data = dir.path().to_path_buf();
+        // Applying against the absent Syncthing takes about 2 s on Windows, where a refused
+        // connection is retried; a short silence would end the session meanwhile.
+        let patient = Heartbeat {
+            silence: Duration::from_secs(60),
+            ..QUICK
+        };
+        let running = tokio::spawn(async move { session_in(&data, url, patient).await });
+        let wait = Duration::from_secs(20);
+        let first = tokio::time::timeout(wait, applied_rx.recv()).await.unwrap();
+        assert_eq!(first, Some(7));
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert!(
+            applied_rx.try_recv().is_err(),
+            "unchanged lists apply nothing"
+        );
+
+        let lists = local_ignores::dir(dir.path());
+        std::fs::create_dir_all(&lists).unwrap();
+        std::fs::write(lists.join("spielstand.list"), "/home/t/Games/x.sav\n").unwrap();
+        let again = tokio::time::timeout(wait, applied_rx.recv()).await.unwrap();
+        assert_eq!(again, Some(7), "the same state, applied with the new list");
+        running.abort();
+    }
+
+    /// The Zentrale does not send a state again for a failed one, so nothing else would bring
+    /// the list to Syncthing.
+    #[tokio::test]
+    async fn a_list_that_could_not_be_applied_is_tried_again() {
+        let dir = tempfile::tempdir().unwrap();
+        // A Syncthing that drops every connection, and counts them.
+        let broken = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = broken.local_addr().unwrap();
+        let attempts = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counted = attempts.clone();
+        tokio::spawn(async move {
+            while let Ok((tcp, _)) = broken.accept().await {
+                counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                drop(tcp);
+            }
+        });
+        let (applied_tx, mut applied_rx) = tokio::sync::mpsc::unbounded_channel();
+        let url = zentrale(move |mut socket| async move {
+            let state = ServerMessage::DesiredState(DesiredState::default());
+            socket
+                .send(Message::text(serde_json::to_string(&state).unwrap()))
+                .await
+                .unwrap();
+            while let Some(Ok(frame)) = socket.next().await {
+                let Message::Text(text) = frame else { continue };
+                if let Ok(AgentMessage::Applied(applied)) = serde_json::from_str(&text) {
+                    let _ = applied_tx.send(applied.errors.len());
+                }
+            }
+        })
+        .await;
+        let data = dir.path().to_path_buf();
+        let patient = Heartbeat {
+            silence: Duration::from_secs(60),
+            ..QUICK
+        };
+        let syncthing = Client::new(format!("http://{address}").parse().unwrap(), "unused");
+        let running =
+            tokio::spawn(async move { session_with(&data, url, patient, syncthing).await });
+        let wait = Duration::from_secs(20);
+        tokio::time::timeout(wait, applied_rx.recv()).await.unwrap();
+
+        let lists = local_ignores::dir(dir.path());
+        std::fs::create_dir_all(&lists).unwrap();
+        std::fs::write(lists.join("spielstand.list"), "/home/t/Games/x.sav\n").unwrap();
+        let failed = tokio::time::timeout(wait, applied_rx.recv()).await.unwrap();
+        assert_eq!(failed, Some(1), "the broken Syncthing fails the apply");
+        let before = attempts.load(std::sync::atomic::Ordering::SeqCst);
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        let after = attempts.load(std::sync::atomic::Ordering::SeqCst);
+        running.abort();
+        assert!(after > before, "no new attempt after {before} connections");
+    }
+
+    /// On Fedora Atomic systems such as Bazzite `/home` is a link to `/var/home`: the same
+    /// folder has two spellings, and the program writing the list may use the other one.
+    #[cfg(unix)]
+    #[test]
+    fn a_path_through_a_link_still_lies_in_its_folder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let real = tmp.path().join("var").join("home");
+        let games = real.join("t").join("Games");
+        std::fs::create_dir_all(&games).unwrap();
+        std::fs::write(games.join("x.sav"), "save").unwrap();
+        let link = tmp.path().join("home");
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        let state = DesiredState {
+            folders: vec![stellwerk_protocol::Folder {
+                id: "games".into(),
+                label: "Games".into(),
+                path: games.to_str().unwrap().into(),
+                mode: stellwerk_protocol::FolderMode::SendReceive,
+                shared_with: vec![],
+                versioning: stellwerk_protocol::Versioning::None,
+                ignore_patterns: vec![],
+            }],
+            ..DesiredState::default()
+        };
+        let list = format!("{}\n", link.join("t").join("Games").join("x.sav").display());
+        let merged = with_lists(&state, &list);
+        assert_eq!(merged.folders[0].ignore_patterns, vec!["/x.sav"]);
     }
 
     #[tokio::test]

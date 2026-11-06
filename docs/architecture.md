@@ -326,6 +326,14 @@ Syncthing runs with `--no-restart`: if it exits (a crash, or a restart asked for
 the agent exits with an error and the service manager starts both again. The Zentrale does the
 same with the hub Syncthing and leaves the restart to Docker or systemd.
 
+Before applying a desired state, the agent adds the exclusions other programs on the device
+listed in `ignore.d/` (`crates/agent/src/local_ignores.rs`, a merge with unit tests that is
+handed the function resolving links): each listed path inside a folder becomes a rooted, escaped
+pattern for exactly that path, placed before any line that could keep the file
+(`engine::ignore::anchored_pattern`, checked against the pinned Syncthing in
+`crates/engine/tests/anchored_ignores.rs`). The lists are read again every 10 seconds; a
+changed list is applied to the last desired state at once.
+
 **Directories on request** (`crates/agent/src/browse.rs`, `search.rs`): `browse` lists the
 subdirectories of one directory for the folder picker; `search` walks breadth first from a start
 directory and returns the directories whose name holds every word of the query as word prefixes,
