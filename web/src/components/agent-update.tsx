@@ -21,18 +21,20 @@ export function AgentUpdate({
 }) {
   const queryClient = useQueryClient();
   const update = useMutation({
-    mutationFn: () => api.updateAgent(device.id),
+    mutationFn: (_version: string) => api.updateAgent(device.id),
     onSuccess: () => refresh(queryClient),
   });
   if (!device.approved || !agentOutdated(device, overview.version)) return null;
   // Without a report, as for an offline device after the Zentrale restarted, only Windows is sure.
   const canUpdate =
     live?.devices[device.id]?.canUpdate ?? (!device.online && device.os !== "windows");
+  // For this version only: the component outlives the update, and the Zentrale can move on.
+  const updated = update.isSuccess && update.variables === overview.version;
   const status = () => {
     if (!device.online) return m.update_offline();
     if (update.isError) return errorMessage(update.error);
     if (update.isPending) return m.update_running();
-    return update.isSuccess ? m.update_sent() : m.update_hint();
+    return updated ? m.update_sent() : m.update_hint();
   };
 
   return (
@@ -46,8 +48,8 @@ export function AgentUpdate({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => update.mutate()}
-            disabled={!device.online || update.isPending || update.isSuccess}
+            onClick={() => update.mutate(overview.version)}
+            disabled={!device.online || update.isPending || updated}
           >
             {m.update_button()}
           </Button>
