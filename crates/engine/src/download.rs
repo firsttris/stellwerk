@@ -137,13 +137,20 @@ fn wanted_name(path: &str, prefix: &str, wanted: &[&'static str]) -> Option<&'st
 
 /// Writes next to the target and renames, so a parallel test never sees half a binary, nor
 /// one that is not executable yet.
+///
+/// When parallel tests download at once, a later one finds the target already there. Windows
+/// refuses to replace a binary another test is running ("Access is denied"); the file there
+/// passed the same checksum, so it is kept and the copy dropped.
 fn write_atomically(path: &Path, contents: &[u8], executable: bool) -> Result<()> {
     let tmp = path.with_extension(format!("part-{}", std::process::id()));
     std::fs::write(&tmp, contents).map_err(io_at(&tmp))?;
     if executable {
         make_executable(&tmp)?;
     }
-    std::fs::rename(&tmp, path).map_err(io_at(path))
+    match std::fs::rename(&tmp, path) {
+        Err(_) if path.is_file() => std::fs::remove_file(&tmp).map_err(io_at(&tmp)),
+        result => result.map_err(io_at(path)),
+    }
 }
 
 #[cfg(unix)]
@@ -180,6 +187,29 @@ mod tests {
         write_atomically(&binary, b"#!", true).unwrap();
         let mode = std::fs::metadata(&binary).unwrap().permissions().mode();
         assert_eq!(mode & 0o111, 0o111);
+        assert_eq!(
+            std::fs::read_dir(dir.path()).unwrap().count(),
+            1,
+            "no part file left"
+        );
+    }
+
+    /// Windows does not replace a file that is open without delete sharing, as a running
+    /// `syncthing.exe` is.
+    #[cfg(windows)]
+    #[test]
+    fn a_binary_in_use_by_a_parallel_test_is_kept() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let binary = dir.path().join("syncthing.exe");
+        std::fs::write(&binary, b"running").unwrap();
+        let _in_use = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(1) // FILE_SHARE_READ
+            .open(&binary)
+            .unwrap();
+        write_atomically(&binary, b"same", true).unwrap();
+        assert_eq!(std::fs::read(&binary).unwrap(), b"running");
         assert_eq!(
             std::fs::read_dir(dir.path()).unwrap().count(),
             1,
