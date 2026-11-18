@@ -8,12 +8,12 @@ const ca = "da".repeat(32);
 describe("pairCommand", () => {
   it("fetches the install script of the Zentrale's version from GitHub", () => {
     expect(pairCommand("linux", origin, enrollment)).toBe(
-      "curl -fsSL https://github.com/firsttris/stellwerk/releases/download/v1.2.3/install.sh" +
+      "curl -fsSL https://github.com/Speicherstadt/stellwerk/releases/download/v1.2.3/install.sh" +
         " | sh -s -- https://stellwerk.home K7Q2-MX9P-41TZ",
     );
     expect(pairCommand("macos", origin, enrollment)).toBe(pairCommand("linux", origin, enrollment));
     expect(pairCommand("windows", origin, enrollment)).toBe(
-      "& ([scriptblock]::Create((irm https://github.com/firsttris/stellwerk/releases/download/v1.2.3/install.ps1)))" +
+      "& ([scriptblock]::Create((irm https://github.com/Speicherstadt/stellwerk/releases/download/v1.2.3/install.ps1)))" +
         " https://stellwerk.home K7Q2-MX9P-41TZ",
     );
   });

@@ -153,4 +153,4 @@ version, and the agents would trust it.
 ## Reporting a vulnerability
 
 Please do not open a public issue. Use GitHub's private
-[security advisory](https://github.com/firsttris/stellwerk/security/advisories/new) instead.
+[security advisory](https://github.com/Speicherstadt/stellwerk/security/advisories/new) instead.

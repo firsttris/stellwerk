@@ -4,8 +4,10 @@ Stellwerk has two parts to install: the **Zentrale** once on a server, and the *
 device. This page covers both for real use: TLS, firewall, backups, updates. For a quick first
 try, [Getting started](getting-started.md) is shorter.
 
-Every [release](https://github.com/firsttris/stellwerk/releases) publishes the image
-`tristanteu/stellwerk` on Docker Hub and `ghcr.io/firsttris/stellwerk` and carries the agents.
+Every [release](https://github.com/Speicherstadt/stellwerk/releases) publishes the image
+`tristanteu/stellwerk` on Docker Hub and `ghcr.io/speicherstadt/stellwerk` and carries the agents.
+Releases from before the move to the Speicherstadt organization stay at
+`ghcr.io/firsttris/stellwerk`, which gets no new versions; switch to Docker Hub or the new name.
 To build them yourself, see [Development](development.md#building).
 
 ## Requirements
@@ -230,13 +232,13 @@ place of `X.Y.Z`; run it in a terminal on the device as the normal user:
 === "Linux, macOS"
 
     ```bash
-    curl -fsSL https://github.com/firsttris/stellwerk/releases/download/vX.Y.Z/install.sh | sh -s -- https://sync.example.org K7Q2-MX9P-41TZ
+    curl -fsSL https://github.com/Speicherstadt/stellwerk/releases/download/vX.Y.Z/install.sh | sh -s -- https://sync.example.org K7Q2-MX9P-41TZ
     ```
 
 === "Windows (PowerShell)"
 
     ```powershell
-    & ([scriptblock]::Create((irm https://github.com/firsttris/stellwerk/releases/download/vX.Y.Z/install.ps1))) https://sync.example.org K7Q2-MX9P-41TZ
+    & ([scriptblock]::Create((irm https://github.com/Speicherstadt/stellwerk/releases/download/vX.Y.Z/install.ps1))) https://sync.example.org K7Q2-MX9P-41TZ
     ```
 
 The script (`installer/install.sh`, `install.ps1`) is attached to every release; the dialog

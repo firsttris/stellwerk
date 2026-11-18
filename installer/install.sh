@@ -2,7 +2,7 @@
 # Installs the Stellwerk agent {{VERSION}} for the current user, pairs it with a Zentrale and
 # starts it in the background. Attached to every release; the pairing dialog shows the command:
 #
-#   curl -fsSL https://github.com/firsttris/stellwerk/releases/download/v{{VERSION}}/install.sh \
+#   curl -fsSL https://github.com/Speicherstadt/stellwerk/releases/download/v{{VERSION}}/install.sh \
 #     | sh -s -- https://zentrale.example CODE [--ca-sha256 FINGERPRINT]
 #
 # The script comes from GitHub, not from the Zentrale, so it also works where the Zentrale's
@@ -13,8 +13,8 @@
 set -eu
 
 version="{{VERSION}}"
-releases="${STELLWERK_RELEASES:-https://github.com/firsttris/stellwerk/releases/download/v$version}"
-docs="https://firsttris.github.io/stellwerk/installation.html"
+releases="${STELLWERK_RELEASES:-https://github.com/Speicherstadt/stellwerk/releases/download/v$version}"
+docs="https://speicherstadt.github.io/stellwerk/installation.html"
 usage="usage: install.sh <server> [code] [--ca-sha256 <fingerprint>]"
 
 fail() {
