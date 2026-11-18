@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { sessionQuery } from "../api/queries";
+import { sessionQuery } from "../backend/queries";
 import { Layout } from "../components/layout";
 
 /** Everything but the login page: only for the logged-in admin. */

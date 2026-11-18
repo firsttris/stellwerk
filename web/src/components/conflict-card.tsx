@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TriangleAlert } from "lucide-react";
 import { useMemo } from "react";
-import { api } from "../api";
-import { eventsQuery, statusQuery } from "../api/queries";
 import type { Conflict, Device, FileContent, Keep } from "../api/types";
+import { api } from "../backend";
+import { eventsQuery, statusQuery } from "../backend/queries";
 import { conflictLines, type DiffLine } from "../lib/diff";
 import { errorMessage } from "../lib/errors";
 import { ago, bothName, nowSeconds } from "../lib/format";

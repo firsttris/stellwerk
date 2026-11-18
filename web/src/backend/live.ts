@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { uiMessageSchema } from "../api/types";
 import { eventsQuery, overviewQuery, refresh, statusQuery } from "./queries";
-import { uiMessageSchema } from "./types";
 
 const MAX_RETRY_MS = 30_000;
 

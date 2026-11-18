@@ -8,7 +8,7 @@ const api = vi.hoisted(() => ({
   createEnrollment: vi.fn(),
   enrollmentStatus: vi.fn(),
 }));
-vi.mock("../api", () => ({ api }));
+vi.mock("../backend", () => ({ api }));
 
 const MINUTE = 60_000;
 

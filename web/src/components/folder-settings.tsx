@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
-import { api } from "../api";
-import { refresh } from "../api/queries";
 import type { Folder, FolderPatch } from "../api/types";
+import { api } from "../backend";
+import { refresh } from "../backend/queries";
 import { errorMessage } from "../lib/errors";
 import { m } from "../paraglide/messages.js";
 import { Button } from "./ui/button";

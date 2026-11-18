@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../api";
-import { refresh } from "../api/queries";
 import type { Device, Live, Overview } from "../api/types";
+import { api } from "../backend";
+import { refresh } from "../backend/queries";
 import { agentOutdated } from "../lib/devices";
 import { errorMessage } from "../lib/errors";
 import { m } from "../paraglide/messages.js";

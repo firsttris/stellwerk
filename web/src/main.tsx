@@ -3,7 +3,7 @@ import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createQueryClient } from "./api/client";
-import { sessionQuery } from "./api/queries";
+import { sessionQuery } from "./backend/queries";
 import { NotFound, RouteError } from "./components/route-error";
 import { applyTheme, loadTheme } from "./lib/theme";
 import { getLocale } from "./paraglide/runtime.js";

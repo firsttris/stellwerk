@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useState } from "react";
-import { overviewQuery, statusQuery } from "../../api/queries";
+import { overviewQuery, statusQuery } from "../../backend/queries";
 import { DeviceTable } from "../../components/device-table";
 import { PageHeader } from "../../components/layout";
 import { PairDialog } from "../../components/pair-dialog";

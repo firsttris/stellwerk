@@ -79,7 +79,7 @@ Two agents on one machine need two data directories. Never start a test Syncthin
 |---|---|
 | `cargo test` | unit tests of every crate, and the integration tests in `crates/*/tests` against real Syncthing instances (the pinned version is downloaded once into `.syncthing-cache/`) |
 | `bun run --filter web check` | Biome, `tsc --noEmit`, Vitest, `vite build` |
-| `bun checks` | files past 400 lines and the interface texts, by [firsttris/workflows' checks](https://github.com/firsttris/workflows#checks) with `checks.json`; older large files and texts are listed in `.checks/` and may only get fewer. `bun checks pr` gives hints on the branch, such as a function new or grown past 80 lines |
+| `bun checks` | files past 400 lines, the interface texts and rings of imports between modules (the folders of `web/src`), by [firsttris/workflows' checks](https://github.com/firsttris/workflows#checks) with `checks.json`; older large files and texts are listed in `.checks/` and may only get fewer. `bun checks pr` gives hints on the branch, such as a function new or grown past 80 lines |
 | `bun run e2e` | Playwright against the demo build, its runner and Vite on Bun (`bun --bun playwright test`); `PW_CHROMIUM=/path/to/chrome` outside the Playwright image, `PW_PORT` when 4173 is taken |
 | `mkdocs build --strict` | the docs, with broken links as errors |
 

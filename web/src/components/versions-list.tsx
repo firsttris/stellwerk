@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { History, Search } from "lucide-react";
 import { useState } from "react";
-import { api } from "../api";
-import { eventsQuery } from "../api/queries";
+import { api } from "../backend";
+import { eventsQuery } from "../backend/queries";
 import { errorMessage } from "../lib/errors";
 import { intlLocale } from "../lib/i18n";
 import { formatBytes } from "../lib/live";

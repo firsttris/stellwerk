@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Folder as FolderIcon } from "lucide-react";
-import { overviewQuery, statusQuery } from "../../../api/queries";
+import { overviewQuery, statusQuery } from "../../../backend/queries";
 import { ConflictCard } from "../../../components/conflict-card";
 import { FolderDevices } from "../../../components/folder-devices";
 import { FolderSettings } from "../../../components/folder-settings";

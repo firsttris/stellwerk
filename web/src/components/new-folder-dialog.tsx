@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { api } from "../api";
-import { overviewQuery, refresh } from "../api/queries";
 import type { Device } from "../api/types";
+import { api } from "../backend";
+import { overviewQuery, refresh } from "../backend/queries";
 import { errorMessage } from "../lib/errors";
 import { matrixDevices } from "../lib/matrix";
 import { baseName } from "../lib/paths";
