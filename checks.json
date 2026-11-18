@@ -1,0 +1,4 @@
+{
+  "fileSize": { "include": ["web/src/**/*.{ts,tsx}", "crates/*/src/**/*.rs"] },
+  "i18n": { "project": "web/project.inlang", "include": ["web/src/**/*.{ts,tsx}"] }
+}

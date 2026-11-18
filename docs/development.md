@@ -79,6 +79,7 @@ Two agents on one machine need two data directories. Never start a test Syncthin
 |---|---|
 | `cargo test` | unit tests of every crate, and the integration tests in `crates/*/tests` against real Syncthing instances (the pinned version is downloaded once into `.syncthing-cache/`) |
 | `bun run --filter web check` | Biome, `tsc --noEmit`, Vitest, `vite build` |
+| `bun checks` | files past 400 lines and the interface texts, by [firsttris/workflows' checks](https://github.com/firsttris/workflows#checks) with `checks.json`; older large files and texts are listed in `.checks/` and may only get fewer. `bun checks pr` gives hints on the branch, such as a function new or grown past 80 lines |
 | `bun run e2e` | Playwright against the demo build, its runner and Vite on Bun (`bun --bun playwright test`); `PW_CHROMIUM=/path/to/chrome` outside the Playwright image, `PW_PORT` when 4173 is taken |
 | `mkdocs build --strict` | the docs, with broken links as errors |
 
@@ -100,7 +101,7 @@ discovery, no relays.
 
 | Workflow | When | Does |
 |---|---|---|
-| `ci.yml` | every push to `main` and pull request (not for docs only) | Rust: fmt, clippy and tests (`cargo nextest`, every test in its own process at once) on Linux, Windows and macOS, then the service smoke test with the agent the tests built; web checks; E2E in the Playwright image; the Docker image builds and starts. A pull request runs only what it can break (`scripts/ci-changes.sh`): a change in `web/` alone skips Rust, one in `crates/` alone the UI checks, and the image builds only when `docker/`, a lockfile or a `package.json` changed |
+| `ci.yml` | every push to `main` and pull request (not for docs only) | Rust: fmt, clippy and tests (`cargo nextest`, every test in its own process at once) on Linux, Windows and macOS, then the service smoke test with the agent the tests built; web checks; `bun checks` (with `bun checks pr` on a pull request); E2E in the Playwright image; the Docker image builds and starts. A pull request runs only what it can break (`scripts/ci-changes.sh`): a change in `web/` alone skips Rust, one in `crates/` alone the UI checks, and the image builds only when `docker/`, a lockfile or a `package.json` changed |
 | `agents.yml` | pushes to `main`, from `release.yml`, or by hand | the agent for every platform; on Windows also the installer and its silent install/uninstall test; `SHA256SUMS` and the install scripts. On `main` it keeps the release builds' cache warm, and a broken release build shows up there |
 | `docs.yml` | pushes to `main` and pull requests that touch `docs/`, `mkdocs.yml` or `requirements-docs.txt` | builds the docs with `mkdocs build --strict` (the `privacy` plugin downloads fonts and the Mermaid script at build time, so the site loads nothing from third parties); on `main` also publishes them to GitHub Pages |
 | `screenshots.yml` | by hand: **Actions → Update screenshots** | renders the pictures in `docs/` from the demo data and commits them |

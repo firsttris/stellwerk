@@ -1,0 +1,9 @@
+# Files with interface texts in the code from before the check, with their count (checks i18n,
+# firsttris/workflows). The count may only go down; `checks i18n --clean` lowers it.
+1 web/src/components/folder-devices.tsx
+1 web/src/components/folder-settings.tsx
+3 web/src/components/layout.tsx
+1 web/src/components/new-folder-dialog.tsx
+1 web/src/components/new-share-paths.tsx
+1 web/src/components/pair-dialog.tsx
+2 web/src/routes/login.tsx
