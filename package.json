@@ -11,8 +11,11 @@
     "dev:server": "cargo run -p stellwerk-zentrale -- --data-dir /tmp/stw/zentrale --listen 127.0.0.1:8080 --hub-listen tcp://127.0.0.1:22101 --lan-pairing false",
     "dev:web": "bun run --cwd web dev",
     "dev:demo": "bun run --filter web dev:demo",
-    "check": "bun run --filter web check",
+    "check": "bun run --filter web check && checks",
     "screenshots": "bun run --filter e2e screenshots && bun scripts/social-preview/render.mjs",
     "e2e": "bun run --filter e2e test"
+  },
+  "devDependencies": {
+    "@firsttris/checks": "github:firsttris/workflows#v1"
   }
 }

@@ -111,6 +111,25 @@ jobs:
       - run: bun run --filter web test
       - run: bun run --filter web build
 
+  # The rules of firsttris/workflows' checks (README, "Checks") on every pull request and push, Rust
+  # and UI alike: files past 400 lines, the interface texts; on a pull request also the hints on
+  # long functions, grown files, code without docs and fixes without tests
+  checks:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun checks
+      - if: github.event_name == 'pull_request'
+        run: bun checks pr
+
   # The UI in demo mode in the official Playwright image of the version in the lockfile
   e2e-image:
     needs: changes
