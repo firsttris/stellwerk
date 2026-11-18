@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Folder } from "lucide-react";
-import { overviewQuery } from "../../../api/queries";
+import { overviewQuery } from "../../../backend/queries";
 import { PageHeader } from "../../../components/layout";
 import { NewFolderDialog } from "../../../components/new-folder-dialog";
 import { Card } from "../../../components/ui/card";

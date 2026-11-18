@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Clock, Radar, TriangleAlert } from "lucide-react";
-import { eventsQuery, overviewQuery, statusQuery } from "../../api/queries";
 import type { Live, Overview as OverviewData } from "../../api/types";
+import { eventsQuery, overviewQuery, statusQuery } from "../../backend/queries";
 import { PageHeader } from "../../components/layout";
 import { Matrix } from "../../components/matrix";
 import { NewFolderDialog } from "../../components/new-folder-dialog";

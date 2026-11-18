@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Database } from "lucide-react";
 import { useState } from "react";
-import { api } from "../api";
-import { refresh } from "../api/queries";
 import type { Device, Folder, Live, Overview, ShareChange } from "../api/types";
+import { api } from "../backend";
+import { refresh } from "../backend/queries";
 import { errorMessage } from "../lib/errors";
 import { deviceStatus, nowSeconds } from "../lib/format";
 import { folderSize, shareStatus } from "../lib/live";

@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ellipsis } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
-import { api } from "../api";
-import { refresh } from "../api/queries";
 import type { Device } from "../api/types";
+import { api } from "../backend";
+import { refresh } from "../backend/queries";
 import { errorMessage } from "../lib/errors";
 import { cn } from "../lib/utils";
 import { m } from "../paraglide/messages.js";

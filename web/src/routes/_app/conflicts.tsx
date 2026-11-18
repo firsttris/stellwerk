@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { overviewQuery, statusQuery } from "../../api/queries";
+import { overviewQuery, statusQuery } from "../../backend/queries";
 import { ConflictCard } from "../../components/conflict-card";
 import { PageHeader } from "../../components/layout";
 import { Card } from "../../components/ui/card";

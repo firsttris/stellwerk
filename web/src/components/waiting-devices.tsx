@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Radar } from "lucide-react";
-import { api } from "../api";
-import { refresh, statusQuery } from "../api/queries";
 import type { WaitingDevice } from "../api/types";
+import { api } from "../backend";
+import { refresh, statusQuery } from "../backend/queries";
 import { errorMessage } from "../lib/errors";
 import { nowSeconds, osLabel, since } from "../lib/format";
 import { m } from "../paraglide/messages.js";

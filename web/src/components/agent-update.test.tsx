@@ -6,7 +6,7 @@ import type { Device, Live, Overview } from "../api/types";
 import { AgentUpdate } from "./agent-update";
 
 const api = vi.hoisted(() => ({ updateAgent: vi.fn() }));
-vi.mock("../api", () => ({ api }));
+vi.mock("../backend", () => ({ api }));
 
 const device = (patch: Partial<Device> = {}) =>
   ({

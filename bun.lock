@@ -160,7 +160,7 @@
 
     "@exodus/bytes": ["@exodus/bytes@1.16.0", "", { "peerDependencies": { "@noble/hashes": "^1.8.0 || ^2.0.0" }, "optionalPeers": ["@noble/hashes"] }, "sha512-IcpW84uEn3N7ETtNZMlxKhfl6Pec8rUNGOTBtWbK1FKhJxIFAptZyVrvVRVBimAJxJCgc3PxepxkdWWG4DVzfA=="],
 
-    "@firsttris/checks": ["@firsttris/checks@github:firsttris/workflows#f2c9c85", { "dependencies": { "oxc-parser": "^0.156.0" }, "bin": { "checks": "checks/cli.ts" } }, "firsttris-workflows-f2c9c85", "sha512-/s9dCShMQaI4f9KcJ3rsPnV4whvraxiV7KhyyhC9MyhZQON+trvm+QLwNwQ9pdSw3Ns8brlHm1FtHrD4iqedFQ=="],
+    "@firsttris/checks": ["@firsttris/checks@github:firsttris/workflows#0a19805", { "dependencies": { "oxc-parser": "^0.156.0" }, "bin": { "checks": "checks/cli.ts" } }, "firsttris-workflows-0a19805", "sha512-vhDesBHvUki0RowtgDUoVxgDlAmfcRTxj6l0r3ZhgjjoNr1EA/M6PH9K4ooo94IZf3xZSp+ZitqK5QpkINQ2Kw=="],
 
     "@floating-ui/core": ["@floating-ui/core@1.8.0", "", { "dependencies": { "@floating-ui/utils": "0.2.12" } }, "sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ=="],
 

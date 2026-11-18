@@ -11,9 +11,9 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { api } from "../api";
-import { useLiveUpdates } from "../api/live";
-import { overviewQuery, sessionQuery, statusQuery } from "../api/queries";
+import { api } from "../backend";
+import { useLiveUpdates } from "../backend/live";
+import { overviewQuery, sessionQuery, statusQuery } from "../backend/queries";
 import { cn } from "../lib/utils";
 import { m } from "../paraglide/messages.js";
 import { getLocale, type Locale, setLocale } from "../paraglide/runtime.js";

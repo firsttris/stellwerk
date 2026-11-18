@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleCheck, Copy, Link2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api";
-import { overviewQuery, refresh } from "../api/queries";
 import type { Device, Enrollment } from "../api/types";
+import { api } from "../backend";
+import { overviewQuery, refresh } from "../backend/queries";
 import { copyToClipboard } from "../lib/clipboard";
 import { errorMessage } from "../lib/errors";
 import { osLabel } from "../lib/format";

@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUp, Folder, FolderOpen, House } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { api } from "../api";
 import type { Device } from "../api/types";
+import { api } from "../backend";
 import { errorMessage } from "../lib/errors";
 import { m } from "../paraglide/messages.js";
 import { Button } from "./ui/button";
