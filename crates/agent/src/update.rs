@@ -11,7 +11,7 @@ use std::time::Duration;
 use anyhow::Context;
 use sha2::{Digest, Sha256};
 
-const RELEASES: &str = "https://github.com/firsttris/stellwerk/releases/download";
+const RELEASES: &str = "https://github.com/Speicherstadt/stellwerk/releases/download";
 
 /// Below the Zentrale's `UPDATE_TIMEOUT`, so a download that hangs is reported in time. Without
 /// an end the session would refuse every further update until the agent restarts.

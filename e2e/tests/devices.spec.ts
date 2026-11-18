@@ -6,7 +6,7 @@ test("pairing shows a command, waits for the device and sets it up", async ({ pa
   const dialog = page.getByRole("dialog", { name: "Gerät koppeln" });
   const origin = new URL(page.url()).origin;
   // The demo Zentrale reports version 0.1.3 (src/demo/api.ts).
-  const releases = "https://github.com/firsttris/stellwerk/releases/download/v0.1.3";
+  const releases = "https://github.com/Speicherstadt/stellwerk/releases/download/v0.1.3";
   await expect(dialog.getByTestId("pair-command")).toContainText(
     `curl -fsSL ${releases}/install.sh | sh -s -- ${origin} K7Q2-MX9P-41TZ`,
   );

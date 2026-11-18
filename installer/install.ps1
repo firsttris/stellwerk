@@ -2,7 +2,7 @@
 # it with a Zentrale and starts it at every login. Attached to every release; the pairing dialog
 # shows the command for PowerShell:
 #
-#   & ([scriptblock]::Create((irm https://github.com/firsttris/stellwerk/releases/download/v{{VERSION}}/install.ps1))) https://zentrale.example CODE [-CaSha256 FINGERPRINT]
+#   & ([scriptblock]::Create((irm https://github.com/Speicherstadt/stellwerk/releases/download/v{{VERSION}}/install.ps1))) https://zentrale.example CODE [-CaSha256 FINGERPRINT]
 #
 # The script comes from GitHub, not from the Zentrale, so it also works where the Zentrale's
 # certificate comes from a private CA the device does not trust yet: -CaSha256 lets the agent
@@ -20,7 +20,7 @@ $ProgressPreference = "SilentlyContinue"
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
 $version = "{{VERSION}}"
-$releases = if ($env:STELLWERK_RELEASES) { $env:STELLWERK_RELEASES } else { "https://github.com/firsttris/stellwerk/releases/download/v$version" }
+$releases = if ($env:STELLWERK_RELEASES) { $env:STELLWERK_RELEASES } else { "https://github.com/Speicherstadt/stellwerk/releases/download/v$version" }
 $asset = "stellwerk-agent-setup-windows-x86_64.exe"
 $setup = Join-Path ([IO.Path]::GetTempPath()) $asset
 

@@ -2,7 +2,7 @@ import type { Enrollment } from "../api/types";
 
 export type Os = "linux" | "windows" | "macos";
 
-const RELEASES = "https://github.com/firsttris/stellwerk/releases/download";
+const RELEASES = "https://github.com/Speicherstadt/stellwerk/releases/download";
 
 /**
  * The one command shown for a pairing code. The install script comes from the GitHub release

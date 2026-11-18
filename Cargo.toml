@@ -8,7 +8,7 @@ edition = "2024"
 rust-version = "1.94"
 license = "AGPL-3.0-only"
 authors = ["Tristan Teufel"]
-repository = "https://github.com/firsttris/stellwerk"
+repository = "https://github.com/Speicherstadt/stellwerk"
 
 [workspace.dependencies]
 stellwerk-protocol = { path = "crates/protocol" }

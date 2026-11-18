@@ -121,6 +121,6 @@ downloading them again.
 
 ## Reporting a bug
 
-Open an [issue](https://github.com/firsttris/stellwerk/issues/new) with the OS, the Stellwerk
+Open an [issue](https://github.com/Speicherstadt/stellwerk/issues/new) with the OS, the Stellwerk
 version (`stellwerk --version`, `stellwerk-agent --version`), what the UI showed and the relevant
 lines from the logs above.

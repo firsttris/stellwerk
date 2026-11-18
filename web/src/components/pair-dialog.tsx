@@ -19,7 +19,8 @@ import { Field, Input } from "./ui/input";
 const OS_TABS: readonly Os[] = ["linux", "windows", "macos"];
 
 /** Where the manual installation is described, for a device the script does not cover. */
-const MANUAL_INSTALL = "https://firsttris.github.io/stellwerk/installation.html#agent-on-a-device";
+const MANUAL_INSTALL =
+  "https://speicherstadt.github.io/stellwerk/installation.html#agent-on-a-device";
 
 export function PairDialog({ variant = "outline" }: { variant?: "outline" | "default" }) {
   const [open, setOpen] = useState(false);

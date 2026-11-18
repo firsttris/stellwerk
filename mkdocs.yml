@@ -1,13 +1,13 @@
-# Documentation as a website: https://firsttris.github.io/stellwerk/
+# Documentation as a website: https://speicherstadt.github.io/stellwerk/
 # Source is docs/, built with MkDocs Material (.github/workflows/docs.yml).
 # Locally: pip install -r requirements-docs.txt && mkdocs serve
 site_name: Stellwerk
 site_description: >-
   Central web UI to manage Syncthing on all your devices: pair devices, share folders and set
   paths from one place. Self-hosted, open source, no cloud.
-site_url: https://firsttris.github.io/stellwerk/
-repo_url: https://github.com/firsttris/stellwerk
-repo_name: firsttris/stellwerk
+site_url: https://speicherstadt.github.io/stellwerk/
+repo_url: https://github.com/Speicherstadt/stellwerk
+repo_name: Speicherstadt/stellwerk
 edit_uri: edit/main/docs/
 copyright: >-
   License AGPL-3.0 · © Tristan Teufel and contributors ·
@@ -102,7 +102,7 @@ markdown_extensions:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/firsttris/stellwerk
+      link: https://github.com/Speicherstadt/stellwerk
       name: Source code on GitHub
     - icon: fontawesome/brands/docker
       link: https://hub.docker.com/r/tristanteu/stellwerk

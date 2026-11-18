@@ -2,7 +2,7 @@
 
 How the repository is laid out, how to build and run Stellwerk from source, how it is tested and
 how a release is made. The rules for changes are in
-[CLAUDE.md](https://github.com/firsttris/stellwerk/blob/main/CLAUDE.md); they apply to people too.
+[CLAUDE.md](https://github.com/Speicherstadt/stellwerk/blob/main/CLAUDE.md); they apply to people too.
 
 ## Repository
 
@@ -117,7 +117,7 @@ The reusable parts (bump, tested on main, Docker release, screenshots) come from
 2. The tag starts `release.yml`, which runs nothing twice. `tested-on-main.yml` from
    firsttris/workflows checks that the CI was green on `main` for the commit before the release
    commit, which only raises the version; only when it was not does the release run the CI
-   first. The agents build from the start, beside the image `tristanteu/stellwerk` and `ghcr.io/firsttris/stellwerk` for
+   first. The agents build from the start, beside the image `tristanteu/stellwerk` and `ghcr.io/speicherstadt/stellwerk` for
    `linux/amd64` and `linux/arm64` (tags `x.y.z`, `x.y`, `latest`, the Docker Hub description
    from the README). The image's build cache is the one the CI's Docker job fills, and
    `cargo-chef` keeps the compiled dependencies in it, so only Stellwerk's own crates compile.
