@@ -2,7 +2,7 @@
 
 ## Documentation
 
-The documentation is in `docs/` (<https://speicherstadt.github.io/stellwerk/>). Read the pages that
+The documentation is in `docs/` (<https://speicherstadt.app/stellwerk/>). Read the pages that
 touch the change before starting: `architecture.md` for how Zentrale, hub, agent and engine fit
 together and for the roadmap. Links in the README and the docs point to the GitHub Pages site, not
 to `docs/*.md`.

@@ -1,5 +1,5 @@
 # Builds docs/ with MkDocs Material and publishes it to GitHub Pages:
-# https://speicherstadt.github.io/stellwerk/
+# https://speicherstadt.app/stellwerk/
 # Pull requests that touch the docs only build them (--strict), so broken links fail before the
 # merge; ci.yml ignores docs-only changes.
 # One-time requirement: Settings → Pages → Source "GitHub Actions"
