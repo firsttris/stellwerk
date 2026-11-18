@@ -35,7 +35,7 @@ describe("AgentUpdate", () => {
   it("links the manual steps where the docs have them", () => {
     show(overview(), live(false), device());
     expect(screen.getByRole("link").getAttribute("href")).toBe(
-      "https://speicherstadt.github.io/stellwerk/installation.html#updating",
+      "https://speicherstadt.app/stellwerk/installation.html#updating",
     );
   });
 

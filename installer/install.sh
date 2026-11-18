@@ -14,7 +14,7 @@ set -eu
 
 version="{{VERSION}}"
 releases="${STELLWERK_RELEASES:-https://github.com/Speicherstadt/stellwerk/releases/download/v$version}"
-docs="https://speicherstadt.github.io/stellwerk/installation.html"
+docs="https://speicherstadt.app/stellwerk/installation.html"
 usage="usage: install.sh <server> [code] [--ca-sha256 <fingerprint>]"
 
 fail() {

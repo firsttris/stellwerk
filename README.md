@@ -11,7 +11,7 @@ Open source, no cloud, no clicking "accept" on every machine.
 [![Docker pulls](https://img.shields.io/docker/pulls/tristanteu/stellwerk?logo=docker&logoColor=white)](https://hub.docker.com/r/tristanteu/stellwerk)
 [![Image Size](https://img.shields.io/docker/image-size/tristanteu/stellwerk/latest?logo=docker&logoColor=white&label=image)](https://hub.docker.com/r/tristanteu/stellwerk)
 [![Platforms](https://img.shields.io/badge/platform-amd64%20%7C%20arm64-lightgrey)](https://hub.docker.com/r/tristanteu/stellwerk/tags)
-[![Docs](https://img.shields.io/badge/docs-speicherstadt.github.io%2Fstellwerk-4f46e5?logo=materialformkdocs&logoColor=white)](https://speicherstadt.github.io/stellwerk/)
+[![Docs](https://img.shields.io/badge/docs-speicherstadt.app%2Fstellwerk-4f46e5?logo=materialformkdocs&logoColor=white)](https://speicherstadt.app/stellwerk/)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 ![Rust](https://img.shields.io/badge/built_with-Rust-b7410e?logo=rust)
 
@@ -25,7 +25,7 @@ docker compose up -d && docker compose exec -T stellwerk stellwerk set-password 
 [Screenshots](#-screenshots) •
 [Alternatives](#-stellwerk-and-the-alternatives) •
 [FAQ](#-faq) •
-[Documentation](https://speicherstadt.github.io/stellwerk/)
+[Documentation](https://speicherstadt.app/stellwerk/)
 
 <img src="docs/screenshot.png" alt="Stellwerk overview: a folder by device matrix showing which device sends, receives or does not hold each Syncthing folder, with a draft of two changes waiting to be applied" width="900">
 
@@ -79,13 +79,13 @@ curl -fsSL https://github.com/Speicherstadt/stellwerk/releases/download/vX.Y.Z/i
 On Windows the dialog shows the same as a PowerShell command; there is also an installer that
 asks for the address and the code. Podman Quadlet, a
 reverse proxy with HTTPS, backups and updates are in the
-[installation guide](https://speicherstadt.github.io/stellwerk/installation.html); a step-by-step
-first run is in [Getting started](https://speicherstadt.github.io/stellwerk/getting-started.html).
+[installation guide](https://speicherstadt.app/stellwerk/installation.html); a step-by-step
+first run is in [Getting started](https://speicherstadt.app/stellwerk/getting-started.html).
 
 > **Before v1.0**: every [release](https://github.com/Speicherstadt/stellwerk/releases) publishes the
 > image `tristanteu/stellwerk` and carries the agents. Everything works and is tested on Linux,
 > Windows and macOS; the self-update of the agents is the last piece before v1.0
-> ([roadmap](https://speicherstadt.github.io/stellwerk/architecture.html#roadmap)).
+> ([roadmap](https://speicherstadt.app/stellwerk/architecture.html#roadmap)).
 
 ## ✨ Features
 
@@ -194,7 +194,7 @@ port.
 In transit, yes: Syncthing encrypts every transfer with TLS and accepts only known devices; the
 web UI and the agents' connection go through your HTTPS proxy. On the server, the hub keeps a
 normal copy of every folder, so protect the server like the devices. Details in
-[Security](https://speicherstadt.github.io/stellwerk/security.html).
+[Security](https://speicherstadt.app/stellwerk/security.html).
 
 ### What happens if the server is down?
 The devices keep their files and their last configuration. Changes wait on each device and sync
@@ -202,18 +202,18 @@ as soon as the server is back.
 
 ## 📚 Documentation
 
-The full documentation, with search, is at **[speicherstadt.github.io/stellwerk](https://speicherstadt.github.io/stellwerk/)**.
+The full documentation, with search, is at **[speicherstadt.app/stellwerk](https://speicherstadt.app/stellwerk/)**.
 
 | | |
 |---|---|
-| [Getting started](https://speicherstadt.github.io/stellwerk/getting-started.html) | from nothing to a first synced folder |
-| [User guide](https://speicherstadt.github.io/stellwerk/user-guide.html) | every page of the web UI: matrix, devices, pairing, folders, conflicts, versions |
-| [Installation](https://speicherstadt.github.io/stellwerk/installation.html) | Docker Compose, Podman Quadlet, binary; reverse proxy and TLS; the agent on each OS; updates and backups |
-| [Reference](https://speicherstadt.github.io/stellwerk/reference.html) | every option, port, file and limit |
-| [Security](https://speicherstadt.github.io/stellwerk/security.html) | trust model, encryption, login, pairing |
-| [Troubleshooting](https://speicherstadt.github.io/stellwerk/troubleshooting.html) | logs and the common problems |
-| [Architecture](https://speicherstadt.github.io/stellwerk/architecture.html) | Zentrale, hub, agent and engine; protocol; reconciler; roadmap |
-| [Development](https://speicherstadt.github.io/stellwerk/development.html) | building, tests, CI, releases |
+| [Getting started](https://speicherstadt.app/stellwerk/getting-started.html) | from nothing to a first synced folder |
+| [User guide](https://speicherstadt.app/stellwerk/user-guide.html) | every page of the web UI: matrix, devices, pairing, folders, conflicts, versions |
+| [Installation](https://speicherstadt.app/stellwerk/installation.html) | Docker Compose, Podman Quadlet, binary; reverse proxy and TLS; the agent on each OS; updates and backups |
+| [Reference](https://speicherstadt.app/stellwerk/reference.html) | every option, port, file and limit |
+| [Security](https://speicherstadt.app/stellwerk/security.html) | trust model, encryption, login, pairing |
+| [Troubleshooting](https://speicherstadt.app/stellwerk/troubleshooting.html) | logs and the common problems |
+| [Architecture](https://speicherstadt.app/stellwerk/architecture.html) | Zentrale, hub, agent and engine; protocol; reconciler; roadmap |
+| [Development](https://speicherstadt.app/stellwerk/development.html) | building, tests, CI, releases |
 
 ## 🛠️ Development
 
@@ -229,7 +229,7 @@ bun run e2e                       # Playwright against the UI in demo mode
 Rust workspace: `protocol` (messages, desired state), `engine` (Syncthing control and
 reconciler), `agent`, `zentrale` (axum, SQLite); React UI in `web/`, embedded into the Zentrale.
 Running a real Zentrale and agent locally, the tests and releases:
-[Development](https://speicherstadt.github.io/stellwerk/development.html).
+[Development](https://speicherstadt.app/stellwerk/development.html).
 
 ## 🤝 Contributing
 

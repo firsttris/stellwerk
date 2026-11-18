@@ -8,3 +8,4 @@ playwright-report/
 web/src/paraglide/
 site/
 **/project.inlang/cache/
+.cache/

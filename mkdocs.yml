@@ -1,17 +1,20 @@
-# Documentation as a website: https://speicherstadt.github.io/stellwerk/
+# Documentation as a website: https://speicherstadt.app/stellwerk/
 # Source is docs/, built with MkDocs Material (.github/workflows/docs.yml).
 # Locally: pip install -r requirements-docs.txt && mkdocs serve
 site_name: Stellwerk
 site_description: >-
   Central web UI to manage Syncthing on all your devices: pair devices, share folders and set
   paths from one place. Self-hosted, open source, no cloud.
-site_url: https://speicherstadt.github.io/stellwerk/
+site_url: https://speicherstadt.app/stellwerk/
 repo_url: https://github.com/Speicherstadt/stellwerk
 repo_name: Speicherstadt/stellwerk
 edit_uri: edit/main/docs/
 copyright: >-
   License AGPL-3.0 · © Tristan Teufel and contributors ·
-  Stellwerk is not affiliated with the Syncthing Foundation.
+  Stellwerk is not affiliated with the Syncthing Foundation.<br>
+  <a href="https://teufel-it.de/de/impressum/">Legal notice (Impressum)</a> ·
+  <a href="https://speicherstadt.app/en/privacy/">Privacy</a> ·
+  <a href="https://speicherstadt.app/datenschutz/">Datenschutz</a>
 
 docs_dir: docs
 # Pages as installation.html instead of installation/: this keeps the relative image paths
@@ -70,6 +73,9 @@ extra_css:
 
 plugins:
   - search
+  # Downloads fonts and scripts from third parties (Google Fonts, the Mermaid script) at build
+  # time and serves them from the site, so a visit sends no data to anyone but GitHub Pages
+  - privacy
   - git-revision-date-localized:
       type: date
       fallback_to_build_date: true
