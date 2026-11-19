@@ -250,7 +250,7 @@ Zentrale. Eine echte Zentrale und einen Agenten lokal betreiben, die Tests und R
 
 ## 🧩 Mehr von uns
 
-Weitere Open-Source-Apps für deinen eigenen Server, für Buchhaltung, Mail, Office-Dokumente und mehr: **[speicherstadt.app](https://speicherstadt.app)**
+Weitere Open-Source-Apps für deinen eigenen Server, etwa für Buchhaltung, Mail, Office-Dokumente und mehr: **[speicherstadt.app](https://speicherstadt.app)**
 
 ## 🤝 Mitmachen
 

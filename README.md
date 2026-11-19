@@ -239,7 +239,7 @@ Running a real Zentrale and agent locally, the tests and releases:
 
 ## 🧩 More from us
 
-More open-source apps for your own server, for accounting, email, office documents and more: **[speicherstadt.app](https://speicherstadt.app)**
+More open-source apps for your own server, covering accounting, email, office documents and more: **[speicherstadt.app](https://speicherstadt.app)**
 
 ## 🤝 Contributing
 
