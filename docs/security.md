@@ -1,156 +1,171 @@
-# Security
+# Sicherheit
 
-What protects what in Stellwerk, and what you have to trust. In short: **whoever controls the
-Zentrale controls which folders every device syncs, and where.** Protect the admin password and
-the server like you would protect the devices themselves.
+Was in Stellwerk was schützt, und wem du vertrauen musst. Kurz: **Wer die Zentrale kontrolliert,
+bestimmt, welche Ordner jedes Gerät abgleicht, und wo.** Schütze das Admin-Passwort und den Server
+so, wie du die Geräte selbst schützen würdest.
 
-## Trust model
+## Vertrauensmodell
 
-| Party | Can |
+| Beteiligter | Kann |
 |---|---|
-| **Admin** (the one login) | decide for every device which folders it syncs, in which mode and at which local path; read every file on the server; resolve conflicts and restore versions |
-| **Server** (root on the host, or the container's volume) | read and change every synced file in the hub's copy, the database and the hub's identity |
-| **A paired device** | send its changes into the folders it holds in mode Both or Send only; these reach the server and every other device of those folders |
-| **Someone in the LAN** | ask to be paired without a code; becomes a device only when the admin approves it |
-| **Someone on the internet** | reach the login page and the agents' sign-in, if the web port is public |
+| **Admin** (die eine Anmeldung) | für jedes Gerät festlegen, welche Ordner es abgleicht, in welchem Modus und unter welchem lokalen Pfad; jede Datei auf dem Server lesen; Konflikte lösen und Versionen wiederherstellen |
+| **Server** (root auf dem Host oder das Volume des Containers) | jede abgeglichene Datei in der Kopie des Hubs, die Datenbank und die Identität des Hubs lesen und ändern |
+| **Ein gekoppeltes Gerät** | seine Änderungen in die Ordner schicken, die es im Modus Beides oder Nur senden hält; sie erreichen den Server und jedes andere Gerät dieser Ordner |
+| **Jemand im LAN** | darum bitten, ohne Code gekoppelt zu werden; wird erst ein Gerät, wenn der Admin es freigibt |
+| **Jemand im Internet** | die Anmeldeseite und die Anmeldung der Agenten erreichen, wenn der Webport öffentlich ist |
 
-**The agent follows the Zentrale.** It configures its Syncthing to whatever the desired state
-says, including the local path of a folder, with the rights of the user it runs as. It does not
-restrict paths. An admin, or an attacker with the admin password or control of the server, can
-therefore share a folder with any path the device's user can read or write, and so read files
-from the device or put files on it. That is the point of central management, and also why the
-Zentrale is the most valuable part to protect. The agent never deletes files, and it never runs
-commands it receives.
+**Der Agent folgt der Zentrale.** Er richtet sein Syncthing so ein, wie der Soll-Zustand es sagt,
+einschließlich des lokalen Pfads eines Ordners, mit den Rechten des Benutzers, als der er läuft.
+Pfade schränkt er nicht ein. Ein Admin, oder ein Angreifer mit dem Admin-Passwort oder der
+Kontrolle über den Server, kann also einen Ordner mit jedem Pfad freigeben, den der Benutzer des
+Geräts lesen oder schreiben kann, und so Dateien vom Gerät lesen oder Dateien darauf ablegen. Das
+ist der Sinn der zentralen Verwaltung, und auch der Grund, warum die Zentrale der wertvollste Teil
+ist, den es zu schützen gilt. Der Agent löscht nie Dateien, und er führt nie Befehle aus, die er
+bekommt.
 
-**The server holds plaintext.** The hub keeps an ordinary, unencrypted copy of every folder, with
-versions. Encrypting folders on the hub (Syncthing's untrusted devices) is not supported yet.
+**Der Server hält Klartext.** Der Hub hält eine normale, unverschlüsselte Kopie jedes Ordners, mit
+Versionen. Ordner auf dem Hub zu verschlüsseln (die Untrusted Devices von Syncthing) wird noch
+nicht unterstützt.
 
-## Connections
+## Verbindungen
 
 ```text
-browser ──HTTPS (proxy)──▶ Zentrale ◀──WSS (proxy)── agent
+Browser ──HTTPS (Proxy)──▶ Zentrale ◀──WSS (Proxy)── Agent
                                │                        │
                        REST, 127.0.0.1           REST, 127.0.0.1
                                ▼                        ▼
-                         hub Syncthing ◀──TLS 1.3──▶ device Syncthing
+                        Hub-Syncthing ◀──TLS 1.3──▶ Geräte-Syncthing
 ```
 
-- **Browser and agents → Zentrale.** One web port for the UI, the API and the agents'
-  WebSocket. Stellwerk itself speaks plain HTTP; TLS comes from the reverse proxy
-  ([installation](installation.md#reverse-proxy-and-tls)). Agents check the proxy's certificate
-  against the system's root certificates, plus a private CA when the Zentrale has one
-  (`--ca-cert`): the agent fetched it at pairing without trusting the connection and kept it
-  only because its SHA-256 matched the fingerprint in the pairing command, which the admin
-  copied from the UI over a connection they already trust. A Zentrale address with `http://` is fine inside a
-  trusted LAN, but nothing is encrypted then, including the pairing code.
-- **Devices ↔ hub.** Syncthing's own protocol: TLS with each side's certificate, and each side
-  only accepts the device IDs (certificate hashes) it was given. The Zentrale hands every agent
-  the hub's ID and the hub the IDs of all approved devices, so nobody else can join a folder,
-  even on the open sync port. Discovery servers and relays are off; data goes only between a
-  device and the hub.
-- **Stellwerk → Syncthing.** Each Syncthing's GUI/REST API listens on `127.0.0.1` on a random
-  port, with a fresh random API key on every start. The key goes to Syncthing in its
-  environment, not on the command line, where every local user could read it (`ps`). Other
-  users on the machine could reach the port, but not without the key.
+- **Browser und Agenten → Zentrale.** Ein Webport für die Oberfläche, die API und den WebSocket
+  der Agenten. Stellwerk selbst spricht reines HTTP; TLS kommt vom Reverse Proxy
+  ([Installation](installation.md#reverse-proxy-and-tls)). Die Agenten prüfen das Zertifikat des
+  Proxys gegen die Stammzertifikate des Systems, dazu eine eigene CA, wenn die Zentrale eine hat
+  (`--ca-cert`): Der Agent hat sie beim Koppeln geholt, ohne der Verbindung zu vertrauen, und nur
+  behalten, weil ihr SHA-256 zum Fingerabdruck im Befehl zum Koppeln passte, den der Admin über
+  eine Verbindung, der er schon vertraut, aus der Oberfläche kopiert hat. Eine Adresse der
+  Zentrale mit `http://` ist in einem vertrauenswürdigen LAN in Ordnung, aber dann ist nichts
+  verschlüsselt, auch nicht der Code zum Koppeln.
+- **Geräte ↔ Hub.** Das eigene Protokoll von Syncthing: TLS mit dem Zertifikat jeder Seite, und
+  jede Seite nimmt nur die Geräte-IDs (Hashes der Zertifikate) an, die sie bekommen hat. Die
+  Zentrale gibt jedem Agenten die ID des Hubs und dem Hub die IDs aller freigegebenen Geräte, so
+  kann niemand sonst einem Ordner beitreten, auch nicht über den offenen Sync-Port. Discovery-Server
+  und Relays sind aus; Daten gehen nur zwischen einem Gerät und dem Hub.
+- **Stellwerk → Syncthing.** Die GUI/REST-API jedes Syncthing lauscht auf `127.0.0.1` auf einem
+  zufälligen Port, mit einem neuen zufälligen API-Schlüssel bei jedem Start. Der Schlüssel geht
+  über die Umgebung an Syncthing, nicht über die Kommandozeile, wo jeder lokale Benutzer ihn lesen
+  könnte (`ps`). Andere Benutzer auf dem Rechner könnten den Port erreichen, aber nicht ohne den
+  Schlüssel.
 
-## Admin login
+## Admin-Anmeldung
 
-- One admin, with a password stored as an **argon2id** hash. It is set only on the server
-  (`stellwerk set-password`), never over the web.
-- A login creates a random session token. The browser gets it in a cookie that is `HttpOnly`,
-  `SameSite=Strict` and, behind HTTPS (`X-Forwarded-Proto: https`), `Secure`. The database
-  stores only the token's hash. Sessions last 30 days; a new password ends all of them.
-- Every change needs the header `X-CSRF-Token` with a second token from the login, so another
-  website cannot make your browser change anything.
-- Passwords are checked one at a time. A failed login waits half a second, doubling with each
-  further failure in a row up to 8 seconds, so parallel guessing is no faster than serial. There
-  is no lockout; use a long password, and if the login is public, consider limiting it in the
-  proxy (e.g. only from your VPN).
-- The UI's live WebSocket (`/api/ws`) checks the session before each update and closes once the
-  session is gone (logout, expiry, new password).
-- Behind a TLS proxy, the cookie gets `Secure` only if the proxy sets `X-Forwarded-Proto: https`
-  (the examples in [installation](installation.md#reverse-proxy-and-tls) do).
+- Ein Admin, mit einem Passwort, das als **argon2id**-Hash gespeichert ist. Es wird nur auf dem
+  Server gesetzt (`stellwerk set-password`), nie über das Web.
+- Eine Anmeldung erzeugt ein zufälliges Sitzungstoken. Der Browser bekommt es in einem Cookie, das
+  `HttpOnly`, `SameSite=Strict` und, hinter HTTPS (`X-Forwarded-Proto: https`), `Secure` ist. Die
+  Datenbank speichert nur den Hash des Tokens. Sitzungen gelten 30 Tage; ein neues Passwort
+  beendet alle.
+- Jede Änderung braucht den Header `X-CSRF-Token` mit einem zweiten Token aus der Anmeldung, so
+  kann eine andere Website deinen Browser nichts ändern lassen.
+- Passwörter werden nacheinander geprüft. Eine fehlgeschlagene Anmeldung wartet eine halbe
+  Sekunde, doppelt so lang mit jedem weiteren Fehlschlag in Folge, bis 8 Sekunden, so ist
+  paralleles Raten nicht schneller als serielles. Eine Sperre gibt es nicht; nimm ein langes
+  Passwort, und ist die Anmeldung öffentlich, überleg, sie im Proxy einzuschränken (z. B. nur aus
+  deinem VPN).
+- Der Live-WebSocket der Oberfläche (`/api/ws`) prüft die Sitzung vor jeder Aktualisierung und
+  schließt, sobald die Sitzung weg ist (Abmelden, Ablauf, neues Passwort).
+- Hinter einem TLS-Proxy bekommt das Cookie `Secure` nur, wenn der Proxy
+  `X-Forwarded-Proto: https` setzt (die Beispiele in der
+  [Installation](installation.md#reverse-proxy-and-tls) tun das).
 
-## API tokens
+## API-Tokens
 
-- For scripts and AI assistants, the admin creates API tokens in the web UI (**API tokens**).
-  A token is 32 random bytes with the prefix `stw_`; the database stores only its SHA-256, and
-  the UI shows it once.
-- A token is sent as `Authorization: Bearer …`. The browser never sends it on its own, so it
-  needs no CSRF token.
-- Its scope limits it: **Read** sees the overview, status, activity and the folders on devices;
-  **Manage** also creates and renames folders, sets ignore patterns and applies shares. Removing
-  or blocking devices, pairing, deleting folders, conflicts, versions and the tokens themselves
-  are refused (`403`) to every token, so a leaked token cannot let a device in or throw one out.
-- A **Manage** token can still share a folder with any paired device, at any path there: treat it
-  like the admin password. Prefer **Read** where that is enough, give each script or assistant
-  its own token, and revoke the ones you no longer use (the list shows when each was last used).
-- A new admin password revokes every token, since whoever knew the old one may have made one.
-- The MCP server at `/mcp` takes only API tokens, never the session cookie, and offers a token
-  only the tools of its scope. It refuses requests whose `Origin` names another host, so a web
-  page cannot reach it through your browser. An assistant with a **Manage** token can set up
-  any share a person could in the matrix; Claude Code asks before each tool that changes
-  something, so keep that prompt on for `apply_shares`.
+- Für Skripte und KI-Assistenten erstellt der Admin API-Tokens in der Weboberfläche
+  (**API-Tokens**). Ein Token besteht aus 32 zufälligen Bytes mit dem Präfix `stw_`; die
+  Datenbank speichert nur seinen SHA-256, und die Oberfläche zeigt es einmal.
+- Ein Token wird als `Authorization: Bearer …` gesendet. Der Browser sendet es nie von selbst,
+  deshalb braucht es kein CSRF-Token.
+- Sein Umfang begrenzt es: **Lesen** sieht die Übersicht, den Status, die Aktivität und die Ordner
+  auf den Geräten; **Verwalten** legt außerdem Ordner an und benennt sie um, setzt Ignoriermuster
+  und wendet Freigaben an. Geräte entfernen oder sperren, Koppeln, Ordner löschen, Konflikte,
+  Versionen und die Tokens selbst werden jedem Token verweigert (`403`), so kann ein
+  durchgesickertes Token kein Gerät hereinlassen oder eines hinauswerfen.
+- Ein Token mit **Verwalten** kann trotzdem einen Ordner mit jedem gekoppelten Gerät teilen, unter
+  jedem Pfad dort: Behandle es wie das Admin-Passwort. Nimm **Lesen**, wo das reicht, gib jedem
+  Skript und jedem Assistenten ein eigenes Token und widerrufe die, die du nicht mehr brauchst (die
+  Liste zeigt, wann jedes zuletzt benutzt wurde).
+- Ein neues Admin-Passwort widerruft jedes Token, denn wer das alte kannte, könnte eines erstellt
+  haben.
+- Der MCP-Server unter `/mcp` nimmt nur API-Tokens an, nie das Sitzungs-Cookie, und bietet einem
+  Token nur die Werkzeuge seines Umfangs an. Er lehnt Anfragen ab, deren `Origin` einen anderen
+  Host nennt, so kann eine Webseite ihn nicht über deinen Browser erreichen. Ein Assistent mit
+  einem Token mit **Verwalten** kann jede Freigabe einrichten, die eine Person in der Matrix
+  einrichten könnte; Claude Code fragt vor jedem Werkzeug, das etwas ändert, lass diese Rückfrage
+  für `apply_shares` also an.
 
-## Pairing and device sign-in
+## Koppeln und Anmeldung der Geräte
 
-- **One-time code.** Random, valid for 15 minutes, usable once; the database stores only its
-  hash. It proves to the Zentrale that the person running `join` was allowed to pair.
-- **Device key.** `join` creates an **Ed25519** key pair on the device; the secret key stays in
-  `agent.json`, readable only by the user (on Linux and macOS, file mode `600`). On every
-  connection the Zentrale sends a fresh random nonce and the agent signs it together with
-  everything else its hello says (code, Syncthing device ID, name, OS, versions), so a recorded
-  sign-in cannot be replayed, and someone who can read and change an `http://` connection
-  cannot keep the signature but put in their own Syncthing ID, nor move the code into a hello
-  of their own. They can still read the code; use HTTPS wherever the network is not trusted.
-  After the first sign-in the code is dropped; the key alone identifies the device. Each device
-  must have its own Syncthing device ID: a device reporting an ID that belongs to another
-  device (a copied Syncthing home) is turned away.
-- **LAN pairing without a code.** A device that comes without a code only waits. The UI shows
-  the **fingerprint** of its key (the first 8 bytes of the key's SHA-256, e.g.
-  `3F2A-91BC-04DE-77A1`), and `join` prints the same on the device. Approve only if they match;
-  otherwise someone else in the network could pose as your device. `--lan-pairing false` turns
-  this off.
-- **Block and remove.** A blocked device is turned away at sign-in, gets no desired state, and
-  the hub drops it as a peer, so it can no longer sync. Removing deletes it; its key is then
-  unknown and it would have to be paired again.
+- **Einmal-Code.** Zufällig, 15 Minuten gültig, einmal benutzbar; die Datenbank speichert nur
+  seinen Hash. Er beweist der Zentrale, dass die Person, die `join` ausführt, koppeln durfte.
+- **Geräteschlüssel.** `join` erzeugt auf dem Gerät ein **Ed25519**-Schlüsselpaar; der geheime
+  Schlüssel bleibt in `agent.json`, nur für den Benutzer lesbar (unter Linux und macOS mit dem
+  Dateimodus `600`). Bei jeder Verbindung schickt die Zentrale eine neue zufällige Nonce, und der
+  Agent signiert sie zusammen mit allem anderen, was sein Hello sagt (Code, Syncthing-Geräte-ID,
+  Name, Betriebssystem, Versionen). So lässt sich eine aufgezeichnete Anmeldung nicht wieder
+  abspielen, und wer eine `http://`-Verbindung lesen und ändern kann, kann weder die Signatur
+  behalten und seine eigene Syncthing-ID einsetzen noch den Code in ein eigenes Hello übernehmen.
+  Den Code lesen kann er trotzdem; nimm HTTPS überall, wo das Netz nicht vertrauenswürdig ist.
+  Nach der ersten Anmeldung fällt der Code weg; der Schlüssel allein identifiziert das Gerät. Jedes
+  Gerät muss seine eigene Syncthing-Geräte-ID haben: Ein Gerät, das eine ID meldet, die einem
+  anderen Gerät gehört (ein kopiertes Syncthing-Home), wird abgewiesen.
+- **Koppeln im LAN ohne Code.** Ein Gerät, das ohne Code kommt, wartet nur. Die Oberfläche zeigt
+  den **Fingerabdruck** seines Schlüssels (die ersten 8 Bytes des SHA-256 des Schlüssels, z. B.
+  `3F2A-91BC-04DE-77A1`), und `join` zeigt denselben auf dem Gerät. Gib es nur frei, wenn beide
+  übereinstimmen; sonst könnte sich jemand anderes im Netz als dein Gerät ausgeben.
+  `--lan-pairing false` schaltet das aus.
+- **Sperren und entfernen.** Ein gesperrtes Gerät wird bei der Anmeldung abgewiesen, bekommt
+  keinen Soll-Zustand, und der Hub streicht es als Gegenstelle, so kann es nicht mehr abgleichen.
+  Entfernen löscht es; sein Schlüssel ist dann unbekannt, und es müsste neu gekoppelt werden.
 
-## On the devices
+## Auf den Geräten
 
-- The agent runs as the normal user, without admin rights, so it can only reach what that user
-  can reach.
-- It downloads exactly the Syncthing version pinned in the source, from Syncthing's GitHub
-  releases, and checks its **SHA-256** against the checksum compiled into Stellwerk before
-  running it. Syncthing's own auto-upgrade is off.
-- It never touches another Syncthing on the same machine; its own runs with its own home
-  directory and ports.
-- On request of the Zentrale it lists the subdirectories of a directory (the folder picker) or
-  searches for directories by name. Only names and paths of directories leave the device, never
-  files or their contents; a search skips hidden directories, follows no symbolic links and stops
-  after 8 levels, 50 matches or 10 seconds.
+- Der Agent läuft als normaler Benutzer, ohne Administratorrechte, er kann also nur erreichen,
+  was dieser Benutzer erreichen kann.
+- Er lädt genau die Syncthing-Version, die im Quellcode festgelegt ist, aus den GitHub-Releases
+  von Syncthing herunter und prüft ihren **SHA-256** gegen die Prüfsumme, die in Stellwerk
+  einkompiliert ist, bevor er sie startet. Das eigene Auto-Upgrade von Syncthing ist aus.
+- Ein anderes Syncthing auf demselben Rechner fasst er nie an; sein eigenes läuft mit eigenem
+  Home-Verzeichnis und eigenen Ports.
+- Auf Anfrage der Zentrale listet er die Unterverzeichnisse eines Verzeichnisses auf (die
+  Ordnerauswahl) oder sucht Verzeichnisse nach Namen. Nur Namen und Pfade von Verzeichnissen
+  verlassen das Gerät, nie Dateien oder deren Inhalt; eine Suche überspringt versteckte
+  Verzeichnisse, folgt keinen symbolischen Links und hört nach 8 Ebenen, 50 Treffern oder
+  10 Sekunden auf.
 
-## Updates and releases
+## Updates und Releases
 
-Release images and agents are built by GitHub Actions from the tagged source, after the full test
-suite. Each release lists the agents' SHA-256 sums in `SHA256SUMS`.
+Release-Images und Agenten baut GitHub Actions aus dem getaggten Quellcode, nach der vollständigen
+Testsuite. Jedes Release listet die SHA-256-Summen der Agenten in `SHA256SUMS`.
 
-An agent updates itself only when asked from the UI. The Zentrale names just a version: the agent
-downloads it over HTTPS from the fixed address of the project's GitHub releases, checks it against
-`SHA256SUMS` and installs only a newer `x.y.z`. So a compromised Zentrale can ask for a genuine
-newer release, but cannot push its own program to the devices or go back to an older one. There is
-no signature on top: whoever controls the project's GitHub releases could publish a harmful
-version, and the agents would trust it.
+Ein Agent aktualisiert sich nur, wenn die Oberfläche ihn darum bittet. Die Zentrale nennt nur eine
+Version: Der Agent lädt sie über HTTPS von der festen Adresse der GitHub-Releases des Projekts
+herunter, prüft sie gegen `SHA256SUMS` und installiert nur ein neueres `x.y.z`. Eine kompromittierte
+Zentrale kann also um ein echtes neueres Release bitten, aber kein eigenes Programm auf die Geräte
+bringen oder zu einem älteren zurückgehen. Eine Signatur obendrauf gibt es nicht: Wer die
+GitHub-Releases des Projekts kontrolliert, könnte eine schädliche Version veröffentlichen, und die
+Agenten würden ihr vertrauen.
 
-## Checklist
+## Checkliste
 
-- [ ] The web port is reachable from outside only through HTTPS.
-- [ ] The admin password is long and used nowhere else.
-- [ ] Only the API tokens in use exist, each with the narrowest scope that works.
-- [ ] The data directory (or volume) is backed up, and the backup is protected like the server.
-- [ ] Waiting devices are approved only after comparing the fingerprint.
-- [ ] A lost or sold device is **blocked** or **removed** in the UI.
+- [ ] Der Webport ist von außen nur über HTTPS erreichbar.
+- [ ] Das Admin-Passwort ist lang und wird nirgends sonst benutzt.
+- [ ] Es gibt nur die API-Tokens, die in Gebrauch sind, jedes mit dem engsten Umfang, der reicht.
+- [ ] Das Datenverzeichnis (oder Volume) wird gesichert, und die Sicherung ist so geschützt wie
+      der Server.
+- [ ] Wartende Geräte werden erst nach dem Vergleich des Fingerabdrucks freigegeben.
+- [ ] Ein verlorenes oder verkauftes Gerät wird in der Oberfläche **gesperrt** oder **entfernt**.
 
-## Reporting a vulnerability
+## Eine Schwachstelle melden
 
-Please do not open a public issue. Use GitHub's private
-[security advisory](https://github.com/Speicherstadt/stellwerk/security/advisories/new) instead.
+Bitte eröffne kein öffentliches Issue. Nutze stattdessen das private
+[Security Advisory](https://github.com/Speicherstadt/stellwerk/security/advisories/new) von GitHub.

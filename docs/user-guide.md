@@ -1,208 +1,221 @@
-# User guide
+# Bedienung
 
-What every part of the web UI does, and what happens on the devices when you use it. The UI is in
-English and German; it follows the browser's language, and the selector at the bottom of the
-sidebar switches it (the choice is kept in the browser). Below it, **System**, **Light** and
-**Dark** pick the theme the same way: **System** follows the operating system. The bottom line of
-the sidebar shows the version of the installed Zentrale.
+Was jeder Teil der Weboberfläche tut und was auf den Geräten passiert, wenn du ihn benutzt. Die
+Oberfläche gibt es auf Deutsch und Englisch; sie folgt der Sprache des Browsers, und die Auswahl
+unten in der Seitenleiste wechselt sie (die Wahl merkt sich der Browser). Darunter wählen
+**System**, **Hell** und **Dunkel** die Darstellung auf dieselbe Weise: **System** folgt dem
+Betriebssystem. Die unterste Zeile der Seitenleiste zeigt die Version der installierten Zentrale.
 
-## Concepts
+## Begriffe
 
-**Folder.** A set of files that Stellwerk keeps in sync, like `Documents` or `Photos`. Each
-folder is one Syncthing folder with a fixed ID. On each device it can live at a different path.
+**Ordner.** Eine Menge von Dateien, die Stellwerk abgleicht, etwa `Dokumente` oder `Fotos`. Jeder
+Ordner ist ein Syncthing-Ordner mit einer festen ID. Auf jedem Gerät kann er unter einem anderen
+Pfad liegen.
 
-**Device.** A computer with the agent, paired with the Zentrale. The server itself is not a
-device in this sense; it is the **hub** (the column **Server** in the overview).
+**Gerät.** Ein Rechner mit dem Agenten, gekoppelt mit der Zentrale. Der Server selbst ist in
+diesem Sinn kein Gerät; er ist der **Hub** (die Spalte **Server** in der Übersicht).
 
-**Share.** Whether a folder is on a device, and how. Every share has a **mode** and a **local
-path**:
+**Freigabe.** Ob ein Ordner auf einem Gerät ist, und wie. Jede Freigabe hat einen **Modus** und
+einen **lokalen Pfad**:
 
-| Mode | On the device | Syncthing folder type |
+| Modus | Auf dem Gerät | Syncthing-Ordnertyp |
 |---|---|---|
-| **Both** | changes go out and come in | Send & Receive |
-| **Send only** | changes on the device go out; changes from elsewhere are not applied there | Send Only |
-| **Receive only** | changes from elsewhere come in; local changes stay local and are not sent | Receive Only |
-| **Off** | the folder is not on the device | – |
+| **Beides** | Änderungen gehen hinaus und kommen herein | Send & Receive |
+| **Nur senden** | Änderungen auf dem Gerät gehen hinaus; Änderungen von anderswo werden dort nicht übernommen | Send Only |
+| **Nur empfangen** | Änderungen von anderswo kommen herein; lokale Änderungen bleiben lokal und werden nicht gesendet | Receive Only |
+| **Aus** | der Ordner ist nicht auf dem Gerät | – |
 
-**Hub.** The hub Syncthing on the server is in every folder, always in mode Both, and keeps old
-versions of changed and deleted files (a year by default). Devices only sync with the hub, never
-with each other directly: the hub forwards a change from one device to all others. That is why a
-device that was off for a week still gets everything when it is back, even if the device that
-made the change is off by then.
+**Hub.** Das Hub-Syncthing auf dem Server ist in jedem Ordner, immer im Modus Beides, und behält
+alte Versionen geänderter und gelöschter Dateien (standardmäßig ein Jahr). Die Geräte gleichen nur
+mit dem Hub ab, nie direkt untereinander: Der Hub leitet eine Änderung von einem Gerät an alle
+anderen weiter. Deshalb bekommt ein Gerät, das eine Woche aus war, trotzdem alles, sobald es
+wieder an ist, auch wenn das Gerät, das die Änderung gemacht hat, inzwischen aus ist.
 
-**Revision.** Every change you make (a share, a path, a new folder, a blocked device) raises the
-configuration's revision number by one. Each device reports which revision it has applied, so the
-UI can tell you which devices still wait for a change.
+**Revision.** Jede Änderung, die du machst (eine Freigabe, ein Pfad, ein neuer Ordner, ein
+gesperrtes Gerät), erhöht die Revisionsnummer der Konfiguration um eins. Jedes Gerät meldet,
+welche Revision es angewendet hat, so kann die Oberfläche dir sagen, welche Geräte noch auf eine
+Änderung warten.
 
-**Desired state.** From the revision, the Zentrale computes for each device the complete
-configuration it should have: its folders, their modes and paths, the hub as its peer. The agent
-makes its Syncthing match that. A device that was offline simply gets the newest desired state;
-nothing is replayed step by step.
+**Soll-Zustand.** Aus der Revision berechnet die Zentrale für jedes Gerät die vollständige
+Konfiguration, die es haben soll: seine Ordner, deren Modi und Pfade, den Hub als Gegenstelle. Der
+Agent bringt sein Syncthing auf diesen Stand. Ein Gerät, das offline war, bekommt einfach den
+neuesten Soll-Zustand; nichts wird Schritt für Schritt nachgespielt.
 
-## Logging in
+## Anmelden
 
-There is one admin account. Its password is set on the server with `stellwerk set-password`
-(see [Installation](installation.md)); the login page reminds you if none is set yet. A login
-lasts 30 days. **Log out** is at the bottom of the sidebar. Setting a new password logs out every
-session; a page whose session has ended takes you back to the login. The box above the language
-switch says whether the live link to the server is up (**Server online**) or being re-established.
+Es gibt ein Admin-Konto. Sein Passwort wird auf dem Server mit `stellwerk set-password` gesetzt
+(siehe [Installation](installation.md)); die Anmeldeseite erinnert dich daran, wenn noch keins
+gesetzt ist. Eine Anmeldung gilt 30 Tage. **Abmelden** steht unten in der Seitenleiste. Ein neues
+Passwort meldet jede Sitzung ab; eine Seite, deren Sitzung abgelaufen ist, führt dich zurück zur
+Anmeldung. Der Kasten über der Sprachauswahl zeigt, ob die Live-Verbindung zum Server steht
+(**Server online**) oder gerade neu aufgebaut wird.
 
-## Overview
+## Übersicht { #overview }
 
-![The overview](screenshot.png)
+![Die Übersicht](screenshot.png)
 
-### The cards at the top
+### Die Karten oben
 
-| Card | Shows |
+| Karte | Zeigt |
 |---|---|
-| **Devices** | how many devices are online; which device has been offline the longest |
-| **Folders** | how many folders, how many are in sync, syncing or have errors |
-| **On the server** | how much the hub holds, in bytes and files (the versions come on top) |
-| **Configuration** | the current revision, and how many devices have not applied it yet |
+| **Geräte** | wie viele Geräte online sind; welches Gerät am längsten offline ist |
+| **Ordner** | wie viele Ordner es gibt, wie viele synchron sind, gerade laufen oder Fehler haben |
+| **Auf dem Server** | wie viel der Hub hält, in Bytes und Dateien (die Versionen kommen dazu) |
+| **Konfiguration** | die aktuelle Revision und wie viele Geräte sie noch nicht angewendet haben |
 
-### The matrix
+### Die Matrix { #the-matrix }
 
-One row per folder, one column per device, plus the column **Server** on the left of the
-devices.
+Eine Zeile pro Ordner, eine Spalte pro Gerät, dazu die Spalte **Server** links von den Geräten.
 
-- **Click a cell** to switch its mode. Each click moves on: Off → Both → Send only → Receive
-  only → Off.
-- **Changes are a draft.** They collect in a blue bar ("2 unsaved changes"). **Apply** sends all
-  of them as one new revision; **Discard** forgets them. Leaving the page keeps nothing.
-- **The column Server cannot be switched.** The hub holds every folder; its cells say
-  **Stores**.
-- **waiting** on a cell means the device is offline and has not applied the current revision
-  yet. It gets the change, and then the files, as soon as it is back. Nothing else to do.
-- **A percentage** on a cell (e.g. `72 %`) means that device is receiving that folder right now.
-- **Under the folder name**: its size, and a badge: *In sync*, *Syncing · 72 %*, *Error*, or the
-  number of open conflicts.
-- **Under the device name**: online or how long offline, and its operating system.
+- **Klicke auf eine Zelle**, um ihren Modus zu wechseln. Jeder Klick geht weiter: Aus → Beides →
+  Nur senden → Nur empfangen → Aus.
+- **Änderungen sind ein Entwurf.** Sie sammeln sich in einer blauen Leiste („2 ungespeicherte
+  Änderungen.“). **Anwenden** schickt alle als eine neue Revision hinaus; **Verwerfen** vergisst
+  sie. Verlässt du die Seite, bleibt nichts davon erhalten.
+- **Die Spalte Server lässt sich nicht umschalten.** Der Hub hält jeden Ordner; seine Zellen
+  zeigen **Speichert**.
+- **wartet** in einer Zelle heißt: Das Gerät ist offline und hat die aktuelle Revision noch nicht
+  angewendet. Es bekommt die Änderung und dann die Dateien, sobald es wieder da ist. Sonst ist
+  nichts zu tun.
+- **Eine Prozentzahl** in einer Zelle (z. B. `72 %`) heißt, dass dieses Gerät den Ordner gerade
+  empfängt.
+- **Unter dem Ordnernamen**: seine Größe und ein Abzeichen: *Synchron*, *Läuft · 72 %*,
+  *Fehler* oder die Zahl der offenen Konflikte.
+- **Unter dem Gerätenamen**: online oder wie lange offline, und sein Betriebssystem.
 
-A cell that puts a folder on a device for the first time asks **Where does it go on the
-device?** under the draft: pick the folder there with the folder button or type a path. Left
-empty, the path is `~/Stellwerk/<folder name>`. Change it later on the folder page.
+Eine Zelle, die einen Ordner zum ersten Mal auf ein Gerät bringt, fragt unter dem Entwurf **Wo
+soll es auf dem Gerät liegen?**: Wähle den Ordner dort mit dem Ordner-Knopf oder tippe einen Pfad
+ein. Bleibt das Feld leer, ist der Pfad `~/Stellwerk/<Ordnername>`. Ändern kannst du ihn später
+auf der Ordnerseite.
 
-### Needs attention
+### Braucht Aufmerksamkeit
 
-Things that may need you, most important first, each with a button to the place where you
-handle it:
+Dinge, die dich brauchen könnten, das Wichtigste zuerst, jeweils mit einem Knopf zu der Stelle, an
+der du es erledigst:
 
-- **Conflict in …**: a file was changed on two devices at the same time ([Conflicts](#conflicts)).
-- **… is waiting for approval**: a device in the LAN wants to pair without a code
-  ([Waiting devices](#waiting-devices)).
-- **Error in … on …**: Syncthing reports files it could not sync on a device, e.g. because a path
-  is not writable.
-- **… offline for …**: with how many changes wait for the device on the server. That is only
-  information; they are sent when it is back.
-- **… never connected**: a device was created but its agent has never signed in.
+- **Konflikt in …**: Eine Datei wurde auf zwei Geräten gleichzeitig geändert
+  ([Konflikte](#conflicts)).
+- **… wartet auf Freigabe**: Ein Gerät im LAN will sich ohne Code koppeln
+  ([Wartende Geräte](#waiting-devices)).
+- **Fehler in … auf …**: Syncthing meldet Dateien, die es auf einem Gerät nicht abgleichen konnte,
+  z. B. weil ein Pfad nicht beschreibbar ist.
+- **… seit … offline**: mit der Zahl der Änderungen, die auf dem Server auf das Gerät warten. Das
+  ist nur eine Information; sie werden gesendet, sobald es wieder da ist.
+- **… noch nie verbunden**: Ein Gerät wurde angelegt, aber sein Agent hat sich nie angemeldet.
 
-### Activity
+### Aktivität
 
-What happened recently: devices paired, coming online and going offline, files changed
-("laptop changed 18 files in Projects", counted over 30 seconds), conflicts found and resolved,
-versions restored, and errors.
+Was zuletzt passiert ist: Geräte gekoppelt, online und offline gegangen, Dateien geändert
+(„Laptop hat 18 Dateien in Projekte geändert“, gezählt über 30 Sekunden), Konflikte gefunden und
+gelöst, Versionen wiederhergestellt, und Fehler.
 
-### Live updates
+### Live-Aktualisierung
 
-The UI keeps a connection to the Zentrale and updates itself within a second when something
-changes; no reloading needed. The box at the bottom of the sidebar says whether the server is
-online and which revision it has.
+Die Oberfläche hält eine Verbindung zur Zentrale und aktualisiert sich innerhalb einer Sekunde,
+wenn sich etwas ändert; neu laden ist nicht nötig. Der Kasten unten in der Seitenleiste zeigt, ob
+der Server online ist und welche Revision er hat.
 
-## Devices
+## Geräte
 
-![The device list](screenshot-devices.png)
+![Die Geräteliste](screenshot-devices.png)
 
-The list of all paired devices with their state, the folders they hold, the agent and Syncthing
-version, and when they were last seen. Search by name and filter by online or offline.
+Die Liste aller gekoppelten Geräte mit ihrem Zustand, den Ordnern, die sie halten, der Version von
+Agent und Syncthing und wann sie zuletzt gesehen wurden. Suche nach Namen und filtere nach online
+oder offline.
 
-| Action | What it does |
+| Aktion | Was sie tut |
 |---|---|
-| **Rename** | changes the name in Stellwerk only; the device's host name stays |
-| **Block** | the device gets no folders any more and the hub stops syncing with it; its agent is turned away. Its files stay on the device. **Unblock** brings everything back |
-| **Remove …** | deletes the device from Stellwerk. The hub forgets it, its folders stop syncing; its files stay. To use it again, pair it again |
+| **Umbenennen** | ändert den Namen nur in Stellwerk; der Hostname des Geräts bleibt |
+| **Sperren** | das Gerät bekommt keine Ordner mehr und der Hub gleicht nicht mehr mit ihm ab; sein Agent wird abgewiesen. Seine Dateien bleiben auf dem Gerät. **Entsperren** bringt alles zurück |
+| **Entfernen …** | löscht das Gerät aus Stellwerk. Der Hub vergisst es, seine Ordner werden nicht mehr abgeglichen; seine Dateien bleiben. Um es wieder zu nutzen, koppel es neu |
 
-### Pair device
+### Gerät koppeln { #pair-device }
 
-![The pairing dialog](screenshot-pairing.png)
+![Der Dialog zum Koppeln](screenshot-pairing.png)
 
-1. **Pair device** (also in the overview). Pick the device's operating system.
-2. Copy the command and run it in a terminal on the device as the normal user. It downloads the
-   agent, pairs it and starts it, and contains a **one-time code** that is valid for 15 minutes
-   and works once:
+1. **Gerät koppeln** (auch in der Übersicht). Wähle das Betriebssystem des Geräts.
+2. Kopiere den Befehl und führe ihn auf dem Gerät in einem Terminal als normaler Benutzer aus. Er
+   lädt den Agenten herunter, koppelt ihn und startet ihn, und er enthält einen **Einmal-Code**,
+   der 15 Minuten gilt und einmal funktioniert:
 
     ```bash
     curl -fsSL https://github.com/Speicherstadt/stellwerk/releases/download/vX.Y.Z/install.sh | sh -s -- https://sync.example.org K7Q2-MX9P-41TZ
     ```
 
-    On Windows the command is for PowerShell; the [installer](installation.md#windows-installer)
-    also asks for the address and the code. **Install the agent by hand** links to the
-    [manual steps](installation.md#by-hand).
-3. The dialog waits. As soon as the agent has signed in, it shows the device with its OS, agent
-   version and fingerprint, and asks **Which folders should it get?** The chosen folders are
-   shared in mode Both; for each one pick where it goes on the device with the folder button,
-   or leave it empty for `~/Stellwerk/<folder name>`. When the
-   code expires first, the dialog stops waiting and offers **Create a new code**.
+    Unter Windows ist der Befehl für PowerShell; der [Installer](installation.md#windows-installer)
+    fragt ebenfalls nach Adresse und Code. **Agent von Hand installieren** verlinkt die
+    [Schritte von Hand](installation.md#by-hand).
+3. Der Dialog wartet. Sobald sich der Agent angemeldet hat, zeigt er das Gerät mit Betriebssystem,
+   Version des Agenten und Fingerabdruck und fragt **Welche Ordner soll es bekommen?** Die
+   gewählten Ordner werden im Modus Beides freigegeben; wähle für jeden mit dem Ordner-Knopf, wo
+   er auf dem Gerät liegen soll, oder lass das Feld leer für `~/Stellwerk/<Ordnername>`. Läuft
+   der Code vorher ab, hört der Dialog auf zu warten und bietet **Neuen Code erzeugen** an.
 
-**Later** closes the dialog; the device is paired anyway and shows up in the list.
+**Später** schließt den Dialog; das Gerät ist trotzdem gekoppelt und erscheint in der Liste.
 
-### Waiting devices
+### Wartende Geräte { #waiting-devices }
 
-In the same network as the Zentrale, a device can pair without a code. `stellwerk-agent join`
-(without `--server` and without a code) finds the Zentrale over mDNS and prints the device's
-**fingerprint**, e.g. `9C41-07AB-E2D5-3F18`. Once its agent runs, it shows up under **Devices →
-Waiting devices**, and in **Needs attention**.
+Im selben Netz wie die Zentrale kann sich ein Gerät ohne Code koppeln. `stellwerk-agent join`
+(ohne `--server` und ohne Code) findet die Zentrale über mDNS und zeigt den **Fingerabdruck** des
+Geräts, z. B. `9C41-07AB-E2D5-3F18`. Sobald sein Agent läuft, erscheint es unter **Geräte →
+Wartende Geräte** und unter **Braucht Aufmerksamkeit**.
 
-**Approve** only if the fingerprint in the UI is the one printed on the device: anybody in your
-network can ask to be paired. **Reject** turns it away until the Zentrale restarts. Waiting
-devices are kept in memory only, at most 20, and drop off the list when their agent stops.
+**Freigeben** nur, wenn der Fingerabdruck in der Oberfläche der ist, den das Gerät gezeigt hat:
+Jeder in deinem Netz kann darum bitten, gekoppelt zu werden. **Ablehnen** weist es ab, bis die
+Zentrale neu startet. Wartende Geräte werden nur im Speicher gehalten, höchstens 20, und fallen
+aus der Liste, wenn ihr Agent stoppt.
 
-## Folders
+## Ordner
 
-The list of all folders with their size, state and how many devices hold them. **New folder**
-creates one: it is on the server right away. Pick a **device** and its folder with the folder
-button (or type the path) and the folder is on that device too, in mode Both; the name follows
-the folder you picked. With **Only on the server for now** it is on no device until you share it
-in the matrix (or when pairing a device).
+Die Liste aller Ordner mit ihrer Größe, ihrem Zustand und wie viele Geräte sie halten. **Neuer
+Ordner** legt einen an: Er ist sofort auf dem Server. Wähle ein **Gerät** und seinen Ordner mit
+dem Ordner-Knopf (oder tippe den Pfad ein), und der Ordner ist auch auf diesem Gerät, im Modus
+Beides; der Name folgt dem gewählten Ordner. Mit **Erst nur auf dem Server** ist er auf keinem
+Gerät, bis du ihn in der Matrix freigibst (oder beim Koppeln eines Geräts).
 
-### Picking a folder on a device
+### Einen Ordner auf einem Gerät auswählen { #picking-a-folder-on-a-device }
 
-The folder button next to a path opens the device's folders: the Zentrale asks the agent, which
-lists the subdirectories of one directory at a time, starting in the home directory. **Up one
-level**, **Home folder**, the drives on Windows, or a path typed into the field and Enter move
-around; **Choose this folder** takes the one shown. Only folder names leave the device, never
-files. The button is off while the device is offline, and an agent older than v0.1.6 does not
-answer; type the path then.
+Der Ordner-Knopf neben einem Pfad öffnet die Ordner des Geräts: Die Zentrale fragt den Agenten,
+der die Unterverzeichnisse jeweils eines Verzeichnisses auflistet, beginnend im Home-Verzeichnis.
+**Eine Ebene höher**, **Persönlicher Ordner**, die Laufwerke unter Windows oder ein ins Feld
+getippter Pfad mit Enter bewegen dich herum; **Diesen Ordner wählen** übernimmt den angezeigten.
+Nur Ordnernamen verlassen das Gerät, nie Dateien. Der Knopf ist aus, solange das Gerät offline
+ist, und ein Agent älter als v0.1.6 antwortet nicht; tippe den Pfad dann ein.
 
-### Folder page
+### Ordnerseite { #folder-page }
 
-![A folder page](screenshot-folder.png)
+![Eine Ordnerseite](screenshot-folder.png)
 
-**Devices** tab: one row per device.
+Reiter **Geräte**: eine Zeile pro Gerät.
 
-- **Mode**: the same choice as in the matrix.
-- **Local path**: where the folder is on that device, typed or picked with the folder button.
-  `~` is the user's home directory, on Windows too. A new path sets the folder up again on the device: Syncthing scans the new place,
-  keeps files that are already there and fetches the rest. The files at the old path stay where
-  they are; Stellwerk never moves or deletes them.
-- **Status**: in sync, syncing with progress, errors, or how much waits for an offline device.
+- **Modus**: dieselbe Wahl wie in der Matrix.
+- **Lokaler Pfad**: wo der Ordner auf diesem Gerät liegt, eingetippt oder mit dem Ordner-Knopf
+  gewählt. `~` ist das Home-Verzeichnis des Benutzers, auch unter Windows. Ein neuer Pfad richtet
+  den Ordner auf dem Gerät neu ein: Syncthing durchsucht den neuen Ort, behält Dateien, die schon
+  dort liegen, und holt den Rest. Die Dateien am alten Pfad bleiben, wo sie sind; Stellwerk
+  verschiebt oder löscht sie nie.
+- **Status**: synchron, läuft mit Fortschritt, Fehler, oder wie viel auf ein Gerät wartet, das
+  offline ist.
 
-Changes to modes and paths collect until you click **Save**, which applies them as one revision.
+Änderungen an Modi und Pfaden sammeln sich, bis du auf **Speichern** klickst; das wendet sie als
+eine Revision an.
 
-The row **Server** shows the hub's full copy with versions.
+Die Zeile **Server** zeigt die vollständige Kopie des Hubs mit Versionen.
 
-**Versions** tab: every file the hub has older versions of, with a search. When a
-device changes or deletes a file, the hub keeps the previous version. **Restore** puts the chosen
-version back as the current file; the file it replaces becomes a version itself, so a restore
-can be undone. The devices get the restored file with the next sync.
+Reiter **Versionen**: jede Datei, von der der Hub ältere Versionen hat, mit einer Suche. Wenn ein
+Gerät eine Datei ändert oder löscht, behält der Hub die vorige Version. **Wiederherstellen** setzt
+die gewählte Version als aktuelle Datei zurück; die Datei, die sie ersetzt, wird selbst zu einer
+Version, so lässt sich ein Wiederherstellen rückgängig machen. Die Geräte bekommen die
+wiederhergestellte Datei beim nächsten Abgleich.
 
-**Conflicts** tab: the open conflicts of this folder ([Conflicts](#conflicts)).
+Reiter **Konflikte**: die offenen Konflikte dieses Ordners ([Konflikte](#conflicts)).
 
-### Settings: rename, ignore patterns, remove
+### Einstellungen: umbenennen, Ignoriermuster, entfernen { #settings-rename-ignore-patterns-remove }
 
-- **Rename** changes the folder's label everywhere. Paths and the Syncthing ID stay.
-- **Ignore**: files that should not be synced, one pattern per line, the same on every device
-  and on the server. The syntax is Syncthing's
-  ([ignoring files](https://docs.syncthing.net/users/ignoring.html)), for example:
+- **Umbenennen** ändert die Bezeichnung des Ordners überall. Pfade und die Syncthing-ID bleiben.
+- **Ignorieren**: Dateien, die nicht abgeglichen werden sollen, ein Muster pro Zeile, auf jedem
+  Gerät und auf dem Server gleich. Die Syntax ist die von Syncthing
+  ([Ignoring Files](https://docs.syncthing.net/users/ignoring.html)), zum Beispiel:
 
     ```
     node_modules/
@@ -211,96 +224,102 @@ can be undone. The devices get the restored file with the next sync.
     .DS_Store
     ```
 
-    Ignored files are not deleted where they exist; they just stop being synced.
-- **Exclusions from other programs** do not show here: a program on a device that moves some
-  files itself (for example [Spielstand](https://github.com/firsttris/spielstand) with game
-  saves) asks the agent on that device to leave exactly those files alone
-  ([Reference](reference.md#exclusions-from-other-programs)).
-- **Versions on the server** shows how long the hub keeps old versions.
-- **Remove folder** stops syncing it everywhere and removes it from the server's configuration.
-  The files on the devices and on the server stay.
+    Ignorierte Dateien werden dort, wo sie liegen, nicht gelöscht; sie werden nur nicht mehr
+    abgeglichen.
+- **Ausnahmen anderer Programme** erscheinen hier nicht: Ein Programm auf einem Gerät, das manche
+  Dateien selbst überträgt (zum Beispiel [Spielstand](https://github.com/firsttris/spielstand)
+  mit Spielständen), bittet den Agenten auf diesem Gerät, genau diese Dateien in Ruhe zu lassen
+  ([Referenz](reference.md#exclusions-from-other-programs)).
+- **Versionen auf dem Server** zeigt, wie lange der Hub alte Versionen behält.
+- **Ordner entfernen** beendet den Abgleich überall und entfernt ihn aus der Konfiguration des
+  Servers. Die Dateien auf den Geräten und auf dem Server bleiben.
 
-## Conflicts
+## Konflikte { #conflicts }
 
-![A conflict](screenshot-conflict.png)
+![Ein Konflikt](screenshot-conflict.png)
 
-A conflict happens when two devices change the same file before either has seen the other's
-change. Syncthing then keeps both: the version that won keeps the name, the other becomes a
-*conflict copy* (`config.sync-conflict-20261012-103112-WORKBEN.ts`). Stellwerk finds those copies
-on the server and lists them here, grouped by folder, with both sides next to each other and a
-line diff for text files up to 256 KB and 2,000 lines. When the current file was deleted, the
-copy is shown in full.
+Ein Konflikt entsteht, wenn zwei Geräte dieselbe Datei ändern, bevor eines die Änderung des
+anderen gesehen hat. Syncthing behält dann beide: Die Fassung, die gewonnen hat, behält den Namen,
+die andere wird zur *Konfliktkopie* (`config.sync-conflict-20261012-103112-WORKBEN.ts`). Stellwerk
+findet diese Kopien auf dem Server und listet sie hier auf, nach Ordner gruppiert, mit beiden
+Seiten nebeneinander und einem zeilenweisen Diff für Textdateien bis 256 KB und 2.000 Zeilen. Wurde
+die aktuelle Datei gelöscht, wird die Kopie vollständig gezeigt.
 
-| Choice | Result |
+| Wahl | Ergebnis |
 |---|---|
-| **Keep this version** (left, current) | the copy is removed; it goes to the versions |
-| **Keep this version** (right, the copy) | the copy takes the file's name; the current file goes to the versions |
-| **Keep both** | the copy is renamed to `name.<device>.ext` next to the file, e.g. `config.workbench.ts` |
+| **Diese Fassung behalten** (links, aktuell) | die Kopie wird entfernt; sie kommt in die Versionen |
+| **Diese Fassung behalten** (rechts, die Kopie) | die Kopie bekommt den Namen der Datei; die aktuelle Datei kommt in die Versionen |
+| **Beide behalten** | die Kopie wird neben der Datei in `name.<gerät>.ext` umbenannt, z. B. `config.workbench.ts` |
 
-The change is made on the server and synced to every device from there. Nothing is lost: a
-discarded side can be restored from the **Versions** tab.
+Die Änderung geschieht auf dem Server und wird von dort auf jedes Gerät abgeglichen. Nichts geht
+verloren: Eine verworfene Seite lässt sich im Reiter **Versionen** wiederherstellen.
 
-## API tokens
+## API-Tokens { #api-tokens }
 
-**API tokens** in the sidebar: tokens for scripts and AI assistants such as Claude Code. Give a
-token a name (where it is used) and a scope, and click **Create token**. The token
-(`stw_…`) is shown this once; copy it then. Only its hash is stored, so a lost token cannot be
-shown again: revoke it and create a new one.
+**API-Tokens** in der Seitenleiste: Tokens für Skripte und KI-Assistenten wie Claude Code. Gib
+einem Token einen Namen (wo es benutzt wird) und einen Umfang und klicke auf **Token erstellen**.
+Das Token (`stw_…`) wird nur dieses eine Mal gezeigt; kopiere es dann. Gespeichert wird nur sein
+Hash, ein verlorenes Token lässt sich also nicht noch einmal anzeigen: Widerrufe es und erstelle
+ein neues.
 
-| Scope | May |
+| Umfang | Darf |
 |---|---|
-| **Read** | the overview, live status, activity, and the folders on a device (the folder picker) |
-| **Manage** | also create and rename folders, set ignore patterns and apply shares |
+| **Lesen** | die Übersicht, den Live-Status, die Aktivität und die Ordner auf einem Gerät (die Ordnerauswahl) |
+| **Verwalten** | außerdem Ordner anlegen und umbenennen, Ignoriermuster setzen und Freigaben anwenden |
 
-Removing or blocking devices, pairing, deleting folders, conflicts, versions and the tokens
-themselves need the login in the browser, whatever the scope. The list shows when each token was
-created and last used. **Revoke** turns it away at once. Setting a new admin password revokes
-every token.
+Geräte entfernen oder sperren, Koppeln, Ordner löschen, Konflikte, Versionen und die Tokens selbst
+brauchen die Anmeldung im Browser, egal mit welchem Umfang. Die Liste zeigt, wann jedes Token
+erstellt und zuletzt benutzt wurde. **Widerrufen** weist es sofort ab. Ein neues Admin-Passwort
+widerruft jedes Token.
 
-A token is sent as `Authorization: Bearer stw_…`:
+Ein Token wird als `Authorization: Bearer stw_…` gesendet:
 
 ```sh
 curl -H "Authorization: Bearer stw_…" https://sync.example.org/api/overview
 ```
 
-### Claude Code and other assistants (MCP)
+### Claude Code und andere Assistenten (MCP) { #claude-code-and-other-assistants-mcp }
 
-The Zentrale is an [MCP](https://modelcontextprotocol.io) server at `/mcp`, so an AI assistant
-can set up syncing for you: "Sync Game of Thrones from the NAS to my laptop." After creating a
-token, the page shows the command that adds it to Claude Code:
+Die Zentrale ist ein [MCP](https://modelcontextprotocol.io)-Server unter `/mcp`, so kann ein
+KI-Assistent den Abgleich für dich einrichten: „Synchronisiere Game of Thrones vom NAS auf meinen
+Laptop.“ Nach dem Erstellen eines Tokens zeigt die Seite den Befehl, der es zu Claude Code
+hinzufügt:
 
 ```sh
 claude mcp add --transport http --scope user stellwerk https://sync.example.org/mcp \
   --header "Authorization: Bearer stw_…"
 ```
 
-`claude mcp list` should then show `stellwerk … Connected`. Other MCP clients take the same URL
-and header (transport "Streamable HTTP").
+`claude mcp list` sollte dann `stellwerk … Connected` zeigen. Andere MCP-Clients nehmen dieselbe
+URL und denselben Header (Transport „Streamable HTTP“).
 
-| Tool | Does | Scope |
+| Werkzeug | Tut | Umfang |
 |---|---|---|
-| `list_devices` | the paired devices, online or not | Read |
-| `list_folders` | the folders with their size on the server and, per device, mode, path and sync state | Read |
-| `browse_device` | the subdirectories of a directory on an online device, like the folder picker | Read |
-| `search_device` | directories on an online device by name ("game of thrones" finds `Game.of.Thrones.S01`), from the home directory or a given path | Read |
-| `preview_shares` | checks a draft of modes and paths and describes it, with the folder's size; changes nothing | Read |
-| `create_folder` | a new folder on the server | Manage |
-| `apply_shares` | applies the draft as one revision, like **Apply** in the matrix | Manage |
+| `list_devices` | die gekoppelten Geräte, online oder nicht | Lesen |
+| `list_folders` | die Ordner mit ihrer Größe auf dem Server und je Gerät Modus, Pfad und Sync-Zustand | Lesen |
+| `browse_device` | die Unterverzeichnisse eines Verzeichnisses auf einem Gerät, das online ist, wie die Ordnerauswahl | Lesen |
+| `search_device` | Verzeichnisse auf einem Gerät, das online ist, nach Namen („game of thrones“ findet `Game.of.Thrones.S01`), ab dem Home-Verzeichnis oder einem angegebenen Pfad | Lesen |
+| `preview_shares` | prüft einen Entwurf aus Modi und Pfaden und beschreibt ihn, mit der Größe des Ordners; ändert nichts | Lesen |
+| `create_folder` | ein neuer Ordner auf dem Server | Verwalten |
+| `apply_shares` | wendet den Entwurf als eine Revision an, wie **Anwenden** in der Matrix | Verwalten |
 
-The assistant is told to show you the preview, including how much space the folder needs on the
-server and on each receiving device, before it applies anything; Claude Code also asks before
-each tool that changes something. Applying changes the configuration only: switching a device
-**off** for a folder leaves its files where they are. A device has to be online to be searched
-or browsed; an agent older than v0.1.10 does not answer a search.
+Der Assistent ist angewiesen, dir die Vorschau zu zeigen, einschließlich wie viel Platz der Ordner
+auf dem Server und auf jedem empfangenden Gerät braucht, bevor er etwas anwendet; Claude Code
+fragt außerdem vor jedem Werkzeug, das etwas ändert. Anwenden ändert nur die Konfiguration: Stellt
+man einen Ordner auf einem Gerät auf **Aus**, bleiben seine Dateien, wo sie sind. Ein Gerät muss
+online sein, damit es durchsucht oder durchblättert werden kann; ein Agent älter als v0.1.10
+antwortet nicht auf eine Suche.
 
-## What happens on a device
+## Was auf einem Gerät passiert
 
-- The agent runs in the background as the user who installed it, without admin rights
-  ([Installation](installation.md#running-in-the-background)).
-- It has its **own Syncthing**, with its own configuration and ports, in its data directory. A
-  Syncthing you already use is not touched; the two run side by side.
-- Its Syncthing talks only to the hub. Devices need no open port; they dial out to the server.
-- When the configuration changes, the agent changes its Syncthing's configuration: adds,
-  changes or removes folders. It never deletes files. A folder that is switched to **Off** stops
-  syncing and its files stay on disk.
-- Devices keep no versions themselves; the server does.
+- Der Agent läuft im Hintergrund als der Benutzer, der ihn installiert hat, ohne
+  Administratorrechte ([Installation](installation.md#running-in-the-background)).
+- Er hat sein **eigenes Syncthing** mit eigener Konfiguration und eigenen Ports in seinem
+  Datenverzeichnis. Ein Syncthing, das du schon benutzt, wird nicht angefasst; die beiden laufen
+  nebeneinander.
+- Sein Syncthing spricht nur mit dem Hub. Die Geräte brauchen keinen offenen Port; sie verbinden
+  sich nach außen zum Server.
+- Ändert sich die Konfiguration, ändert der Agent die Konfiguration seines Syncthing: Er fügt
+  Ordner hinzu, ändert oder entfernt sie. Er löscht nie Dateien. Ein Ordner, der auf **Aus**
+  gestellt wird, wird nicht mehr abgeglichen, und seine Dateien bleiben auf der Platte.
+- Die Geräte behalten selbst keine Versionen; das macht der Server.

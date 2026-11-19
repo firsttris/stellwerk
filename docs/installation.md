@@ -1,49 +1,50 @@
 # Installation
 
-Stellwerk has two parts to install: the **Zentrale** once on a server, and the **agent** on every
-device. This page covers both for real use: TLS, firewall, backups, updates. For a quick first
-try, [Getting started](getting-started.md) is shorter.
+Stellwerk hat zwei Teile zum Installieren: die **Zentrale** einmal auf einem Server und den
+**Agenten** auf jedem Gerät. Diese Seite beschreibt beides für den echten Betrieb: TLS, Firewall,
+Backups, Updates. Für einen schnellen ersten Versuch sind die [Ersten Schritte](getting-started.md)
+kürzer.
 
-No server or IT of your own? Stellwerk is available hosted on request or through an IT service
-provider, see [Hosted or with a partner](hosted.md).
+Keinen eigenen Server oder keine eigene IT? Stellwerk gibt es auf Anfrage gehostet oder über einen
+IT-Dienstleister, siehe [Gehostet oder über einen Partner](hosted.md).
 
-Every [release](https://github.com/Speicherstadt/stellwerk/releases) publishes the image
-`tristanteu/stellwerk` on Docker Hub and `ghcr.io/speicherstadt/stellwerk` and carries the agents.
-Releases from before the move to the Speicherstadt organization stay at
-`ghcr.io/firsttris/stellwerk`, which gets no new versions; switch to Docker Hub or the new name.
-To build them yourself, see [Development](development.md#building).
+Jedes [Release](https://github.com/Speicherstadt/stellwerk/releases) veröffentlicht das Image
+`tristanteu/stellwerk` auf Docker Hub und `ghcr.io/speicherstadt/stellwerk` und enthält die
+Agenten. Releases von vor dem Umzug in die Organisation Speicherstadt bleiben unter
+`ghcr.io/firsttris/stellwerk`, das keine neuen Versionen mehr bekommt; wechsle zu Docker Hub oder
+zum neuen Namen. Wie du sie selbst baust, steht unter [Entwicklung](development.md#building).
 
-## Requirements
+## Voraussetzungen
 
 **Server**
 
-- Linux on `amd64` or `arm64`, with Docker or Podman, or the plain binary.
-- Disk space for a full copy of every folder plus its versions: the hub keeps old versions of
-  changed and deleted files for a year by default.
-- Reachable from the devices on two ports:
+- Linux auf `amd64` oder `arm64`, mit Docker oder Podman, oder die einzelne Programmdatei.
+- Platz für eine vollständige Kopie jedes Ordners samt Versionen: Der Hub behält alte Versionen
+  geänderter und gelöschter Dateien standardmäßig ein Jahr.
+- Von den Geräten auf zwei Ports erreichbar:
 
-| Port | Protocol | Used by | Must be reachable |
+| Port | Protokoll | Benutzt von | Muss erreichbar sein |
 |---|---|---|---|
-| 8080 (default `--listen`) | HTTP, WebSocket | web UI, agents' connection to the Zentrale | from the devices and your browser; from outside only through a TLS proxy (443) |
-| 22001 (default `--hub-listen`) | TCP (Syncthing, TLS) | file transfer between devices and the hub | from the devices, directly |
-| 5353 | UDP multicast (mDNS) | LAN pairing without a code | in the LAN only; optional |
+| 8080 (Standard für `--listen`) | HTTP, WebSocket | Weboberfläche, Verbindung der Agenten zur Zentrale | von den Geräten und deinem Browser; von außen nur über einen TLS-Proxy (443) |
+| 22001 (Standard für `--hub-listen`) | TCP (Syncthing, TLS) | Dateiübertragung zwischen den Geräten und dem Hub | von den Geräten, direkt |
+| 5353 | UDP-Multicast (mDNS) | Koppeln im LAN ohne Code | nur im LAN; optional |
 
-The hub uses 22001 and not Syncthing's usual 22000, so a Syncthing already running on the server
-keeps its port.
+Der Hub nutzt 22001 und nicht den üblichen Syncthing-Port 22000, so behält ein Syncthing, das
+schon auf dem Server läuft, seinen Port.
 
-**Devices**
+**Geräte**
 
-- Linux (`x86_64`, `aarch64`; static builds that run on any distribution), Windows 10 or 11
-  (`x86_64`), macOS (Apple Silicon and Intel).
-- Outgoing connections to the server on the two ports above. Devices need **no** open port; the
-  hub never dials them.
-- No admin rights: the agent runs as the normal user.
+- Linux (`x86_64`, `aarch64`; statische Builds, die auf jeder Distribution laufen), Windows 10
+  oder 11 (`x86_64`), macOS (Apple Silicon und Intel).
+- Ausgehende Verbindungen zum Server auf den beiden Ports oben. Die Geräte brauchen **keinen**
+  offenen Port; der Hub wählt sie nie an.
+- Keine Administratorrechte: Der Agent läuft als normaler Benutzer.
 
-## Zentrale as a container
+## Zentrale als Container
 
-The image holds the Zentrale with the web UI and the pinned Syncthing. It runs as an
-unprivileged user (UID 65532), keeps everything under `/data` and shuts down cleanly on
-`SIGTERM`, stopping the hub Syncthing with it.
+Das Image enthält die Zentrale mit der Weboberfläche und das festgelegte Syncthing. Es läuft als
+Benutzer ohne Rechte (UID 65532), legt alles unter `/data` ab und fährt bei `SIGTERM` sauber
+herunter, das Hub-Syncthing mit.
 
 ### Docker Compose
 
@@ -53,8 +54,8 @@ services:
     image: tristanteu/stellwerk:latest
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:8080"   # web UI and agents, only for the TLS proxy on this host
-      - "22001:22001"           # sync port of the hub, reachable from the devices
+      - "127.0.0.1:8080:8080"   # Weboberfläche und Agenten, nur für den TLS-Proxy auf diesem Host
+      - "22001:22001"           # Sync-Port des Hubs, von den Geräten erreichbar
     environment:
       STELLWERK_HUB_ADDRESS: tcp://sync.example.org:22001
       STELLWERK_PUBLIC_URL: https://sync.example.org
@@ -66,12 +67,12 @@ volumes:
 
 ```bash
 docker compose up -d
-docker compose exec -T stellwerk stellwerk set-password <<< 'a long password'
+docker compose exec -T stellwerk stellwerk set-password <<< 'ein langes Passwort'
 ```
 
-`STELLWERK_HUB_ADDRESS` tells the devices where to reach the hub. Inside a container the host
-name is the container's, so set it always. If you map the hub to another outside port, put that
-port into the address.
+`STELLWERK_HUB_ADDRESS` sagt den Geräten, wo sie den Hub erreichen. In einem Container ist der
+Hostname der des Containers, setz die Adresse also immer. Bildest du den Hub auf einen anderen
+Port nach außen ab, gehört dieser Port in die Adresse.
 
 ### Podman Quadlet
 
@@ -97,29 +98,30 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
-`/etc/containers/systemd/stellwerk.volume` holds only `[Volume]`. Then:
+`/etc/containers/systemd/stellwerk.volume` enthält nur `[Volume]`. Dann:
 
 ```bash
 systemctl daemon-reload && systemctl start stellwerk
-podman exec -i systemd-stellwerk stellwerk set-password <<< 'a long password'
+podman exec -i systemd-stellwerk stellwerk set-password <<< 'ein langes Passwort'
 ```
 
-`AutoUpdate=registry` lets `podman auto-update` (or its timer) pull new images.
+`AutoUpdate=registry` lässt `podman auto-update` (oder seinen Timer) neue Images holen.
 
-### LAN pairing from a container
+### Koppeln im LAN aus einem Container { #lan-pairing-from-a-container }
 
-mDNS needs the Zentrale in the same network segment as the devices. With port mapping the
-announcement does not leave the container; use host networking for it (`network_mode: host` in
-Compose, `Network=host` in Quadlet, and drop the port mappings). Without that, pass `--server`
-to `stellwerk-agent join`; approving a device without a code works the same.
+mDNS braucht die Zentrale im selben Netzsegment wie die Geräte. Mit Port-Mapping verlässt die
+Ankündigung den Container nicht; nimm dafür das Host-Netzwerk (`network_mode: host` in Compose,
+`Network=host` in Quadlet, und lass die Port-Mappings weg). Ohne das gib `--server` an
+`stellwerk-agent join` mit; ein Gerät ohne Code freigeben funktioniert genauso.
 
-## Zentrale as a binary
+## Zentrale als Programmdatei
 
-The Zentrale is one file, `stellwerk`, with the UI built in. It downloads the pinned Syncthing
-on first start into its data directory, or uses one you give it with `--syncthing`.
+Die Zentrale ist eine Datei, `stellwerk`, mit eingebauter Oberfläche. Sie lädt das festgelegte
+Syncthing beim ersten Start in ihr Datenverzeichnis herunter oder nimmt eines, das du ihr mit
+`--syncthing` gibst.
 
 ```bash
-stellwerk --data-dir /srv/stellwerk set-password      # once; reads the password from stdin
+stellwerk --data-dir /srv/stellwerk set-password      # einmal; liest das Passwort von stdin
 stellwerk --data-dir /srv/stellwerk \
   --listen 127.0.0.1:8080 \
   --hub-listen tcp://0.0.0.0:22001 \
@@ -127,7 +129,7 @@ stellwerk --data-dir /srv/stellwerk \
   --public-url https://sync.example.org
 ```
 
-As a systemd service, `/etc/systemd/system/stellwerk.service`:
+Als systemd-Dienst, `/etc/systemd/system/stellwerk.service`:
 
 ```ini
 [Unit]
@@ -153,19 +155,20 @@ useradd --system --home /srv/stellwerk --create-home stellwerk
 systemctl enable --now stellwerk
 ```
 
-Every option is in the [reference](reference.md#zentrale).
+Jede Option steht in der [Referenz](reference.md#zentrale).
 
-## Reverse proxy and TLS
+## Reverse Proxy und TLS { #reverse-proxy-and-tls }
 
-The web port carries the admin password, the session cookie and the devices' sign-in. Put it
-behind a reverse proxy with HTTPS before it is reachable from outside your own network. The
-proxy must:
+Über den Webport laufen das Admin-Passwort, das Sitzungs-Cookie und die Anmeldung der Geräte. Stell
+ihn hinter einen Reverse Proxy mit HTTPS, bevor er von außerhalb deines eigenen Netzes erreichbar
+ist. Der Proxy muss:
 
-- pass WebSockets on `/api/ws` (the UI's live updates) and `/api/agent/ws` (the agents);
-- set `X-Forwarded-Proto: https`, so the Zentrale marks the session cookie `Secure`.
+- WebSockets auf `/api/ws` (die Live-Aktualisierung der Oberfläche) und `/api/agent/ws` (die
+  Agenten) durchreichen;
+- `X-Forwarded-Proto: https` setzen, damit die Zentrale das Sitzungs-Cookie als `Secure` markiert.
 
-The hub port 22001 does **not** go through the proxy: Syncthing encrypts it itself with TLS and
-pinned device IDs.
+Der Hub-Port 22001 geht **nicht** über den Proxy: Syncthing verschlüsselt ihn selbst mit TLS und
+festen Geräte-IDs.
 
 === "Caddy"
 
@@ -175,7 +178,7 @@ pinned device IDs.
     }
     ```
 
-    Caddy gets the certificate, passes WebSockets and sets `X-Forwarded-Proto` by itself.
+    Caddy holt das Zertifikat, reicht WebSockets durch und setzt `X-Forwarded-Proto` von selbst.
 
 === "nginx"
 
@@ -192,13 +195,13 @@ pinned device IDs.
             proxy_set_header Connection $connection_upgrade;
             proxy_set_header Host $host;
             proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_read_timeout 1h;   # the WebSockets stay open
+            proxy_read_timeout 1h;   # die WebSockets bleiben offen
         }
     }
     map $http_upgrade $connection_upgrade { default upgrade; '' close; }
     ```
 
-=== "Traefik (Compose labels)"
+=== "Traefik (Compose-Labels)"
 
     ```yaml
         labels:
@@ -209,28 +212,30 @@ pinned device IDs.
           - traefik.http.services.stellwerk.loadbalancer.server.port=8080
     ```
 
-    Traefik passes WebSockets and sets `X-Forwarded-Proto` by itself. Drop the `8080` port
-    mapping then.
+    Traefik reicht WebSockets durch und setzt `X-Forwarded-Proto` von selbst. Lass das
+    Port-Mapping für `8080` dann weg.
 
-With the proxy in place, pair devices with `--server https://sync.example.org`. The pairing
-dialog takes the address from the browser, so open the UI through the proxy. A certificate
-from a CA of your own needs `--ca-cert`, see [Behind a private CA](#behind-a-private-ca).
+Steht der Proxy, koppelst du Geräte mit `--server https://sync.example.org`. Der Dialog zum
+Koppeln nimmt die Adresse aus dem Browser, öffne die Oberfläche also über den Proxy. Ein
+Zertifikat von einer eigenen CA braucht `--ca-cert`, siehe
+[Hinter einer eigenen CA](#behind-a-private-ca).
 
 ## Firewall
 
-On the server, open:
+Öffne auf dem Server:
 
-- **443/tcp** to the proxy (or 8080/tcp if you stay in the LAN without a proxy);
-- **22001/tcp** to the hub;
-- **5353/udp** in the LAN only, if you want pairing without a code.
+- **443/tcp** zum Proxy (oder 8080/tcp, wenn du ohne Proxy im LAN bleibst);
+- **22001/tcp** zum Hub;
+- **5353/udp** nur im LAN, wenn du ohne Code koppeln willst.
 
-Syncthing's local discovery, global discovery and relays are off on the hub and on every agent:
-devices connect to the hub address directly, nothing else.
+Local Discovery, Global Discovery und Relays von Syncthing sind auf dem Hub und auf jedem Agenten
+aus: Die Geräte verbinden sich direkt mit der Hub-Adresse, mit nichts anderem.
 
-## Agent on a device
+## Agent auf einem Gerät { #agent-on-a-device }
 
-**Pair device** in the UI shows one command with a fresh code and the Zentrale's version in
-place of `X.Y.Z`; run it in a terminal on the device as the normal user:
+**Gerät koppeln** in der Oberfläche zeigt einen Befehl mit einem frischen Code und der Version der
+Zentrale anstelle von `X.Y.Z`; führe ihn auf dem Gerät in einem Terminal als normaler Benutzer
+aus:
 
 === "Linux, macOS"
 
@@ -244,27 +249,28 @@ place of `X.Y.Z`; run it in a terminal on the device as the normal user:
     & ([scriptblock]::Create((irm https://github.com/Speicherstadt/stellwerk/releases/download/vX.Y.Z/install.ps1))) https://sync.example.org K7Q2-MX9P-41TZ
     ```
 
-The script (`installer/install.sh`, `install.ps1`) is attached to every release; the dialog
-takes the one of the Zentrale's own version. It downloads that version's agent from the release
-and checks it against the release's `SHA256SUMS`, then pairs it and installs the service: on
-Linux and macOS the binary goes to `~/.local/bin/stellwerk-agent`, on Windows the
-[installer](#windows-installer) runs silently. Without the code the device waits for approval
-in the UI. Running the command again on a paired device updates the agent and keeps the
-pairing. The device needs to reach `github.com`; without it, install by hand as below.
+Das Skript (`installer/install.sh`, `install.ps1`) hängt an jedem Release; der Dialog nimmt das
+der eigenen Version der Zentrale. Es lädt den Agenten dieser Version aus dem Release herunter,
+prüft ihn gegen die `SHA256SUMS` des Releases, koppelt ihn und installiert den Dienst: Unter Linux
+und macOS kommt die Programmdatei nach `~/.local/bin/stellwerk-agent`, unter Windows läuft der
+[Installer](#windows-installer) ohne Rückfragen. Ohne den Code wartet das Gerät auf die Freigabe
+in der Oberfläche. Führst du den Befehl auf einem gekoppelten Gerät noch einmal aus, wird der Agent
+aktualisiert und die Kopplung bleibt. Das Gerät muss `github.com` erreichen; ohne das installierst
+du von Hand wie unten.
 
-### Behind a private CA
+### Hinter einer eigenen CA { #behind-a-private-ca }
 
-When the reverse proxy's certificate comes from a CA of your own, for example Caddy's
-`tls internal` or step-ca, no device trusts it yet: `curl` and the agent refuse the
-connection. Tell the Zentrale the CA's certificate with `--ca-cert` (`STELLWERK_CA_CERT`). It
-serves the CA at `/ca.crt`, and the pairing dialog adds the CA's SHA-256 fingerprint to the
-command (`--ca-sha256 …`, on Windows `-CaSha256 …`). The agent fetches the CA from the Zentrale,
-keeps it only if the fingerprint matches, and trusts it from then on, next to the system's
-root certificates; nothing has to be installed on the device by hand. The fingerprint comes
-from the UI, which you opened over a connection you already trust, so a machine in between
-cannot slip in a CA of its own.
+Kommt das Zertifikat des Reverse Proxys von einer eigenen CA, zum Beispiel von Caddys
+`tls internal` oder von step-ca, vertraut ihm noch kein Gerät: `curl` und der Agent lehnen die
+Verbindung ab. Gib der Zentrale das Zertifikat der CA mit `--ca-cert` (`STELLWERK_CA_CERT`). Sie
+stellt die CA unter `/ca.crt` bereit, und der Dialog zum Koppeln fügt dem Befehl den
+SHA-256-Fingerabdruck der CA hinzu (`--ca-sha256 …`, unter Windows `-CaSha256 …`). Der Agent holt
+die CA von der Zentrale, behält sie nur, wenn der Fingerabdruck stimmt, und vertraut ihr von da an,
+neben den Stammzertifikaten des Systems; auf dem Gerät muss nichts von Hand installiert werden. Der
+Fingerabdruck kommt aus der Oberfläche, die du über eine Verbindung geöffnet hast, der du schon
+vertraust, so kann ein Rechner dazwischen keine eigene CA unterschieben.
 
-With Caddy in Docker Compose, give Stellwerk Caddy's root certificate:
+Mit Caddy in Docker Compose gibst du Stellwerk das Stammzertifikat von Caddy:
 
 ```yaml
 services:
@@ -274,16 +280,16 @@ services:
       STELLWERK_CA_CERT: /caddy/pki/authorities/local/root.crt
     volumes:
       - stellwerk:/data
-      - caddy_data:/caddy:ro    # the volume Caddy keeps /data in
+      - caddy_data:/caddy:ro    # das Volume, in dem Caddy /data ablegt
 ```
 
-`openssl x509 -in root.crt -noout -fingerprint -sha256` shows the same fingerprint as the
-dialog, without the colons.
+`openssl x509 -in root.crt -noout -fingerprint -sha256` zeigt denselben Fingerabdruck wie der
+Dialog, ohne die Doppelpunkte.
 
-### By hand
+### Von Hand { #by-hand }
 
-Download the agent for the device from the release, or build it. Put it where it can stay: the
-service starts it from that place.
+Lade den Agenten für das Gerät aus dem Release herunter oder bau ihn. Leg ihn dort ab, wo er
+bleiben kann: Der Dienst startet ihn von diesem Ort.
 
 === "Linux"
 
@@ -294,9 +300,9 @@ service starts it from that place.
     stellwerk-agent service install
     ```
 
-    A user service stops when the user logs out. To keep the agent running without a login
-    (a server, a headless PC), allow lingering once: `loginctl enable-linger $USER` (on some
-    distributions with `sudo`).
+    Ein Benutzerdienst stoppt, wenn sich der Benutzer abmeldet. Damit der Agent ohne Anmeldung
+    weiterläuft (ein Server, ein PC ohne Bildschirm), erlaube einmal Lingering:
+    `loginctl enable-linger $USER` (auf manchen Distributionen mit `sudo`).
 
 === "macOS"
 
@@ -308,90 +314,97 @@ service starts it from that place.
     ~/.local/bin/stellwerk-agent service install
     ```
 
-    The binary is not notarized yet; removing the quarantine flag lets macOS start it. Use
-    `-macos-x86_64` on an Intel Mac.
+    Die Programmdatei ist noch nicht notarisiert; entfernst du das Quarantäne-Flag, startet macOS
+    sie. Nimm `-macos-x86_64` auf einem Intel-Mac.
 
 === "Windows (zip)"
 
-    Unpack `stellwerk-agent-windows-x86_64.zip` into `%LOCALAPPDATA%\Programs\Stellwerk`; it holds
-    `stellwerk-agent.exe` and `stellwerk-agent-background.exe`. In PowerShell in that folder:
+    Entpacke `stellwerk-agent-windows-x86_64.zip` nach `%LOCALAPPDATA%\Programs\Stellwerk`; darin
+    liegen `stellwerk-agent.exe` und `stellwerk-agent-background.exe`. In PowerShell in diesem
+    Ordner:
 
     ```powershell
     .\stellwerk-agent.exe join --server https://sync.example.org K7Q2-MX9P-41TZ
     .\stellwerk-agent.exe service install
     ```
 
-### Windows installer
+### Windows-Installer { #windows-installer }
 
-`stellwerk-agent-setup-windows-x86_64.exe` does all of the above in one go, for the current user
-and without admin rights: it installs both programs into `%LOCALAPPDATA%\Programs\Stellwerk`,
-asks for the Zentrale's address and the code (empty for pairing in the LAN), pairs the device
-and installs the task. **Settings → Apps → Stellwerk Agent → Uninstall** stops and removes it;
-the data directory stays, so installing again keeps the pairing.
+`stellwerk-agent-setup-windows-x86_64.exe` erledigt all das in einem Durchgang, für den aktuellen
+Benutzer und ohne Administratorrechte: Er installiert beide Programme nach
+`%LOCALAPPDATA%\Programs\Stellwerk`, fragt nach der Adresse der Zentrale und dem Code (leer für das
+Koppeln im LAN), koppelt das Gerät und richtet die Aufgabe ein. **Einstellungen → Apps → Stellwerk
+Agent → Deinstallieren** stoppt und entfernt ihn; das Datenverzeichnis bleibt, so bleibt beim
+erneuten Installieren die Kopplung erhalten.
 
-Without questions, e.g. for a deployment script:
+Ohne Rückfragen, z. B. für ein Verteilungsskript:
 
 ```powershell
 stellwerk-agent-setup-windows-x86_64.exe /S /SERVER=https://sync.example.org /CODE=K7Q2-MX9P-41TZ
 ```
 
-The installer is not code-signed yet, so SmartScreen may warn on first start (**More info → Run
-anyway**).
+Der Installer ist noch nicht codesigniert, SmartScreen kann also beim ersten Start warnen
+(**Weitere Informationen → Trotzdem ausführen**).
 
-### Running in the background
+### Im Hintergrund laufen { #running-in-the-background }
 
-`stellwerk-agent service install` starts the agent now and from every login on, as the current
-user. `service uninstall` stops the agent and its Syncthing and removes the service; the data
-directory stays. `stellwerk-agent run` runs it in the foreground instead, e.g. to watch its log.
+`stellwerk-agent service install` startet den Agenten jetzt und ab jeder Anmeldung, als der
+aktuelle Benutzer. `service uninstall` stoppt den Agenten und sein Syncthing und entfernt den
+Dienst; das Datenverzeichnis bleibt. `stellwerk-agent run` lässt ihn stattdessen im Vordergrund
+laufen, z. B. um sein Log zu verfolgen.
 
-| System | Service | Log |
+| System | Dienst | Log |
 |---|---|---|
-| Linux | systemd user unit `~/.config/systemd/user/stellwerk-agent.service` | `journalctl --user -u stellwerk-agent` |
-| macOS | launchd agent `~/Library/LaunchAgents/io.github.firsttris.stellwerk.agent.plist` | `agent.log` in the data directory |
-| Windows | Task Scheduler task `Stellwerk\Agent` at logon, running `stellwerk-agent-background.exe` (no window) | `agent.log` in the data directory |
+| Linux | systemd-Benutzer-Unit `~/.config/systemd/user/stellwerk-agent.service` | `journalctl --user -u stellwerk-agent` |
+| macOS | launchd-Agent `~/Library/LaunchAgents/io.github.firsttris.stellwerk.agent.plist` | `agent.log` im Datenverzeichnis |
+| Windows | Aufgabe `Stellwerk\Agent` in der Aufgabenplanung bei der Anmeldung, startet `stellwerk-agent-background.exe` (ohne Fenster) | `agent.log` im Datenverzeichnis |
 
-The service remembers the path of the binary and the data directory it was installed with. After
-moving the binary, run `service install` again from the new place.
+Der Dienst merkt sich den Pfad der Programmdatei und das Datenverzeichnis, mit denen er
+installiert wurde. Hast du die Programmdatei verschoben, führe `service install` vom neuen Ort aus
+noch einmal aus.
 
-### Removing the agent from a device
+### Den Agenten von einem Gerät entfernen
 
-1. `stellwerk-agent service uninstall` (or uninstall the Windows app).
-2. Delete the binary and, to forget the pairing, the data directory
-   ([where it is](reference.md#agent-data-directory)).
-3. In the UI, **Devices → Remove …**. The synced folders stay on the device as plain files.
+1. `stellwerk-agent service uninstall` (oder die Windows-App deinstallieren).
+2. Lösch die Programmdatei und, um die Kopplung zu vergessen, das Datenverzeichnis
+   ([wo es liegt](reference.md#agent-data-directory)).
+3. In der Oberfläche **Geräte → Entfernen …**. Die abgeglichenen Ordner bleiben als normale
+   Dateien auf dem Gerät.
 
-## Updating
+## Aktualisieren { #updating }
 
-**Zentrale.** Pull the new image and recreate the container (`docker compose pull && docker
-compose up -d`, or `podman auto-update`). The database is migrated on start. Agents reconnect by
-themselves within 30 seconds.
+**Zentrale.** Hol das neue Image und erzeuge den Container neu (`docker compose pull && docker
+compose up -d`, oder `podman auto-update`). Die Datenbank wird beim Start migriert. Die Agenten
+verbinden sich innerhalb von 30 Sekunden von selbst neu.
 
-**Agents.** On Linux and macOS, **Devices** shows "Update available" next to an agent older than
-the Zentrale, with a button that updates it: the agent downloads the Zentrale's version from the
-GitHub release, checks it against `SHA256SUMS` and that it runs, replaces itself, and the service
-restarts it. So the device needs access to github.com. The agent must run as the service, and the
-first version with this button has to be installed by hand once. By hand, and always on Windows:
-replace the binary with the new one at the same place (on Windows, run the new installer) and run
-`stellwerk-agent service install` again, which restarts it. Agent and Zentrale of neighbouring versions work together, with one exception:
-agents up to v0.1.1 sign in the older way (over the nonce alone), which newer Zentralen turn
-away, so update those agents together with the Zentrale. The device list shows each agent's
-version.
+**Agenten.** Unter Linux und macOS zeigt **Geräte** neben einem Agenten, der älter ist als die
+Zentrale, „Update verfügbar“ mit einem Knopf, der ihn aktualisiert: Der Agent lädt die Version der
+Zentrale aus dem GitHub-Release herunter, prüft sie gegen `SHA256SUMS` und ob sie läuft, ersetzt
+sich selbst, und der Dienst startet ihn neu. Das Gerät braucht also Zugang zu github.com. Der Agent
+muss als Dienst laufen, und die erste Version mit diesem Knopf muss einmal von Hand installiert
+werden. Von Hand, und unter Windows immer: Ersetze die Programmdatei am selben Ort durch die neue
+(unter Windows: führe den neuen Installer aus) und führe `stellwerk-agent service install` noch
+einmal aus, das startet ihn neu. Agent und Zentrale benachbarter Versionen arbeiten zusammen, mit
+einer Ausnahme: Agenten bis v0.1.1 melden sich auf die ältere Art an (nur über die Nonce), die
+neuere Zentralen abweisen; aktualisiere diese Agenten also zusammen mit der Zentrale. Die
+Geräteliste zeigt die Version jedes Agenten.
 
-**Syncthing.** Each Stellwerk version pins one Syncthing version with its checksums. It is
-updated together with Stellwerk, never on its own; Syncthing's own auto-upgrade is off.
+**Syncthing.** Jede Stellwerk-Version legt eine Syncthing-Version mit ihren Prüfsummen fest. Sie
+wird zusammen mit Stellwerk aktualisiert, nie für sich allein; das eigene Auto-Upgrade von
+Syncthing ist aus.
 
-## Backup and restore
+## Sichern und wiederherstellen
 
-Everything the Zentrale knows is in its data directory (`/data` in the container):
+Alles, was die Zentrale weiß, liegt in ihrem Datenverzeichnis (`/data` im Container):
 
-| Path | Holds | Back up |
+| Pfad | Enthält | Sichern |
 |---|---|---|
-| `stellwerk.db` | devices, folders, shares, sessions, activity (SQLite) | **yes**: the configuration |
-| `hub/` | the hub Syncthing's identity (`cert.pem`, `key.pem`), configuration and index | **yes**: the identity; the index is rebuilt if lost |
-| `folders/` | the hub's copy of every folder, with `.stversions` | as your data needs it; the devices have the current files, only the server has the versions |
-| `syncthing-bin/` | the downloaded Syncthing | no |
+| `stellwerk.db` | Geräte, Ordner, Freigaben, Sitzungen, Aktivität (SQLite) | **ja**: die Konfiguration |
+| `hub/` | die Identität des Hub-Syncthing (`cert.pem`, `key.pem`), Konfiguration und Index | **ja**: die Identität; der Index wird neu aufgebaut, wenn er fehlt |
+| `folders/` | die Kopie jedes Ordners auf dem Hub, mit `.stversions` | wie es deine Daten brauchen; die Geräte haben die aktuellen Dateien, nur der Server hat die Versionen |
+| `syncthing-bin/` | das heruntergeladene Syncthing | nein |
 
-The simplest consistent backup is with the Zentrale stopped:
+Am einfachsten sicherst du konsistent bei gestoppter Zentrale:
 
 ```bash
 docker compose stop stellwerk
@@ -400,20 +413,21 @@ docker run --rm -v stellwerk_stellwerk:/data -v "$PWD":/backup alpine \
 docker compose start stellwerk
 ```
 
-While it runs, `sqlite3 /data/stellwerk.db ".backup /backup/stellwerk.db"` takes a consistent
-copy of the database.
+Während sie läuft, nimmt `sqlite3 /data/stellwerk.db ".backup /backup/stellwerk.db"` eine
+konsistente Kopie der Datenbank.
 
-**Restore** by putting the files back into an empty data directory before the first start. If
-the hub's identity is lost, the hub gets a new device ID; the Zentrale hands it to every agent
-with the next desired state, so the devices follow without re-pairing, and the hub fetches the
-folders from them again.
+**Wiederherstellen**: Leg die Dateien vor dem ersten Start in ein leeres Datenverzeichnis zurück.
+Fehlt die Identität des Hubs, bekommt der Hub eine neue Geräte-ID; die Zentrale gibt sie mit dem
+nächsten Soll-Zustand an jeden Agenten weiter, so folgen die Geräte ohne neues Koppeln, und der Hub
+holt die Ordner wieder von ihnen.
 
-**Moving to another server**: back up, restore on the new one, point the DNS name to it. If the
-hub address changes, set the new `STELLWERK_HUB_ADDRESS`; agents get it with their next desired
-state. If the web address changes, the agents still use the old one from `agent.json`: pair them
-again, or edit `server` in `agent.json` and restart the agent.
+**Umzug auf einen anderen Server**: sichern, auf dem neuen wiederherstellen, den DNS-Namen auf ihn
+zeigen lassen. Ändert sich die Hub-Adresse, setz das neue `STELLWERK_HUB_ADDRESS`; die Agenten
+bekommen es mit ihrem nächsten Soll-Zustand. Ändert sich die Webadresse, benutzen die Agenten
+weiter die alte aus `agent.json`: Koppel sie neu, oder ändere `server` in `agent.json` und starte
+den Agenten neu.
 
-## Resetting the admin password
+## Das Admin-Passwort zurücksetzen
 
-On the server: `stellwerk set-password` (in the container: `docker compose exec -T stellwerk
-stellwerk set-password <<< 'new password'`). It logs out every session.
+Auf dem Server: `stellwerk set-password` (im Container: `docker compose exec -T stellwerk
+stellwerk set-password <<< 'neues Passwort'`). Es meldet jede Sitzung ab.

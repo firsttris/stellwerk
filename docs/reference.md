@@ -1,158 +1,163 @@
-# Reference
+# Referenz
 
-Every command, option, port and file, for looking things up. Options can also be set as
-environment variables (shown in brackets); a command-line option wins over the variable.
+Jeder Befehl, jede Option, jeder Port und jede Datei, zum Nachschlagen. Optionen lassen sich auch
+als Umgebungsvariablen setzen (in Klammern); eine Option auf der Kommandozeile gewinnt gegen die
+Variable.
 
-## Zentrale
+## Zentrale { #zentrale }
 
 ```text
-stellwerk [OPTIONS]                       run the Zentrale (the default)
-stellwerk set-password                    set the admin password, read from stdin
-stellwerk fetch-syncthing <DIR>           download and check the pinned Syncthing into DIR
+stellwerk [OPTIONS]                       die Zentrale starten (der Standard)
+stellwerk set-password                    das Admin-Passwort setzen, gelesen von stdin
+stellwerk fetch-syncthing <DIR>           das festgelegte Syncthing nach DIR herunterladen und prüfen
 ```
 
-| Option | Default | What it does |
+| Option | Standard | Was sie tut |
 |---|---|---|
-| `--data-dir` (`STELLWERK_DATA`) | `data` (`/data` in the image) | database, hub Syncthing and the hub's copy of every folder; for every command |
-| `--listen` (`STELLWERK_LISTEN`) | `0.0.0.0:8080` | address of the web UI, the API and the agents' WebSocket |
-| `--hub-listen` (`STELLWERK_HUB_LISTEN`) | `tcp://0.0.0.0:22001` | where the hub Syncthing accepts sync connections |
-| `--hub-address` (`STELLWERK_HUB_ADDRESS`) | `tcp://<host name>:<hub port>` | where devices reach the hub; set it in a container and behind NAT |
-| `--public-url` (`STELLWERK_PUBLIC_URL`) | – | the address devices use for the web port, e.g. `https://sync.example.org`; announced in the LAN |
-| `--lan-pairing` (`STELLWERK_LAN_PAIRING`) | `true` | announce the Zentrale over mDNS and let devices without a code wait for approval; `false` turns both off |
-| `--syncthing` (`STELLWERK_SYNCTHING`) | download the pinned release | use this Syncthing binary instead (the image sets `/opt/syncthing/syncthing`) |
-| `--ca-cert` (`STELLWERK_CA_CERT`) | – | the certificate (PEM) of a private CA behind the Zentrale's HTTPS; served at `/ca.crt`, its fingerprint goes into the pairing command ([private CA](installation.md#behind-a-private-ca)) |
+| `--data-dir` (`STELLWERK_DATA`) | `data` (`/data` im Image) | Datenbank, Hub-Syncthing und die Kopie jedes Ordners auf dem Hub; für jeden Befehl |
+| `--listen` (`STELLWERK_LISTEN`) | `0.0.0.0:8080` | Adresse der Weboberfläche, der API und des WebSockets der Agenten |
+| `--hub-listen` (`STELLWERK_HUB_LISTEN`) | `tcp://0.0.0.0:22001` | wo das Hub-Syncthing Sync-Verbindungen annimmt |
+| `--hub-address` (`STELLWERK_HUB_ADDRESS`) | `tcp://<Hostname>:<Hub-Port>` | wo die Geräte den Hub erreichen; in einem Container und hinter NAT setzen |
+| `--public-url` (`STELLWERK_PUBLIC_URL`) | – | die Adresse, die die Geräte für den Webport benutzen, z. B. `https://sync.example.org`; wird im LAN angekündigt |
+| `--lan-pairing` (`STELLWERK_LAN_PAIRING`) | `true` | die Zentrale über mDNS ankündigen und Geräte ohne Code auf Freigabe warten lassen; `false` schaltet beides aus |
+| `--syncthing` (`STELLWERK_SYNCTHING`) | das festgelegte Release herunterladen | stattdessen diese Syncthing-Programmdatei benutzen (das Image setzt `/opt/syncthing/syncthing`) |
+| `--ca-cert` (`STELLWERK_CA_CERT`) | – | das Zertifikat (PEM) einer eigenen CA hinter dem HTTPS der Zentrale; bereitgestellt unter `/ca.crt`, sein Fingerabdruck kommt in den Befehl zum Koppeln ([eigene CA](installation.md#behind-a-private-ca)) |
 | `--version`, `--help` | | |
 
-`set-password` reads one line from standard input, stores its argon2id hash and logs out every
-session.
+`set-password` liest eine Zeile von der Standardeingabe, speichert ihren argon2id-Hash und meldet
+jede Sitzung ab.
 
-### Zentrale data directory
+### Datenverzeichnis der Zentrale
 
-| Path | Contents |
+| Pfad | Inhalt |
 |---|---|
-| `stellwerk.db` | SQLite database: admin, sessions, devices, folders, shares, pairing codes, activity |
-| `hub/` | home of the hub Syncthing: `cert.pem`/`key.pem` (its identity), `config.xml`, index database, `stellwerk-syncthing.log` |
-| `folders/<syncthing folder id>/` | the hub's copy of each folder; old versions in `.stversions/` inside it |
-| `syncthing-bin/` | the downloaded and checked Syncthing release |
+| `stellwerk.db` | SQLite-Datenbank: Admin, Sitzungen, Geräte, Ordner, Freigaben, Codes zum Koppeln, Aktivität |
+| `hub/` | Home des Hub-Syncthing: `cert.pem`/`key.pem` (seine Identität), `config.xml`, Index-Datenbank, `stellwerk-syncthing.log` |
+| `folders/<Syncthing-Ordner-ID>/` | die Kopie jedes Ordners auf dem Hub; alte Versionen in `.stversions/` darin |
+| `syncthing-bin/` | das heruntergeladene und geprüfte Syncthing-Release |
 
 ## Agent
 
 ```text
 stellwerk-agent join [--server URL] [--ca-sha256 FINGERPRINT] [CODE]
-                                             pair this device
+                                             dieses Gerät koppeln
 stellwerk-agent run [--name NAME] [--syncthing PATH]
-                                             run in the foreground
-stellwerk-agent service install              run in the background from login on
-stellwerk-agent service uninstall            stop and remove the background service
+                                             im Vordergrund laufen
+stellwerk-agent service install              ab der Anmeldung im Hintergrund laufen
+stellwerk-agent service uninstall            den Hintergrunddienst stoppen und entfernen
 ```
 
-| Option | Applies to | What it does |
+| Option | Gilt für | Was sie tut |
 |---|---|---|
-| `--data-dir` (`STELLWERK_AGENT_DATA`) | all | where the agent keeps its key, its Syncthing and Syncthing's database |
-| `--server URL` | `join` | the Zentrale, `https://…` or `http://…`; found over mDNS if left out |
-| `CODE` | `join` | the one-time code from **Pair device**; without it the device waits for approval |
-| `--ca-sha256 FINGERPRINT` | `join` | the Zentrale is behind a private CA with this SHA-256 fingerprint: fetch the CA from `/ca.crt`, keep it if the fingerprint matches, and trust it for the Zentrale from then on |
-| `--name NAME` | `run` | the device name suggested to the Zentrale when it pairs the device; the host name by default. Only for `run` in the foreground: the service always suggests the host name. Later, rename the device in the UI |
-| `--syncthing PATH` (`STELLWERK_SYNCTHING`) | `run` | use this Syncthing binary instead of downloading the pinned one |
+| `--data-dir` (`STELLWERK_AGENT_DATA`) | alle | wo der Agent seinen Schlüssel, sein Syncthing und dessen Datenbank ablegt |
+| `--server URL` | `join` | die Zentrale, `https://…` oder `http://…`; ohne Angabe über mDNS gefunden |
+| `CODE` | `join` | der Einmal-Code aus **Gerät koppeln**; ohne ihn wartet das Gerät auf Freigabe |
+| `--ca-sha256 FINGERPRINT` | `join` | die Zentrale steht hinter einer eigenen CA mit diesem SHA-256-Fingerabdruck: die CA von `/ca.crt` holen, behalten, wenn der Fingerabdruck stimmt, und ihr von da an für die Zentrale vertrauen |
+| `--name NAME` | `run` | der Gerätename, der der Zentrale beim Koppeln vorgeschlagen wird; standardmäßig der Hostname. Nur für `run` im Vordergrund: Der Dienst schlägt immer den Hostnamen vor. Später benennst du das Gerät in der Oberfläche um |
+| `--syncthing PATH` (`STELLWERK_SYNCTHING`) | `run` | diese Syncthing-Programmdatei benutzen, statt das festgelegte herunterzuladen |
 
-`join` creates the device's Ed25519 key, stores it with the server and the code in `agent.json`
-and prints the key's fingerprint; with `--ca-sha256` it stores the Zentrale's CA there too.
-Running `join` again replaces server and code but keeps the key (and the CA, for the same
-server); with a new code, a device that was paired before comes back as the same device. If
-`agent.json` exists but cannot be read, `join` stops instead of making a new key; delete the
-file to pair the device as a new one.
+`join` erzeugt den Ed25519-Schlüssel des Geräts, speichert ihn mit Server und Code in
+`agent.json` und zeigt den Fingerabdruck des Schlüssels; mit `--ca-sha256` speichert es dort auch
+die CA der Zentrale. Ein erneutes `join` ersetzt Server und Code, behält aber den Schlüssel (und
+die CA, beim selben Server); mit einem neuen Code kommt ein schon einmal gekoppeltes Gerät als
+dasselbe Gerät zurück. Gibt es `agent.json`, lässt sie sich aber nicht lesen, hört `join` auf,
+statt einen neuen Schlüssel zu erzeugen; lösch die Datei, um das Gerät als neues zu koppeln.
 
-`service install` sets up the service for the binary it is run from and the data directory it
-is given, and starts it. Run it again after moving the binary or to restart the agent.
+`service install` richtet den Dienst für die Programmdatei ein, aus der es aufgerufen wird, und
+für das Datenverzeichnis, das es bekommt, und startet ihn. Führ es nach dem Verschieben der
+Programmdatei noch einmal aus, oder um den Agenten neu zu starten.
 
-On Windows there is a second program, `stellwerk-agent-background.exe`: the same agent without a
-console window, which the task at logon starts. It runs `run` and writes its log to `agent.log`.
+Unter Windows gibt es ein zweites Programm, `stellwerk-agent-background.exe`: derselbe Agent ohne
+Konsolenfenster, den die Aufgabe bei der Anmeldung startet. Es führt `run` aus und schreibt sein
+Log in `agent.log`.
 
-### Agent data directory
+### Datenverzeichnis des Agenten { #agent-data-directory }
 
-By default:
+Standardmäßig:
 
-| System | Path |
+| System | Pfad |
 |---|---|
 | Linux | `~/.local/share/stellwerk-agent` |
 | macOS | `~/Library/Application Support/stellwerk-agent` |
 | Windows | `%LOCALAPPDATA%\stellwerk-agent` |
 
-| Path | Contents |
+| Pfad | Inhalt |
 |---|---|
-| `agent.json` | the Zentrale's address, the device's secret key and, until pairing, the code; readable only by the user |
-| `syncthing/` | home of the agent's Syncthing: identity, configuration, index database |
-| `syncthing-bin/` | the downloaded and checked Syncthing release |
-| `agent.log` | the log on macOS and Windows (on Linux it goes to the journal) |
-| `stop` | written by `service uninstall` to ask a running agent to stop; removed by it |
-| `ignore.d/*.list` | exclusions written by other programs on this device (below) |
+| `agent.json` | die Adresse der Zentrale, der geheime Schlüssel des Geräts und, bis zum Koppeln, der Code; nur für den Benutzer lesbar |
+| `syncthing/` | Home des Syncthing des Agenten: Identität, Konfiguration, Index-Datenbank |
+| `syncthing-bin/` | das heruntergeladene und geprüfte Syncthing-Release |
+| `agent.log` | das Log unter macOS und Windows (unter Linux geht es ins Journal) |
+| `stop` | von `service uninstall` geschrieben, um einen laufenden Agenten zum Stoppen aufzufordern; von ihm entfernt |
+| `ignore.d/*.list` | Ausnahmen, die andere Programme auf diesem Gerät schreiben (unten) |
 
-The synced folders are not in the data directory; they are wherever their paths point
-(`~/Stellwerk/<folder>` by default).
+Die abgeglichenen Ordner liegen nicht im Datenverzeichnis, sondern dort, wohin ihre Pfade zeigen
+(standardmäßig `~/Stellwerk/<Ordner>`).
 
-### Exclusions from other programs
+### Ausnahmen anderer Programme { #exclusions-from-other-programs }
 
-A program that moves some files itself, and must not have Syncthing write them too, puts a
-list into `ignore.d/<program>.list` in the agent's data directory: one absolute path per line,
-`#` starts a comment. Paths are taken as written, and one with a leading or trailing space gets
-no pattern, because Syncthing trims pattern lines. Spielstand writes `spielstand.list` with the
-save files it synchronises.
+Ein Programm, das manche Dateien selbst überträgt und bei dem Syncthing sie nicht auch noch
+schreiben darf, legt eine Liste in `ignore.d/<programm>.list` im Datenverzeichnis des Agenten ab:
+ein absoluter Pfad pro Zeile, `#` leitet einen Kommentar ein. Pfade werden genommen, wie sie
+dastehen, und einer mit einem Leerzeichen am Anfang oder Ende bekommt kein Muster, weil Syncthing
+Musterzeilen trimmt. Spielstand schreibt `spielstand.list` mit den Spielstanddateien, die es
+abgleicht.
 
-The agent adds each listed path that lies inside a folder to that folder's ignore patterns, as
-a pattern rooted at the folder that matches exactly that path (characters Syncthing's patterns
-read specially are escaped, with `\` or on Windows `|`). A path that reaches the folder through a
-link counts as inside it. The pattern goes before the first `!` or `#include` line, because
-Syncthing stops at the first pattern that matches. The agent applies the lists with every desired
-state and reads them again every 10 seconds, so a changed list takes effect without the Zentrale;
-if applying one fails, it tries again after a pause that grows up to an hour. The lists stay on
-the device: the patterns from the Zentrale are unchanged, and every other device gets the same
-exclusions from its own list.
+Der Agent fügt jeden gelisteten Pfad, der in einem Ordner liegt, den Ignoriermustern dieses
+Ordners hinzu, als ein Muster ab der Wurzel des Ordners, das genau diesen Pfad trifft (Zeichen, die
+Syncthings Muster besonders lesen, werden maskiert, mit `\` oder unter Windows `|`). Ein Pfad, der
+den Ordner über einen Link erreicht, zählt als darin. Das Muster steht vor der ersten Zeile mit `!`
+oder `#include`, weil Syncthing beim ersten passenden Muster aufhört. Der Agent wendet die Listen
+mit jedem Soll-Zustand an und liest sie alle 10 Sekunden neu, so wirkt eine geänderte Liste ohne
+die Zentrale; schlägt das Anwenden fehl, versucht er es nach einer Pause wieder, die bis auf eine
+Stunde wächst. Die Listen bleiben auf dem Gerät: Die Muster von der Zentrale sind unverändert, und
+jedes andere Gerät bekommt dieselben Ausnahmen aus seiner eigenen Liste.
 
-## Logging
+## Logs
 
-Both programs log to standard error, at level `info` by default. `RUST_LOG` changes it, e.g.
-`RUST_LOG=debug` or `RUST_LOG=stellwerk_engine=debug,info`. The Syncthing instances log into
-`stellwerk-syncthing.log` in their home directory; the log of the previous start is kept as
-`stellwerk-syncthing.log.1`. The agent warns about a connection problem once; while the same
-problem repeats, it logs each retry only at level `debug`, so `agent.log` does not grow while
-the Zentrale is out of reach.
+Beide Programme loggen auf die Standardfehlerausgabe, standardmäßig auf Stufe `info`. `RUST_LOG`
+ändert das, z. B. `RUST_LOG=debug` oder `RUST_LOG=stellwerk_engine=debug,info`. Die
+Syncthing-Instanzen loggen in `stellwerk-syncthing.log` in ihrem Home-Verzeichnis; das Log des
+vorigen Starts bleibt als `stellwerk-syncthing.log.1`. Der Agent warnt einmal vor einem
+Verbindungsproblem; solange sich dasselbe Problem wiederholt, loggt er jeden weiteren Versuch nur
+auf Stufe `debug`, so wächst `agent.log` nicht, während die Zentrale nicht erreichbar ist.
 
 ## Ports
 
-| Port | Where | What |
+| Port | Wo | Was |
 |---|---|---|
-| 8080/tcp | Zentrale | web UI, REST API (`/api/…`), UI WebSocket (`/api/ws`), agents' WebSocket (`/api/agent/ws`) |
-| 22001/tcp | Zentrale | sync port of the hub Syncthing |
-| 5353/udp | Zentrale, agent during `join` | mDNS: `_stellwerk._tcp` |
-| random, 127.0.0.1 | server and devices | the GUI/REST API of each Syncthing, with a fresh API key on every start; reachable only locally |
-| random, all interfaces | devices | the agent's Syncthing listen port; never dialed, since devices dial the hub |
+| 8080/tcp | Zentrale | Weboberfläche, REST-API (`/api/…`), WebSocket der Oberfläche (`/api/ws`), WebSocket der Agenten (`/api/agent/ws`) |
+| 22001/tcp | Zentrale | Sync-Port des Hub-Syncthing |
+| 5353/udp | Zentrale, Agent während `join` | mDNS: `_stellwerk._tcp` |
+| zufällig, 127.0.0.1 | Server und Geräte | die GUI/REST-API jedes Syncthing, mit einem neuen API-Schlüssel bei jedem Start; nur lokal erreichbar |
+| zufällig, alle Schnittstellen | Geräte | der Listen-Port des Syncthing des Agenten; nie angewählt, da die Geräte den Hub anwählen |
 
-## Times and limits
+## Zeiten und Grenzen
 
-| What | Value |
+| Was | Wert |
 |---|---|
-| pairing code | valid 15 minutes, works once; only its hash is stored |
-| API token | until revoked or a new admin password is set; only its hash is stored |
-| login session | 30 days; logins are checked one at a time, and a failed login waits half a second, doubling with each failure in a row up to 8 s |
-| waiting devices (LAN pairing) | at most 20, in memory, gone when the agent disconnects or the Zentrale restarts |
-| agent reconnect | after 1 s, doubling up to 30 s; 60 s after being turned away |
-| agent heartbeat | agent and Zentrale each ping every 30 s; a connection silent for 90 s counts as lost |
-| hub reconcile retry | after a failure 1 s, doubling up to 60 s, until it succeeds or the revision changes |
-| live status from a device | on change, at most about once per second |
-| activity "changed N files" | counted per device and folder over 30 seconds |
-| conflict scan on the hub | every 30 seconds |
-| conflict diff | text files up to 256 KB |
-| versions on the hub | staggered, kept for 365 days |
-| default path of a new share | `~/Stellwerk/<folder name>` |
-| search on a device | 8 levels deep, 50 matches, 10 s on the device; the Zentrale waits 15 s |
-| folder picker answer | the Zentrale waits 5 s |
+| Code zum Koppeln | gilt 15 Minuten, funktioniert einmal; nur sein Hash wird gespeichert |
+| API-Token | bis zum Widerruf oder bis ein neues Admin-Passwort gesetzt wird; nur sein Hash wird gespeichert |
+| Anmeldesitzung | 30 Tage; Anmeldungen werden nacheinander geprüft, und eine fehlgeschlagene Anmeldung wartet eine halbe Sekunde, doppelt so lang mit jedem weiteren Fehlschlag in Folge, bis 8 s |
+| wartende Geräte (Koppeln im LAN) | höchstens 20, im Speicher, weg, wenn der Agent die Verbindung trennt oder die Zentrale neu startet |
+| Neuverbindung des Agenten | nach 1 s, verdoppelt bis 30 s; 60 s nach einer Abweisung |
+| Heartbeat des Agenten | Agent und Zentrale pingen je alle 30 s; eine Verbindung, die 90 s still ist, gilt als verloren |
+| erneuter Abgleich des Hubs | nach einem Fehler 1 s, verdoppelt bis 60 s, bis es klappt oder sich die Revision ändert |
+| Live-Status von einem Gerät | bei Änderung, höchstens etwa einmal pro Sekunde |
+| Aktivität „hat N Dateien geändert“ | gezählt je Gerät und Ordner über 30 Sekunden |
+| Suche nach Konflikten auf dem Hub | alle 30 Sekunden |
+| Diff eines Konflikts | Textdateien bis 256 KB |
+| Versionen auf dem Hub | gestaffelt, 365 Tage aufbewahrt |
+| Standardpfad einer neuen Freigabe | `~/Stellwerk/<Ordnername>` |
+| Suche auf einem Gerät | 8 Ebenen tief, 50 Treffer, 10 s auf dem Gerät; die Zentrale wartet 15 s |
+| Antwort der Ordnerauswahl | die Zentrale wartet 5 s |
 
-## REST API
+## REST-API
 
-The web UI uses the API under `/api`; it is not a stable public interface yet. Every request but
-`/api/session` and `/api/login` needs the session cookie, and every change also the header
-`X-CSRF-Token` with the token from the login. Scripts use an
-[API token](user-guide.md#api-tokens) instead: `Authorization: Bearer stw_…`, no CSRF token. The
-endpoints, and which of them a token may call, are listed in
-[Architecture](architecture.md#login-and-api). AI assistants use the
-[MCP server](user-guide.md#claude-code-and-other-assistants-mcp) at `/mcp` with the same tokens.
+Die Weboberfläche benutzt die API unter `/api`; sie ist noch keine stabile öffentliche
+Schnittstelle. Jede Anfrage außer `/api/session` und `/api/login` braucht das Sitzungs-Cookie, und
+jede Änderung zusätzlich den Header `X-CSRF-Token` mit dem Token aus der Anmeldung. Skripte
+benutzen stattdessen ein [API-Token](user-guide.md#api-tokens): `Authorization: Bearer stw_…`,
+kein CSRF-Token. Die Endpunkte, und welche davon ein Token aufrufen darf, stehen in der
+[Architektur](architecture.md#login-and-api). KI-Assistenten benutzen den
+[MCP-Server](user-guide.md#claude-code-and-other-assistants-mcp) unter `/mcp` mit denselben
+Tokens.

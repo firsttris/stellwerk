@@ -1,20 +1,22 @@
-# Getting started
+# Erste Schritte
 
-This page takes you from nothing to a first folder synced between a server and one device, in
-the shortest way that is still safe to keep. For a server reachable from the internet, read
-[Installation](installation.md) afterwards; it adds TLS, backups and updates.
+Diese Seite führt dich von null zu einem ersten Ordner, der zwischen einem Server und einem Gerät
+abgeglichen wird, auf dem kürzesten Weg, den du trotzdem so lassen kannst. Für einen Server, der
+aus dem Internet erreichbar ist, lies danach die [Installation](installation.md); sie ergänzt TLS,
+Backups und Updates.
 
-**You need**
+**Du brauchst**
 
-- a **server** that is on all the time: Linux with Docker or Podman (a NAS, a mini PC, a VPS);
-- one or more **devices** to sync: Linux, Windows or macOS;
-- the devices must be able to reach the server on two ports: the web port (8080, or 443 behind
-  a proxy) and the hub's sync port (22001).
+- einen **Server**, der immer an ist: Linux mit Docker oder Podman (ein NAS, ein Mini-PC, ein
+  VPS);
+- ein oder mehrere **Geräte**, die abgleichen sollen: Linux, Windows oder macOS;
+- die Geräte müssen den Server auf zwei Ports erreichen: dem Webport (8080, oder 443 hinter einem
+  Proxy) und dem Sync-Port des Hubs (22001).
 
-## 1. Start the Zentrale
+## 1. Die Zentrale starten
 
-On the server, create `compose.yaml` in a new directory. Replace `nas.local` with the name or IP address under which
-your devices reach the server:
+Leg auf dem Server in einem neuen Verzeichnis eine `compose.yaml` an. Ersetze `nas.local` durch
+den Namen oder die IP-Adresse, unter der deine Geräte den Server erreichen:
 
 ```yaml
 services:
@@ -22,8 +24,8 @@ services:
     image: tristanteu/stellwerk
     restart: unless-stopped
     ports:
-      - "8080:8080"     # web UI and agents
-      - "22001:22001"   # sync port of the hub
+      - "8080:8080"     # Weboberfläche und Agenten
+      - "22001:22001"   # Sync-Port des Hubs
     environment:
       STELLWERK_HUB_ADDRESS: tcp://nas.local:22001
     volumes:
@@ -34,64 +36,67 @@ volumes:
 
 ```bash
 docker compose up -d
-docker compose exec -T stellwerk stellwerk set-password <<< 'a long password'
+docker compose exec -T stellwerk stellwerk set-password <<< 'ein langes Passwort'
 ```
 
-Open `http://nas.local:8080` and log in with that password. The overview is empty: no devices,
-no folders yet.
+Öffne `http://nas.local:8080` und melde dich mit diesem Passwort an. Die Übersicht ist leer: noch
+keine Geräte, noch keine Ordner.
 
-!!! warning
-    Port 8080 without TLS is fine for a first try in your own network. Before you open it to the
-    internet, put a reverse proxy with HTTPS in front of it: the password and the devices'
-    sign-in go over this port. See [Reverse proxy](installation.md#reverse-proxy-and-tls).
+!!! warning "Achtung"
+    Port 8080 ohne TLS reicht für einen ersten Versuch im eigenen Netz. Bevor du ihn ins Internet
+    öffnest, stell einen Reverse Proxy mit HTTPS davor: Das Passwort und die Anmeldung der Geräte
+    laufen über diesen Port. Siehe [Reverse Proxy](installation.md#reverse-proxy-and-tls).
 
-## 2. Create a folder
+## 2. Einen Ordner anlegen
 
-**New folder**, give it a name such as `Documents`. The server now holds an empty folder with
-versions; no device has it yet. Once a device is paired, **New folder** can also pick an existing
-folder on it right away (see [Picking a folder on a
-device](user-guide.md#picking-a-folder-on-a-device)).
+Klicke auf **Neuer Ordner** und gib ihm einen Namen wie `Dokumente`. Der Server hält jetzt einen
+leeren Ordner mit Versionen; noch hat ihn kein Gerät. Ist ein Gerät gekoppelt, kann **Neuer
+Ordner** auch gleich einen vorhandenen Ordner darauf auswählen (siehe [Einen Ordner auf einem
+Gerät auswählen](user-guide.md#picking-a-folder-on-a-device)).
 
-## 3. Pair a device
+## 3. Ein Gerät koppeln
 
-In the UI click **Pair device**, pick the device's operating system and copy the command. It
-looks like this, with a one-time code valid for 15 minutes:
+Klicke in der Oberfläche auf **Gerät koppeln**, wähle das Betriebssystem des Geräts und kopiere
+den Befehl. Er sieht so aus, mit einem Einmal-Code, der 15 Minuten gilt:
 
 ```bash
 curl -fsSL https://github.com/Speicherstadt/stellwerk/releases/download/vX.Y.Z/install.sh | sh -s -- http://nas.local:8080 K7Q2-MX9P-41TZ
 ```
 
-Run it in a terminal on the device, as your normal user (no `sudo`, no administrator); on
-Windows the dialog shows a command for PowerShell. It
-downloads the agent of the Zentrale's version, runs `stellwerk-agent join`, which stores the
-server and a new key for the device, and `stellwerk-agent service install`, which starts the
-agent now and on every login. With an agent you built yourself, run those two directly:
+Führe ihn auf dem Gerät in einem Terminal aus, als dein normaler Benutzer (kein `sudo`, kein
+Administrator); unter Windows zeigt der Dialog einen Befehl für PowerShell. Er lädt den Agenten in
+der Version der Zentrale herunter und führt `stellwerk-agent join` aus, das den Server und einen
+neuen Schlüssel für das Gerät speichert, und dann `stellwerk-agent service install`, das den
+Agenten jetzt und bei jeder Anmeldung startet. Mit einem selbst gebauten Agenten führst du diese
+beiden direkt aus:
 `stellwerk-agent join --server http://nas.local:8080 K7Q2-MX9P-41TZ && stellwerk-agent service install`.
-On the first start the agent downloads its own Syncthing (about 15 MB), which takes a moment.
+Beim ersten Start lädt der Agent sein eigenes Syncthing herunter (etwa 15 MB), das dauert einen
+Moment.
 
-The dialog in the UI notices the new device by itself and asks which folders it should get.
-Tick **Documents** and click **Set up device**.
+Der Dialog in der Oberfläche bemerkt das neue Gerät von selbst und fragt, welche Ordner es
+bekommen soll. Hake **Dokumente** an und klicke auf **Gerät mit 1 Ordner einrichten**.
 
-??? tip "Pairing in the LAN without a code"
-    In the same network you can skip the code: run the command without the code at the end. The
-    agent prints a fingerprint such as `3F2A-91BC-04DE-77A1`, and the device appears under
-    **Devices → Waiting devices**; approve it there if the fingerprint matches.
+??? tip "Koppeln im LAN ohne Code"
+    Im selben Netz kannst du den Code weglassen: Führe den Befehl ohne den Code am Ende aus. Der
+    Agent zeigt einen Fingerabdruck wie `3F2A-91BC-04DE-77A1`, und das Gerät erscheint unter
+    **Geräte → Wartende Geräte**; gib es dort frei, wenn der Fingerabdruck übereinstimmt.
 
-## 4. Watch it sync
+## 4. Beim Abgleichen zusehen
 
-Back in the **Overview**, the row *Documents* has a cell for the new device in mode **Both**.
-The folder is at `~/Stellwerk/Documents` on the device (`%USERPROFILE%\Stellwerk\Documents` on
-Windows). Put a file into it: within seconds the activity feed says that the device changed a
-file in *Documents*, and the file is on the server too.
+Zurück in der **Übersicht** hat die Zeile *Dokumente* eine Zelle für das neue Gerät im Modus
+**Beides**. Der Ordner liegt auf dem Gerät unter `~/Stellwerk/Dokumente`
+(`%USERPROFILE%\Stellwerk\Dokumente` unter Windows). Leg eine Datei hinein: Nach wenigen Sekunden
+meldet der Aktivitätsverlauf, dass das Gerät eine Datei in *Dokumente* geändert hat, und die Datei
+liegt auch auf dem Server.
 
-Pair a second device the same way and give it the folder as well: files now flow device → server
-→ device, even if the two devices are never on at the same time.
+Koppel ein zweites Gerät genauso und gib ihm den Ordner auch: Dateien fließen jetzt
+Gerät → Server → Gerät, auch wenn die beiden Geräte nie gleichzeitig an sind.
 
-## Next steps
+## Nächste Schritte
 
-- Change a folder's **path** or **mode** per device: open the folder, tab **Devices**
-  ([user guide](user-guide.md#folder-page)).
-- Keep build output and caches out of a folder with **ignore patterns**
-  ([user guide](user-guide.md#settings-rename-ignore-patterns-remove)).
-- Make the server reachable from outside with TLS and set up backups
-  ([installation](installation.md)).
+- **Pfad** oder **Modus** eines Ordners je Gerät ändern: Ordner öffnen, Reiter **Geräte**
+  ([Bedienung](user-guide.md#folder-page)).
+- Build-Ausgaben und Caches mit **Ignoriermustern** aus einem Ordner heraushalten
+  ([Bedienung](user-guide.md#settings-rename-ignore-patterns-remove)).
+- Den Server mit TLS von außen erreichbar machen und Backups einrichten
+  ([Installation](installation.md)).

@@ -1,59 +1,61 @@
 # Stellwerk
 
-**Keep files up to date on every computer in a business, without a cloud or a file server.**
-Project folders, templates and plans reach the office PC, the boss's laptop and the notebook at
-the site; a PC that is off catches up as soon as it is back.
+**Dateien auf allen Rechnern im Betrieb aktuell halten, ohne Cloud und ohne Fileserver.**
+Projektordner, Vorlagen und Pläne kommen auf den Büro-PC, den Laptop des Chefs und das Notebook an
+der Baustelle; ein ausgeschalteter PC holt auf, sobald er wieder an ist.
 
-Stellwerk is a central web UI for Syncthing on your own server. Pair a device once, then decide in
-one place which folders it gets, in which direction and at which path. Every device is set up
-automatically; nobody clicks "accept" on each PC.
+Stellwerk ist eine zentrale Weboberfläche für Syncthing auf deinem eigenen Server. Du koppelst ein
+Gerät einmal und legst dann an einer Stelle fest, welche Ordner es bekommt, in welche Richtung und
+unter welchem Pfad. Jedes Gerät wird automatisch eingerichtet; niemand klickt auf jedem PC auf
+„annehmen“.
 
-![Stellwerk overview: a folder by device matrix with the server column, live status and a draft of two changes](screenshot.png)
+![Stellwerk-Übersicht: eine Matrix aus Ordnern und Geräten mit der Spalte des Servers, Live-Status und einem Entwurf aus zwei Änderungen](screenshot.png)
 
-## How it works in one minute
+## So funktioniert es in einer Minute
 
 ```mermaid
 flowchart LR
-    UI["Web UI<br/>(your browser)"] -- HTTPS --> Z
+    UI["Weboberfläche<br/>(dein Browser)"] -- HTTPS --> Z
     subgraph Server
-        Z["Zentrale<br/>web UI, database,<br/>desired state"] -- REST API --> H["Hub Syncthing<br/>full copy of every folder"]
+        Z["Zentrale<br/>Weboberfläche, Datenbank,<br/>Soll-Zustand"] -- REST-API --> H["Hub-Syncthing<br/>vollständige Kopie jedes Ordners"]
     end
-    subgraph "Each device"
-        A["stellwerk-agent"] -- REST API --> S["own Syncthing"]
+    subgraph "Jedes Gerät"
+        A["stellwerk-agent"] -- REST-API --> S["eigenes Syncthing"]
     end
-    A -- "WebSocket (HTTPS)<br/>desired state, status" --> Z
-    S -- "Syncthing protocol (TLS)<br/>files" --> H
+    A -- "WebSocket (HTTPS)<br/>Soll-Zustand, Status" --> Z
+    S -- "Syncthing-Protokoll (TLS)<br/>Dateien" --> H
 ```
 
-- The **Zentrale** runs on your server. It stores which folder goes to which device and turns
-  that into a *desired state* for every device.
-- A small **agent** runs on every device (Linux, Windows, macOS). It brings its own Syncthing,
-  receives its desired state from the Zentrale and configures its Syncthing to match it.
-- A **hub Syncthing** on the server is a member of every folder and keeps a full copy with
-  versions. Devices sync with the hub, so two PCs that are never on at the same time still get
-  each other's changes.
-- **Syncthing moves the files**, encrypted and directly between device and server. Stellwerk only
-  steers Syncthing; it never touches your files except when you resolve a conflict or restore a
-  version.
+- Die **Zentrale** läuft auf deinem Server. Sie speichert, welcher Ordner auf welches Gerät geht,
+  und macht daraus für jedes Gerät einen *Soll-Zustand*.
+- Auf jedem Gerät (Linux, Windows, macOS) läuft ein kleiner **Agent**. Er bringt sein eigenes
+  Syncthing mit, bekommt seinen Soll-Zustand von der Zentrale und richtet sein Syncthing danach
+  ein.
+- Ein **Hub-Syncthing** auf dem Server ist Mitglied in jedem Ordner und hält eine vollständige
+  Kopie mit Versionen. Die Geräte gleichen mit dem Hub ab, so bekommen auch zwei PCs, die nie
+  gleichzeitig an sind, die Änderungen des anderen.
+- **Syncthing überträgt die Dateien**, verschlüsselt und direkt zwischen Gerät und Server.
+  Stellwerk steuert Syncthing nur; deine Dateien fasst es nie an, außer wenn du einen Konflikt
+  löst oder eine Version wiederherstellst.
 
-## Where to go next
+## Wie geht es weiter?
 
-| If you want to … | Read |
+| Wenn du … willst | Lies |
 |---|---|
-| try it and sync a first folder | [Getting started](getting-started.md) |
-| know what each part of the UI does | [User guide](user-guide.md) |
-| run the server for real: container, reverse proxy, backups, updates | [Installation](installation.md) |
-| look up an option, a port or a file | [Reference](reference.md) |
-| know who can access what | [Security](security.md) |
-| fix something that does not work | [Troubleshooting](troubleshooting.md) |
-| understand the design: protocol, reconciler, data model | [Architecture](architecture.md) |
-| build, test or change Stellwerk | [Development](development.md) |
+| es ausprobieren und einen ersten Ordner abgleichen | [Erste Schritte](getting-started.md) |
+| wissen, was jeder Teil der Oberfläche tut | [Bedienung](user-guide.md) |
+| den Server richtig betreiben: Container, Reverse Proxy, Backups, Updates | [Installation](installation.md) |
+| eine Option, einen Port oder eine Datei nachschlagen | [Referenz](reference.md) |
+| wissen, wer worauf zugreifen kann | [Sicherheit](security.md) |
+| etwas reparieren, das nicht funktioniert | [Fehlersuche](troubleshooting.md) |
+| den Aufbau verstehen: Protokoll, Reconciler, Datenmodell | [Architektur](architecture.md) |
+| Stellwerk bauen, testen oder ändern | [Entwicklung](development.md) |
 
-## Status
+## Stand
 
-Stellwerk is before v1.0. The Zentrale, the agent with its service and the Windows installer,
-pairing with a code or in the LAN, the matrix, live status, conflicts, versions and ignore
-patterns work and are tested against real Syncthing instances on Linux, Windows and macOS. Every
-release publishes the image `tristanteu/stellwerk` and the agents on
-[GitHub](https://github.com/Speicherstadt/stellwerk/releases). Open before v1.0: self-update of
-the agent on Windows. See the [roadmap](architecture.md#roadmap).
+Stellwerk ist vor v1.0. Die Zentrale, der Agent mit seinem Dienst und dem Windows-Installer, das
+Koppeln mit Code oder im LAN, die Matrix, der Live-Status, Konflikte, Versionen und
+Ignoriermuster funktionieren und sind gegen echte Syncthing-Instanzen unter Linux, Windows und
+macOS getestet. Jedes Release veröffentlicht das Image `tristanteu/stellwerk` und die Agenten auf
+[GitHub](https://github.com/Speicherstadt/stellwerk/releases). Offen vor v1.0: das Selbst-Update
+des Agenten unter Windows. Siehe die [Roadmap](architecture.md#roadmap).

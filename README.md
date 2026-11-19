@@ -17,8 +17,7 @@ Eine zentrale Weboberfläche für Syncthing auf deinem Server: Open Source, ohne
 [Schnellstart](#schnellstart) •
 [FAQ](#faq) •
 [Dokumentation](https://speicherstadt.app/stellwerk/) •
-[Entwicklung](#entwicklung) •
-[English](README.en.md)
+[Entwicklung](#entwicklung)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.png">
@@ -45,7 +44,7 @@ Verwaltungskonsole, aber nur kommerziell und als Closed Source.
 
 ## Funktionen
 
-Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation](https://speicherstadt.app/stellwerk/) (auf Englisch).
+Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation](https://speicherstadt.app/stellwerk/).
 
 | Bereich | Was Stellwerk kann |
 |---|---|
@@ -127,7 +126,7 @@ Unter Windows zeigt der Dialog dasselbe als PowerShell-Befehl; außerdem gibt es
 der nach Adresse und Code fragt. Podman Quadlet, ein Reverse Proxy mit HTTPS, Backups und Updates
 stehen in der [Installationsanleitung](https://speicherstadt.app/stellwerk/installation.html); ein
 erster Durchlauf Schritt für Schritt steht unter
-[Getting started](https://speicherstadt.app/stellwerk/getting-started.html).
+[Erste Schritte](https://speicherstadt.app/stellwerk/getting-started.html).
 
 > **Vor v1.0**: Jedes [Release](https://github.com/Speicherstadt/stellwerk/releases) veröffentlicht
 > das Image `tristanteu/stellwerk` und enthält die Agenten. Alles funktioniert und ist unter Linux,
@@ -182,7 +181,7 @@ den Sync-Port des Hubs.
 Bei der Übertragung ja: Syncthing verschlüsselt jede Übertragung mit TLS und nimmt nur bekannte
 Geräte an; die Weboberfläche und die Verbindung der Agenten laufen über deinen HTTPS-Proxy. Auf dem
 Server hält der Hub eine normale Kopie jedes Ordners, schütze den Server also wie die Geräte.
-Details unter [Security](https://speicherstadt.app/stellwerk/security.html).
+Details unter [Sicherheit](https://speicherstadt.app/stellwerk/security.html).
 </details>
 
 <details>
@@ -194,15 +193,15 @@ und werden abgeglichen, sobald der Server wieder da ist.
 
 ## Dokumentation
 
-Alles im Detail (auf Englisch), mit Suche: **[speicherstadt.app/stellwerk](https://speicherstadt.app/stellwerk/)**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
+Alles im Detail, mit Suche: **[speicherstadt.app/stellwerk](https://speicherstadt.app/stellwerk/)**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
 
-- **Einstieg:** [Getting started](https://speicherstadt.app/stellwerk/getting-started.html) (von null bis zum ersten abgeglichenen Ordner),
+- **Einstieg:** [Erste Schritte](https://speicherstadt.app/stellwerk/getting-started.html) (von null bis zum ersten abgeglichenen Ordner),
   [Installation](https://speicherstadt.app/stellwerk/installation.html) (Docker Compose, Podman Quadlet, Programmdatei; Reverse Proxy und TLS; der Agent auf jedem System; Updates und Backups)
-- **Nachschlagen:** [Reference](https://speicherstadt.app/stellwerk/reference.html) (jede Option, jeder Port, jede Datei und jede Grenze),
-  [Security](https://speicherstadt.app/stellwerk/security.html) (Vertrauensmodell, Verschlüsselung, Anmeldung, Koppeln),
-  [Troubleshooting](https://speicherstadt.app/stellwerk/troubleshooting.html) (Logs und die häufigen Probleme)
-- **Hintergrund:** [Architecture](https://speicherstadt.app/stellwerk/architecture.html) (Zentrale, Hub, Agent und Engine; Protokoll; Reconciler; Roadmap),
-  [Development](https://speicherstadt.app/stellwerk/development.html) (Bauen, Tests, CI, Releases)
+- **Nachschlagen:** [Referenz](https://speicherstadt.app/stellwerk/reference.html) (jede Option, jeder Port, jede Datei und jede Grenze),
+  [Sicherheit](https://speicherstadt.app/stellwerk/security.html) (Vertrauensmodell, Verschlüsselung, Anmeldung, Koppeln),
+  [Fehlersuche](https://speicherstadt.app/stellwerk/troubleshooting.html) (Logs und die häufigen Probleme)
+- **Hintergrund:** [Architektur](https://speicherstadt.app/stellwerk/architecture.html) (Zentrale, Hub, Agent und Engine; Protokoll; Reconciler; Roadmap),
+  [Entwicklung](https://speicherstadt.app/stellwerk/development.html) (Bauen, Tests, CI, Releases)
 
 ## Entwicklung
 
@@ -226,7 +225,7 @@ bun run e2e                       # Playwright gegen die Oberfläche im Demomodu
 Rust-Workspace: `protocol` (Nachrichten, Soll-Zustand), `engine` (Steuerung von Syncthing und
 Reconciler), `agent`, `zentrale` (axum, SQLite); React-Oberfläche in `web/`, eingebettet in die
 Zentrale. Eine echte Zentrale und einen Agenten lokal betreiben, die Tests und Releases:
-[Development](https://speicherstadt.app/stellwerk/development.html).
+[Entwicklung](https://speicherstadt.app/stellwerk/development.html).
 
 ## Mehr von uns
 
@@ -256,7 +255,7 @@ Versionen von Stellwerk und Syncthing und was die Zentrale angezeigt hat. Bitte 
 
 [Fehler melden](https://github.com/Speicherstadt/stellwerk/issues/new) &nbsp;·&nbsp; [Funktion vorschlagen](https://github.com/Speicherstadt/stellwerk/issues/new)
 
-<sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Contributors · <a href="README.en.md">English</a><br>
+<sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Contributors<br>
 Geänderte Fassungen, die du weitergibst oder für andere betreibst, müssen ihren Quellcode unter der AGPL anbieten.<br>
 Für IT-Dienstleister und Hoster: <a href="https://speicherstadt.app/partner/">Partnerprogramm</a>.<br>
 Stellwerk steht in keiner Verbindung zur Syncthing Foundation, zu Resilio, Seafile, Nextcloud oder SyncWings; die Namen sind Marken ihrer Inhaber.</sub>

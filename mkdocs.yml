@@ -1,19 +1,19 @@
 # Documentation as a website: https://speicherstadt.app/stellwerk/
-# Source is docs/, built with MkDocs Material (.github/workflows/docs.yml).
+# Source is docs/ (German only), built with MkDocs Material (.github/workflows/docs.yml).
 # Locally: pip install -r requirements-docs.txt && mkdocs serve
 site_name: Stellwerk
 site_description: >-
-  Keep files up to date on every computer in a business, without a cloud or a file server: a
-  central web UI that manages Syncthing on all your devices. Self-hosted, open source.
+  Dateien auf allen Rechnern im Betrieb aktuell halten, ohne Cloud und ohne Fileserver: eine
+  zentrale Weboberfläche, die Syncthing auf all deinen Geräten verwaltet. Selbst gehostet, Open
+  Source.
 site_url: https://speicherstadt.app/stellwerk/
 repo_url: https://github.com/Speicherstadt/stellwerk
 repo_name: Speicherstadt/stellwerk
 edit_uri: edit/main/docs/
 copyright: >-
-  License AGPL-3.0 · © Tristan Teufel and contributors ·
-  Stellwerk is not affiliated with the Syncthing Foundation.<br>
-  <a href="https://teufel-it.de/de/impressum/">Legal notice (Impressum)</a> ·
-  <a href="https://speicherstadt.app/en/privacy/">Privacy</a> ·
+  Lizenz AGPL-3.0 · © Tristan Teufel und Contributors ·
+  Stellwerk steht in keiner Verbindung zur Syncthing Foundation.<br>
+  <a href="https://teufel-it.de/de/impressum/">Impressum</a> ·
   <a href="https://speicherstadt.app/datenschutz/">Datenschutz</a>
 
 docs_dir: docs
@@ -22,20 +22,20 @@ docs_dir: docs
 use_directory_urls: false
 
 nav:
-  - Home: index.md
-  - Getting started: getting-started.md
-  - User guide: user-guide.md
+  - Start: index.md
+  - Erste Schritte: getting-started.md
+  - Bedienung: user-guide.md
   - Installation: installation.md
-  - Hosted or with a partner: hosted.md
-  - Reference: reference.md
-  - Security: security.md
-  - Troubleshooting: troubleshooting.md
-  - Architecture: architecture.md
-  - Development: development.md
+  - Gehostet oder über einen Partner: hosted.md
+  - Referenz: reference.md
+  - Sicherheit: security.md
+  - Fehlersuche: troubleshooting.md
+  - Architektur: architecture.md
+  - Entwicklung: development.md
 
 theme:
   name: material
-  language: en
+  language: de
   logo: assets/icon.svg
   favicon: assets/icon.svg
   icon:
@@ -48,14 +48,14 @@ theme:
       accent: custom
       toggle:
         icon: material/weather-night
-        name: Dark mode
+        name: Dunkle Darstellung
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: custom
       accent: custom
       toggle:
         icon: material/weather-sunny
-        name: Light mode
+        name: Helle Darstellung
   features:
     - navigation.instant
     - navigation.instant.progress
@@ -88,7 +88,7 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
-      permalink_title: Link to this section
+      permalink_title: Link zu diesem Abschnitt
   - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
@@ -110,7 +110,7 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/Speicherstadt/stellwerk
-      name: Source code on GitHub
+      name: Quellcode auf GitHub
     - icon: fontawesome/brands/docker
       link: https://hub.docker.com/r/tristanteu/stellwerk
-      name: Image on Docker Hub
+      name: Image auf Docker Hub
