@@ -1,29 +1,22 @@
-# Support and partnership
+# Hosted or with a partner
 
-Stellwerk is free and open source (AGPL-3.0). If you'd rather not set it up or run it yourself,
-the developers help.
+This documentation covers running Stellwerk yourself. If you have no server or IT of your own,
+there are two other ways.
 
-## Setup
+## Hosted
 
-We install the Zentrale on your server, with HTTPS and backups, and pair your devices. Afterwards
-it runs on your own hardware as described in [Installation](installation.md).
+Stellwerk is available as hosted operation on request: the Zentrale and the hub run for you, and
+your devices only need the agent.
 
-## Support
+## With a partner
 
-Help with updates, backups and questions while Stellwerk runs, for example when a device stops
-syncing.
+IT service providers and hosters from the partner programme set up Stellwerk for their customers
+and look after it.
 
-## Hosted operation
+## Questions about using Stellwerk
 
-Stellwerk as a hosted service: the Zentrale and the hub run for you, without a server of your own.
-Your devices only need the agent.
+Ask in the [issues on GitHub](https://github.com/Speicherstadt/stellwerk/issues). Free one-to-one
+help isn't offered; setup for a single company is done by a partner, or by the developers as a
+paid project.
 
-## Partnership for IT service providers
-
-For IT service providers who set up Stellwerk for their customers: a direct line to the
-developers for questions, problems and wishes.
-
-## Contact
-
-More on [speicherstadt.app](https://speicherstadt.app/en/#support), enquiries to
-[info@teufel-it.de](mailto:info@teufel-it.de).
+More on the [partner programme](https://speicherstadt.app/en/partner/) page.

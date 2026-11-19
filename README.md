@@ -17,7 +17,6 @@ Open source, no cloud, no clicking "accept" on every machine.
 [Quick start](#quick-start) •
 [FAQ](#faq) •
 [Documentation](https://speicherstadt.app/stellwerk/) •
-[Support](#support-and-partnership) •
 [Development](#development) •
 [Deutsch](README.de.md)
 
@@ -132,6 +131,8 @@ first run is in [Getting started](https://speicherstadt.app/stellwerk/getting-st
 > Windows and macOS; the self-update of the agent on Windows is the last piece before v1.0
 > ([roadmap](https://speicherstadt.app/stellwerk/architecture.html#roadmap)).
 
+No server or IT of your own? Stellwerk is available hosted or through an IT service provider from the [partner programme](https://speicherstadt.app/en/partner/).
+
 ## FAQ
 
 <details>
@@ -228,17 +229,6 @@ Running a real Zentrale and agent locally, the tests and releases:
 
 More open-source apps for your own server, covering accounting, email, office documents and more: **[speicherstadt.app](https://speicherstadt.app)**
 
-## Support and partnership
-
-Stellwerk is free (AGPL). If you'd rather not set it up or run it yourself, the developers help:
-
-- **Setup** on your server
-- **Support** with updates, backups and questions while it runs
-- **Hosted operation** of Stellwerk, without a server of your own
-- **Partnership for IT service providers** who set up Stellwerk for their customers: a direct line to the developers
-
-More on [speicherstadt.app](https://speicherstadt.app/en/#support), enquiries to [info@teufel-it.de](mailto:info@teufel-it.de).
-
 ## Contributing
 
 Issues and pull requests are welcome. A good bug report names the OS, the Stellwerk and Syncthing
@@ -265,6 +255,7 @@ request.
 
 <sub>License: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel and contributors · <a href="README.de.md">Deutsch</a><br>
 Changed versions you pass on or run for others must offer their source code under the AGPL.<br>
+For IT service providers and hosters: <a href="https://speicherstadt.app/en/partner/">partner programme</a>.<br>
 Stellwerk is not affiliated with the Syncthing Foundation, Resilio, Seafile, Nextcloud or SyncWings; the names are trademarks of their owners.</sub>
 
 </div>

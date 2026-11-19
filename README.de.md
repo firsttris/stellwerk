@@ -17,7 +17,6 @@ Eine zentrale Weboberfläche für Syncthing auf deinem Server: Open Source, ohne
 [Schnellstart](#schnellstart) •
 [FAQ](#faq) •
 [Dokumentation](https://speicherstadt.app/stellwerk/) •
-[Support und Partnerschaft](#support-und-partnerschaft) •
 [Entwicklung](#entwicklung) •
 [English](README.md)
 
@@ -135,6 +134,8 @@ erster Durchlauf Schritt für Schritt steht unter
 > Windows und macOS getestet; das Selbst-Update des Agenten unter Windows ist das letzte Stück vor v1.0
 > ([Roadmap](https://speicherstadt.app/stellwerk/architecture.html#roadmap)).
 
+Keinen eigenen Server oder keine eigene IT? Stellwerk gibt es gehostet oder über einen IT-Dienstleister aus dem [Partnerprogramm](https://speicherstadt.app/partner/).
+
 ## FAQ
 
 <details>
@@ -231,18 +232,6 @@ Zentrale. Eine echte Zentrale und einen Agenten lokal betreiben, die Tests und R
 
 Weitere Open-Source-Apps für deinen eigenen Server, etwa für Buchhaltung, Mail, Office-Dokumente und mehr: **[speicherstadt.app](https://speicherstadt.app)**
 
-## Support und Partnerschaft
-
-Stellwerk ist kostenlos (AGPL). Wer es nicht selbst einrichten oder betreiben will, bekommt Hilfe von den
-Entwicklern:
-
-- **Einrichtung** auf deinem Server
-- **Support** bei Updates, Backups und Fragen im Betrieb
-- **Betrieb** von Stellwerk als gehosteter Dienst, ohne eigenen Server
-- **Partnerschaft für IT-Dienstleister**, die Stellwerk bei ihren Kunden einrichten: direkter Draht zur Entwicklung
-
-Mehr auf [speicherstadt.app](https://speicherstadt.app/#support), Anfragen an [info@teufel-it.de](mailto:info@teufel-it.de).
-
 ## Mitwirken
 
 Issues und Pull Requests sind willkommen. Ein guter Fehlerbericht nennt das Betriebssystem, die
@@ -269,6 +258,7 @@ Versionen von Stellwerk und Syncthing und was die Zentrale angezeigt hat. Bitte 
 
 <sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Contributors · <a href="README.md">English</a><br>
 Geänderte Fassungen, die du weitergibst oder für andere betreibst, müssen ihren Quellcode unter der AGPL anbieten.<br>
+Für IT-Dienstleister und Hoster: <a href="https://speicherstadt.app/partner/">Partnerprogramm</a>.<br>
 Stellwerk steht in keiner Verbindung zur Syncthing Foundation, zu Resilio, Seafile, Nextcloud oder SyncWings; die Namen sind Marken ihrer Inhaber.</sub>
 
 </div>
