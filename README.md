@@ -131,7 +131,7 @@ first run is in [Getting started](https://speicherstadt.app/stellwerk/getting-st
 > Windows and macOS; the self-update of the agent on Windows is the last piece before v1.0
 > ([roadmap](https://speicherstadt.app/stellwerk/architecture.html#roadmap)).
 
-No server or IT of your own? Stellwerk is available hosted or through an IT service provider from the [partner programme](https://speicherstadt.app/en/partner/).
+No server or IT of your own? Stellwerk is available hosted on request or through an IT service provider from the [partner programme](https://speicherstadt.app/en/partner/).
 
 ## FAQ
 
