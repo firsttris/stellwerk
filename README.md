@@ -88,7 +88,7 @@ first run is in [Getting started](https://speicherstadt.app/stellwerk/getting-st
 
 > **Before v1.0**: every [release](https://github.com/Speicherstadt/stellwerk/releases) publishes the
 > image `tristanteu/stellwerk` and carries the agents. Everything works and is tested on Linux,
-> Windows and macOS; the self-update of the agents is the last piece before v1.0
+> Windows and macOS; the self-update of the agent on Windows is the last piece before v1.0
 > ([roadmap](https://speicherstadt.app/stellwerk/architecture.html#roadmap)).
 
 ## ✨ Features
@@ -175,7 +175,8 @@ through their own server.
 
 ### Is there a central management UI for Syncthing?
 Yes, that is what Stellwerk is for: one web UI on your server that configures Syncthing on all
-your devices. There is no release yet, but it can be built from source; see [Install](#-install).
+your devices. Releases before v1.0 are out, with the image `tristanteu/stellwerk` and the agents;
+see [Install](#-install).
 
 ### Does it change my existing Syncthing?
 No. The agent brings its own Syncthing with its own configuration and ports and leaves a

@@ -53,6 +53,7 @@ flowchart LR
 
 Stellwerk is before v1.0. The Zentrale, the agent with its service and the Windows installer,
 pairing with a code or in the LAN, the matrix, live status, conflicts, versions and ignore
-patterns work and are tested against real Syncthing instances on Linux, Windows and macOS. Open
-before v1.0: self-update of the agent on Windows, and the first published release. See the
-[roadmap](architecture.md#roadmap).
+patterns work and are tested against real Syncthing instances on Linux, Windows and macOS. Every
+release publishes the image `tristanteu/stellwerk` and the agents on
+[GitHub](https://github.com/Speicherstadt/stellwerk/releases). Open before v1.0: self-update of
+the agent on Windows. See the [roadmap](architecture.md#roadmap).
