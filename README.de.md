@@ -134,7 +134,7 @@ erster Durchlauf Schritt für Schritt steht unter
 > Windows und macOS getestet; das Selbst-Update des Agenten unter Windows ist das letzte Stück vor v1.0
 > ([Roadmap](https://speicherstadt.app/stellwerk/architecture.html#roadmap)).
 
-Keinen eigenen Server oder keine eigene IT? Stellwerk gibt es gehostet oder über einen IT-Dienstleister aus dem [Partnerprogramm](https://speicherstadt.app/partner/).
+Keinen eigenen Server oder keine eigene IT? Stellwerk gibt es auf Anfrage gehostet oder über einen IT-Dienstleister aus dem [Partnerprogramm](https://speicherstadt.app/partner/).
 
 ## FAQ
 
