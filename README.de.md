@@ -248,6 +248,10 @@ Reconciler), `agent`, `zentrale` (axum, SQLite); React-Oberfläche in `web/`, ei
 Zentrale. Eine echte Zentrale und einen Agenten lokal betreiben, die Tests und Releases:
 [Development](https://speicherstadt.app/stellwerk/development.html).
 
+## 🧩 Mehr von uns
+
+Weitere Open-Source-Apps für deinen eigenen Server, für Buchhaltung, Mail, Office-Dokumente und mehr: **[speicherstadt.app](https://speicherstadt.app)**
+
 ## 🤝 Mitmachen
 
 Issues und Pull Requests sind willkommen. Ein guter Fehlerbericht nennt das Betriebssystem, die
@@ -259,8 +263,9 @@ Versionen von Stellwerk und Syncthing und was die Zentrale angezeigt hat. Bitte 
 
 <div align="center">
 
-⭐ Gefällt dir Stellwerk? Ein [Stern auf GitHub](https://github.com/Speicherstadt/stellwerk) hilft anderen, es zu finden.<br>
-🐛 [Fehler melden](https://github.com/Speicherstadt/stellwerk/issues/new) · 💡 [Funktion vorschlagen](https://github.com/Speicherstadt/stellwerk/issues/new)
+⭐ **Gefällt dir Stellwerk?** Ein [Stern auf GitHub](https://github.com/Speicherstadt/stellwerk) hilft anderen, es zu finden.
+
+[Fehler melden](https://github.com/Speicherstadt/stellwerk/issues/new) &nbsp;·&nbsp; [Funktion vorschlagen](https://github.com/Speicherstadt/stellwerk/issues/new)
 
 <sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Contributors<br>
 Geänderte Fassungen, die du weitergibst oder für andere betreibst, müssen ihren Quellcode unter der AGPL anbieten; eine kommerzielle Lizenz ohne diese Pflichten gibt es über <a href="https://teufel-it.de">teufel-it.de</a>.<br>

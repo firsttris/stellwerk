@@ -237,6 +237,10 @@ reconciler), `agent`, `zentrale` (axum, SQLite); React UI in `web/`, embedded in
 Running a real Zentrale and agent locally, the tests and releases:
 [Development](https://speicherstadt.app/stellwerk/development.html).
 
+## 🧩 More from us
+
+More open-source apps for your own server, for accounting, email, office documents and more: **[speicherstadt.app](https://speicherstadt.app)**
+
 ## 🤝 Contributing
 
 Issues and pull requests are welcome. A good bug report names the OS, the Stellwerk and Syncthing
@@ -248,8 +252,9 @@ request.
 
 <div align="center">
 
-⭐ Like Stellwerk? A [star on GitHub](https://github.com/Speicherstadt/stellwerk) helps others find it.<br>
-🐛 [Report a bug](https://github.com/Speicherstadt/stellwerk/issues/new) · 💡 [Request a feature](https://github.com/Speicherstadt/stellwerk/issues/new)
+⭐ **Like Stellwerk?** A [star on GitHub](https://github.com/Speicherstadt/stellwerk) helps others find it.
+
+[Report a bug](https://github.com/Speicherstadt/stellwerk/issues/new) &nbsp;·&nbsp; [Request a feature](https://github.com/Speicherstadt/stellwerk/issues/new)
 
 <sub>License: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel and contributors<br>
 Changed versions you pass on or run for others must offer their source code under the AGPL; a commercial license without these obligations is available via <a href="https://teufel-it.de">teufel-it.de</a>.<br>
