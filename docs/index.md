@@ -1,6 +1,10 @@
 # Stellwerk
 
-**Central web UI to manage Syncthing on all your devices.** Pair a device once, then decide in
+**Keep files up to date on every computer in a business, without a cloud or a file server.**
+Project folders, templates and plans reach the office PC, the boss's laptop and the notebook at
+the site; a PC that is off catches up as soon as it is back.
+
+Stellwerk is a central web UI for Syncthing on your own server. Pair a device once, then decide in
 one place which folders it gets, in which direction and at which path. Every device is set up
 automatically; nobody clicks "accept" on each PC.
 

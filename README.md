@@ -2,6 +2,8 @@
 
 <h1>Stellwerk: central web UI to manage Syncthing on all your devices</h1>
 
+**English** · [Deutsch](README.de.md)
+
 **Self-hosted control center for Syncthing: pair devices, share folders and set paths for every PC from one web UI.**<br>
 A small agent on each device brings its own Syncthing and follows what the server says; a hub Syncthing on the server keeps a full copy of every folder.<br>
 Open source, no cloud, no clicking "accept" on every machine.
@@ -33,7 +35,9 @@ docker compose up -d && docker compose exec -T stellwerk stellwerk set-password 
 
 ## 💡 Why Stellwerk?
 
-Syncthing has no central management: every device is set up in its own web UI, and every new
+The office PC, the boss's laptop and the notebook at the site need the same plans, templates and
+project folders, without a cloud subscription or a file server behind a VPN. Syncthing syncs
+folders directly between the computers, but it has no central management: every device is set up in its own web UI, and every new
 share has to be accepted on the other side. Resilio Sync offers a management console, but only
 commercially and closed source.
 
@@ -156,7 +160,8 @@ first run is in [Getting started](https://speicherstadt.app/stellwerk/getting-st
 
 ## 🔀 Stellwerk and the alternatives
 
-Stellwerk is made for one admin who wants all their own devices synced through their own server.
+Stellwerk is made for one admin who wants all the devices, in a business or their own, synced
+through their own server.
 
 | | What it is | Where Stellwerk differs |
 |---|---|---|

@@ -3,8 +3,8 @@
 # Locally: pip install -r requirements-docs.txt && mkdocs serve
 site_name: Stellwerk
 site_description: >-
-  Central web UI to manage Syncthing on all your devices: pair devices, share folders and set
-  paths from one place. Self-hosted, open source, no cloud.
+  Keep files up to date on every computer in a business, without a cloud or a file server: a
+  central web UI that manages Syncthing on all your devices. Self-hosted, open source.
 site_url: https://speicherstadt.app/stellwerk/
 repo_url: https://github.com/Speicherstadt/stellwerk
 repo_name: Speicherstadt/stellwerk
