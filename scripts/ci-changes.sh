@@ -14,7 +14,7 @@ if [[ -z "$base" ]] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
 fi
 
 files=$(git diff --name-only "$base" "$head" |
-    grep -vE '^(docs/|LICENSE$|mkdocs\.yml$|requirements-docs\.txt$)|\.md$' || true)
+    grep -vE '^(docs/|LICENSE$|mkdocs\.yml$|requirements-docs\.txt$|scripts/docs-revision-date/)|\.md$' || true)
 # Files only the UI checks depend on, and files only the Rust jobs depend on
 web_only='^(web/|e2e/|package\.json$|bun\.lock$|bunfig\.toml$)'
 rust_only='^(crates/|Cargo\.toml$|Cargo\.lock$|installer/|scripts/service-smoke\.sh$|\.cargo/)'
