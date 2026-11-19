@@ -24,9 +24,8 @@ Update what the change affects, in the same pull request, and only that:
 - the tests for what changed (unit tests for pure functions such as the reconciler and the
   desired-state derivation, integration tests in `crates/*/tests` against the pinned Syncthing,
   Vitest for UI logic, Playwright in `e2e/` for what a user does in the UI);
-- the docs in `docs/` that describe it;
-- both READMEs (`README.md` in English, `README.de.md` in German) when a feature a user sees is
-  added, changed or removed;
+- the docs in `docs/` that describe it, in German;
+- the README (`README.md`, German) when a feature a user sees is added, changed or removed;
 - the screenshots after a change to the look: **Actions → Update screenshots → Run workflow**, then
   look at the new pictures.
 
@@ -56,9 +55,10 @@ mkdocs build --strict        # when docs/ or mkdocs.yml changed
 
 - Commands as root (`sudo`, `pkexec`) are run by the user; don't work around that.
 - The user's running processes are not stopped; use other ports for tests.
-- Language: code, comments, docs, commits and pull requests in English; `README.md` in English
-  with its German translation `README.de.md`, both kept the same in every change; the app's
-  interface in German and English.
+- Language: the README and the docs (`docs/`, the website) in German only, in plain German with
+  "du"; code, comments, commits and pull requests in English; the app's interface in German and
+  English. A translated heading in the docs keeps its anchor with `{ #id }` when other pages, the
+  README or code link to it.
 
 ## Code style
 

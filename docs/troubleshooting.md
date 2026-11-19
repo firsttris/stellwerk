@@ -1,126 +1,135 @@
-# Troubleshooting
+# Fehlersuche
 
-## Where the logs are
+## Wo die Logs liegen
 
-| What | Where |
+| Was | Wo |
 |---|---|
-| Zentrale (container) | `docker compose logs stellwerk`, `journalctl -u stellwerk` for Quadlet |
-| Zentrale (binary with systemd) | `journalctl -u stellwerk` |
-| hub Syncthing | `hub/stellwerk-syncthing.log` in the Zentrale's data directory |
-| agent on Linux | `journalctl --user -u stellwerk-agent` |
-| agent on macOS and Windows | `agent.log` in the [agent's data directory](reference.md#agent-data-directory) |
-| the device's Syncthing | `syncthing/stellwerk-syncthing.log` in the agent's data directory |
+| Zentrale (Container) | `docker compose logs stellwerk`, `journalctl -u stellwerk` bei Quadlet |
+| Zentrale (Programmdatei mit systemd) | `journalctl -u stellwerk` |
+| Hub-Syncthing | `hub/stellwerk-syncthing.log` im Datenverzeichnis der Zentrale |
+| Agent unter Linux | `journalctl --user -u stellwerk-agent` |
+| Agent unter macOS und Windows | `agent.log` im [Datenverzeichnis des Agenten](reference.md#agent-data-directory) |
+| das Syncthing des Geräts | `syncthing/stellwerk-syncthing.log` im Datenverzeichnis des Agenten |
 
-More detail: set `RUST_LOG=debug` for the Zentrale (an `environment:` entry) or run the agent in
-the foreground with `RUST_LOG=debug stellwerk-agent run` after `service uninstall`.
+Mehr Details: Setz `RUST_LOG=debug` für die Zentrale (ein Eintrag unter `environment:`) oder lass
+den Agenten nach `service uninstall` mit `RUST_LOG=debug stellwerk-agent run` im Vordergrund
+laufen.
 
-## Pairing
+## Koppeln
 
-**The pairing dialog keeps waiting.**
-The agent has not reached the Zentrale. On the device, look at its log:
+**Der Dialog zum Koppeln wartet und wartet.**
+Der Agent hat die Zentrale nicht erreicht. Schau auf dem Gerät in sein Log:
 
-- `connection to the Zentrale failed`: the address in the command is not reachable from the
-  device. The dialog uses the address in the browser's address bar; if you opened the UI as
-  `localhost` or through an address the device cannot reach, pair with `--server` set by hand.
-- a certificate error: the device does not trust the proxy's certificate, because it comes from
-  a CA of your own (e.g. Caddy's `tls internal`). Give the Zentrale that CA with `--ca-cert`
-  and create a new code: the command then carries the CA's fingerprint (see
-  [Behind a private CA](installation.md#behind-a-private-ca)). Or use a certificate from a
-  public CA.
-- `the Zentrale turned the agent away`: the code is used up or older than 15 minutes. Create a
-  new one and run `join` again with it; the device keeps its key.
+- `connection to the Zentrale failed`: Die Adresse im Befehl ist vom Gerät aus nicht erreichbar.
+  Der Dialog nimmt die Adresse aus der Adressleiste des Browsers; hast du die Oberfläche als
+  `localhost` oder über eine Adresse geöffnet, die das Gerät nicht erreicht, koppel mit von Hand
+  gesetztem `--server`.
+- ein Zertifikatsfehler: Das Gerät vertraut dem Zertifikat des Proxys nicht, weil es von einer
+  eigenen CA kommt (z. B. Caddys `tls internal`). Gib der Zentrale diese CA mit `--ca-cert` und
+  erzeuge einen neuen Code: Der Befehl enthält dann den Fingerabdruck der CA (siehe
+  [Hinter einer eigenen CA](installation.md#behind-a-private-ca)). Oder nimm ein Zertifikat einer
+  öffentlichen CA.
+- `the Zentrale turned the agent away`: Der Code ist verbraucht oder älter als 15 Minuten. Erzeuge
+  einen neuen und führe `join` damit noch einmal aus; das Gerät behält seinen Schlüssel.
 
-**`join` without `--server` finds no Zentrale.**
-mDNS works only in the same network segment, and not from a container with port mapping (see
-[LAN pairing from a container](installation.md#lan-pairing-from-a-container)). Guest networks and
-some Wi-Fi access points block multicast. Pass `--server` instead; approval works the same.
+**`join` ohne `--server` findet keine Zentrale.**
+mDNS funktioniert nur im selben Netzsegment und nicht aus einem Container mit Port-Mapping (siehe
+[Koppeln im LAN aus einem Container](installation.md#lan-pairing-from-a-container)). Gastnetze und
+manche WLAN-Access-Points blockieren Multicast. Gib stattdessen `--server` an; das Freigeben
+funktioniert genauso.
 
-**A device does not appear under Waiting devices.**
-It appears only while its agent runs (`service install` after `join`) and only if LAN pairing is
-on (`--lan-pairing`). A rejected device stays rejected until the Zentrale restarts.
+**Ein Gerät erscheint nicht unter Wartende Geräte.**
+Es erscheint nur, solange sein Agent läuft (`service install` nach `join`), und nur, wenn das
+Koppeln im LAN an ist (`--lan-pairing`). Ein abgelehntes Gerät bleibt abgelehnt, bis die Zentrale
+neu startet.
 
-## Syncing
+## Abgleich
 
-**A cell says "waiting" for a long time.**
-The device is offline, or its agent is not running. It applies the change as soon as it is back.
-On the device: is the service running (`systemctl --user status stellwerk-agent`, Task Scheduler
-on Windows, `launchctl print gui/$(id -u)/io.github.firsttris.stellwerk.agent` on macOS)?
+**Eine Zelle zeigt lange „wartet“.**
+Das Gerät ist offline, oder sein Agent läuft nicht. Es wendet die Änderung an, sobald es wieder da
+ist. Auf dem Gerät: Läuft der Dienst (`systemctl --user status stellwerk-agent`, die
+Aufgabenplanung unter Windows, `launchctl print gui/$(id -u)/io.github.firsttris.stellwerk.agent`
+unter macOS)?
 
-**The device is online, but no files arrive.**
-The configuration arrived, but the device's Syncthing cannot reach the hub. Check from the device
-that the hub address is reachable (`nc -vz sync.example.org 22001`, or
-`Test-NetConnection sync.example.org -Port 22001` on Windows):
+**Das Gerät ist online, aber es kommen keine Dateien an.**
+Die Konfiguration ist angekommen, aber das Syncthing des Geräts erreicht den Hub nicht. Prüf vom
+Gerät aus, ob die Hub-Adresse erreichbar ist (`nc -vz sync.example.org 22001`, oder
+`Test-NetConnection sync.example.org -Port 22001` unter Windows):
 
-- the hub port 22001 is not open in the server's firewall or not mapped in the container;
-- `STELLWERK_HUB_ADDRESS` is not set, so devices try the container's host name. Set it to the
-  server's public name and port.
+- Der Hub-Port 22001 ist in der Firewall des Servers nicht offen oder im Container nicht
+  abgebildet;
+- `STELLWERK_HUB_ADDRESS` ist nicht gesetzt, also versuchen die Geräte den Hostnamen des
+  Containers. Setz es auf den öffentlichen Namen und Port des Servers.
 
-**On Linux the agent stops when I log out.**
-That is how systemd user services work. `loginctl enable-linger $USER` keeps it running.
+**Unter Linux stoppt der Agent, wenn ich mich abmelde.**
+So funktionieren systemd-Benutzerdienste. `loginctl enable-linger $USER` hält ihn am Laufen.
 
-**"Error in … on …" in Needs attention.**
-Syncthing on that device could not sync some files. The text says why; the most common reasons:
+**„Fehler in … auf …“ unter Braucht Aufmerksamkeit.**
+Syncthing auf diesem Gerät konnte manche Dateien nicht abgleichen. Der Text sagt, warum; die
+häufigsten Gründe:
 
-- *path is not writable*: the folder's local path does not exist or belongs to another user.
-  Change it on the folder page, tab **Devices**.
-- *folder marker missing*: the folder's directory was deleted or a drive is not mounted.
-  Syncthing stops the folder instead of treating everything as deleted. Mount the drive or set
-  the path again.
-- files that are open or locked by another program (common on Windows); they are retried.
+- *path is not writable*: Der lokale Pfad des Ordners existiert nicht oder gehört einem anderen
+  Benutzer. Ändere ihn auf der Ordnerseite, Reiter **Geräte**.
+- *folder marker missing*: Das Verzeichnis des Ordners wurde gelöscht oder ein Laufwerk ist nicht
+  eingehängt. Syncthing stoppt den Ordner, statt alles als gelöscht zu behandeln. Häng das
+  Laufwerk ein oder setz den Pfad neu.
+- Dateien, die ein anderes Programm geöffnet oder gesperrt hat (häufig unter Windows); sie werden
+  erneut versucht.
 
-**A folder on a device shows "Receive only" but has local changes.**
-In mode Receive only, changes made on the device stay there and are not sent. That is by design.
-Switch the mode to Both, or remove the local changes.
+**Ein Ordner auf einem Gerät steht auf „Nur empfangen“, hat aber lokale Änderungen.**
+Im Modus Nur empfangen bleiben Änderungen auf dem Gerät dort und werden nicht gesendet. Das ist so
+gewollt. Stell den Modus auf Beides, oder entferne die lokalen Änderungen.
 
-**A file I deleted came back.**
-Another device in mode Both still had it and sent it again before it learned of the deletion,
-or the device that deleted it is in Receive only. Old versions of deleted files are on the
-folder's **Versions** tab.
+**Eine Datei, die ich gelöscht habe, ist wieder da.**
+Ein anderes Gerät im Modus Beides hatte sie noch und hat sie wieder gesendet, bevor es von der
+Löschung erfuhr, oder das Gerät, das sie gelöscht hat, steht auf Nur empfangen. Alte Versionen
+gelöschter Dateien liegen im Reiter **Versionen** des Ordners.
 
-## Conflicts
+## Konflikte
 
-**Why are there conflict copies at all?**
-Two devices changed the same file before either got the other's change, typically a laptop that
-was offline. Syncthing keeps both; Stellwerk shows them under **Conflicts**. Resolve once on the
-server; every device gets the result.
+**Warum gibt es überhaupt Konfliktkopien?**
+Zwei Geräte haben dieselbe Datei geändert, bevor eines die Änderung des anderen bekommen hat,
+typischerweise ein Laptop, der offline war. Syncthing behält beide; Stellwerk zeigt sie unter
+**Konflikte**. Löse sie einmal auf dem Server; jedes Gerät bekommt das Ergebnis.
 
-**The diff shows nothing.**
-The file is binary or larger than 256 KB. Compare size and time, or keep both and compare on a
-device.
+**Der Diff zeigt nichts.**
+Die Datei ist binär oder größer als 256 KB. Vergleiche Größe und Zeit, oder behalte beide und
+vergleiche auf einem Gerät.
 
 ## Zentrale
 
-**I forgot the admin password.**
-`stellwerk set-password` on the server sets a new one (in the container:
-`docker compose exec -T stellwerk stellwerk set-password <<< 'new password'`).
+**Ich habe das Admin-Passwort vergessen.**
+`stellwerk set-password` auf dem Server setzt ein neues (im Container:
+`docker compose exec -T stellwerk stellwerk set-password <<< 'neues Passwort'`).
 
-**The login does not stick / I am logged out right away.**
-Behind HTTPS the cookie is `Secure`: the proxy must set `X-Forwarded-Proto: https`, and you must
-open the UI through `https://`. Opening it over `http://` with a proxy that claims HTTPS loses
-the cookie.
+**Die Anmeldung hält nicht / ich werde sofort abgemeldet.**
+Hinter HTTPS ist das Cookie `Secure`: Der Proxy muss `X-Forwarded-Proto: https` setzen, und du
+musst die Oberfläche über `https://` öffnen. Öffnest du sie über `http://` mit einem Proxy, der
+HTTPS behauptet, geht das Cookie verloren.
 
-**Live updates do not work, the UI only refreshes every 30 seconds.**
-The proxy does not pass WebSockets on `/api/ws`. See the
-[proxy examples](installation.md#reverse-proxy-and-tls). Agents need the same for
+**Die Live-Aktualisierung funktioniert nicht, die Oberfläche aktualisiert sich nur alle
+30 Sekunden.**
+Der Proxy reicht WebSockets auf `/api/ws` nicht durch. Siehe die
+[Beispiele für den Proxy](installation.md#reverse-proxy-and-tls). Die Agenten brauchen dasselbe für
 `/api/agent/ws`.
 
-**The Zentrale does not start: address in use.**
-Another program uses 8080 or 22001. Change `--listen` or `--hub-listen` (and then
+**Die Zentrale startet nicht: Adresse belegt.**
+Ein anderes Programm benutzt 8080 oder 22001. Ändere `--listen` oder `--hub-listen` (und dann
 `--hub-address`).
 
-## Starting over on a device
+## Auf einem Gerät neu anfangen
 
 ```bash
 stellwerk-agent service uninstall
-rm -rf ~/.local/share/stellwerk-agent     # the data directory; see the reference for macOS and Windows
+rm -rf ~/.local/share/stellwerk-agent     # das Datenverzeichnis; für macOS und Windows siehe die Referenz
 ```
 
-Remove the device in the UI, then pair it again. The synced folders stay where they are; when
-the device gets them again at the same paths, Syncthing matches the existing files instead of
-downloading them again.
+Entferne das Gerät in der Oberfläche und koppel es dann neu. Die abgeglichenen Ordner bleiben, wo
+sie sind; bekommt das Gerät sie wieder unter denselben Pfaden, gleicht Syncthing die vorhandenen
+Dateien ab, statt sie noch einmal herunterzuladen.
 
-## Reporting a bug
+## Einen Fehler melden
 
-Open an [issue](https://github.com/Speicherstadt/stellwerk/issues/new) with the OS, the Stellwerk
-version (`stellwerk --version`, `stellwerk-agent --version`), what the UI showed and the relevant
-lines from the logs above.
+Eröffne ein [Issue](https://github.com/Speicherstadt/stellwerk/issues/new) mit dem Betriebssystem,
+der Stellwerk-Version (`stellwerk --version`, `stellwerk-agent --version`), dem, was die Oberfläche
+gezeigt hat, und den passenden Zeilen aus den Logs oben.

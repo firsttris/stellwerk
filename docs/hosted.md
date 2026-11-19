@@ -1,20 +1,20 @@
-# Hosted or with a partner
+# Gehostet oder über einen Partner
 
-This documentation covers running Stellwerk yourself.
+Diese Dokumentation beschreibt, wie du Stellwerk selbst betreibst.
 
-## Hosted
+## Gehostet
 
-Stellwerk is available as a hosted service, without a server of your own, on request to
-[info@teufel-it.de](mailto:info@teufel-it.de). If you'd rather have an IT service provider set it
-up for your company, ask us for a partner or for hosted operation (info@teufel-it.de).
+Stellwerk gibt es auf Anfrage an [info@teufel-it.de](mailto:info@teufel-it.de) auch als
+gehosteten Dienst, ohne eigenen Server. Soll lieber ein IT-Dienstleister es für deine Firma
+einrichten, frag uns nach einem Partner oder nach dem gehosteten Betrieb (info@teufel-it.de).
 
-## Partner programme
+## Partnerprogramm
 
-IT service providers and hosters who want to set up Stellwerk for their customers can become
-partners: see the [partner programme](https://speicherstadt.app/en/partner/).
+IT-Dienstleister und Hoster, die Stellwerk für ihre Kunden einrichten wollen, können Partner
+werden: siehe das [Partnerprogramm](https://speicherstadt.app/partner/).
 
-## Questions
+## Fragen
 
-We answer questions about using Stellwerk in public, in the
-[GitHub issues](https://github.com/Speicherstadt/stellwerk/issues), so everyone benefits. Larger
-rollouts we also take on as a paid project.
+Fragen zur Nutzung von Stellwerk beantworten wir öffentlich in den
+[GitHub-Issues](https://github.com/Speicherstadt/stellwerk/issues), so haben alle etwas davon.
+Größere Einführungen übernehmen wir auch als bezahltes Projekt.

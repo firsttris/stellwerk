@@ -1,410 +1,437 @@
-# Architecture
+# Architektur
 
-How Stellwerk is built: its parts, how they talk, how a change travels from a click to the
-files on a device, and where the data lives. For using and running Stellwerk, start with the
-[user guide](user-guide.md) and [installation](installation.md).
+Wie Stellwerk gebaut ist: seine Teile, wie sie miteinander sprechen, wie eine Änderung von einem
+Klick bis zu den Dateien auf einem Gerät gelangt und wo die Daten liegen. Für Bedienung und Betrieb
+fang mit der [Bedienung](user-guide.md) und der [Installation](installation.md) an.
 
 ```mermaid
 flowchart LR
     subgraph Server
-        Z["Zentrale<br/>axum · SQLite · web UI"]
-        H["hub Syncthing<br/>data/hub, data/folders"]
-        Z -- "engine: REST on 127.0.0.1" --> H
+        Z["Zentrale<br/>axum · SQLite · Weboberfläche"]
+        H["Hub-Syncthing<br/>data/hub, data/folders"]
+        Z -- "engine: REST auf 127.0.0.1" --> H
     end
-    subgraph "Device (×n)"
-        A["agent"]
+    subgraph "Gerät (×n)"
+        A["Agent"]
         S["Syncthing"]
-        A -- "engine: REST on 127.0.0.1" --> S
+        A -- "engine: REST auf 127.0.0.1" --> S
     end
-    B["browser"] -- "/api, /api/ws" --> Z
+    B["Browser"] -- "/api, /api/ws" --> Z
     A -- "/api/agent/ws<br/>challenge · hello · desiredState · applied · status" --> Z
-    S -- "sync port 22001, TLS" --> H
+    S -- "Sync-Port 22001, TLS" --> H
 ```
 
-## Parts
+## Teile
 
-- **Zentrale** (`crates/zentrale`): one Rust binary with login, SQLite, the desired state of
-  every device with a revision number, the connections to all agents, and the web UI.
-- **Hub Syncthing** on the server: steered by the Zentrale with the same code as the devices,
-  member of every folder, keeps versions.
-- **Agent** (`crates/agent`) on every device: starts its own Syncthing, brings its configuration
-  to the desired state, reports status.
-- **`protocol`**: the messages and the desired state. Describes devices, folders, modes and
-  paths only.
-- **`engine`**: the only crate that knows Syncthing.
+- **Zentrale** (`crates/zentrale`): eine Rust-Programmdatei mit Anmeldung, SQLite, dem
+  Soll-Zustand jedes Geräts mit einer Revisionsnummer, den Verbindungen zu allen Agenten und der
+  Weboberfläche.
+- **Hub-Syncthing** auf dem Server: von der Zentrale mit demselben Code gesteuert wie die Geräte,
+  Mitglied in jedem Ordner, hält Versionen.
+- **Agent** (`crates/agent`) auf jedem Gerät: startet sein eigenes Syncthing, bringt dessen
+  Konfiguration auf den Soll-Zustand, meldet den Status.
+- **`protocol`**: die Nachrichten und der Soll-Zustand. Beschreibt nur Geräte, Ordner, Modi und
+  Pfade.
+- **`engine`**: das einzige Crate, das Syncthing kennt.
 
-The Zentrale never sends commands like "create folder X", always "this is how it should look,
-revision 42". Applying is idempotent, so a device that was offline simply gets the current state.
+Die Zentrale schickt nie Befehle wie „leg Ordner X an“, sondern immer „so soll es aussehen,
+Revision 42“. Das Anwenden ist idempotent, ein Gerät, das offline war, bekommt also einfach den
+aktuellen Stand.
 
-## From a click to the files
+## Vom Klick zu den Dateien
 
-What happens when you switch the cell *Photos × laptop* to **Both** and click **Apply**:
+Was passiert, wenn du die Zelle *Fotos × Laptop* auf **Beides** stellst und auf **Anwenden**
+klickst:
 
 ```mermaid
 sequenceDiagram
-    participant UI as Web UI
+    participant UI as Weboberfläche
     participant Z as Zentrale
-    participant H as hub Syncthing
-    participant A as agent (laptop)
-    participant S as Syncthing (laptop)
-    UI->>Z: POST /api/shares (draft)
-    Z->>Z: one transaction: write shares, revision 42 → 43
-    Z->>Z: desired states for hub and devices (pure functions)
-    Z->>H: reconcile: share Photos with laptop
-    Z->>A: desiredState, revision 43
-    A->>S: reconcile: add folder Photos at ~/Stellwerk/Photos, peer hub
+    participant H as Hub-Syncthing
+    participant A as Agent (Laptop)
+    participant S as Syncthing (Laptop)
+    UI->>Z: POST /api/shares (Entwurf)
+    Z->>Z: eine Transaktion: Freigaben schreiben, Revision 42 → 43
+    Z->>Z: Soll-Zustände für Hub und Geräte (reine Funktionen)
+    Z->>H: Reconcile: Fotos mit Laptop teilen
+    Z->>A: desiredState, Revision 43
+    A->>S: Reconcile: Ordner Fotos unter ~/Stellwerk/Fotos anlegen, Gegenstelle Hub
     A->>Z: applied 43
-    S->>H: connect, exchange index, transfer files
-    Z-->>UI: update over /api/ws (revision, live status)
+    S->>H: verbinden, Index austauschen, Dateien übertragen
+    Z-->>UI: Aktualisierung über /api/ws (Revision, Live-Status)
 ```
 
-1. The UI sends the whole draft in one request. The Zentrale writes it and raises the revision
-   in the same SQLite transaction, so a revision is always a complete configuration.
-2. From the stored configuration it derives one desired state per device and one for the hub
-   (`desired.rs`). Nothing is diffed against the previous revision.
-3. The hub is reconciled directly; every connected agent gets its new desired state. An agent
-   that is offline gets the newest one when it connects, whatever happened in between.
-4. Each agent's reconciler compares its Syncthing's configuration with the desired state and
-   makes only the API calls needed, then reports `applied` with the revision and any errors per
-   folder. The overview shows **waiting** for devices that have not applied the current
-   revision.
-5. Syncthing on the device and on the hub do the rest: connect, exchange indexes, move files.
-   The monitors on both sides report progress, which reaches the UI as live status.
+1. Die Oberfläche schickt den ganzen Entwurf in einer Anfrage. Die Zentrale schreibt ihn und
+   erhöht die Revision in derselben SQLite-Transaktion, so ist eine Revision immer eine
+   vollständige Konfiguration.
+2. Aus der gespeicherten Konfiguration leitet sie einen Soll-Zustand pro Gerät und einen für den
+   Hub ab (`desired.rs`). Nichts wird gegen die vorige Revision verglichen.
+3. Der Hub wird direkt abgeglichen; jeder verbundene Agent bekommt seinen neuen Soll-Zustand. Ein
+   Agent, der offline ist, bekommt beim Verbinden den neuesten, egal was dazwischen passiert ist.
+4. Der Reconciler jedes Agenten vergleicht die Konfiguration seines Syncthing mit dem Soll-Zustand
+   und macht nur die nötigen API-Aufrufe, dann meldet er `applied` mit der Revision und etwaigen
+   Fehlern je Ordner. Die Übersicht zeigt **wartet** für Geräte, die die aktuelle Revision noch
+   nicht angewendet haben.
+5. Syncthing auf dem Gerät und auf dem Hub erledigen den Rest: verbinden, Indexe austauschen,
+   Dateien übertragen. Die Monitore auf beiden Seiten melden den Fortschritt, der als Live-Status
+   in der Oberfläche ankommt.
 
-## Protocol
+## Protokoll
 
-The agent opens a WebSocket to the Zentrale (`/api/agent/ws`); messages are JSON with a `type`
-field (`crates/protocol/src/messages.rs`).
+Der Agent öffnet einen WebSocket zur Zentrale (`/api/agent/ws`); die Nachrichten sind JSON mit
+einem Feld `type` (`crates/protocol/src/messages.rs`).
 
-| Direction | Message | Content |
+| Richtung | Nachricht | Inhalt |
 |---|---|---|
-| Zentrale → agent | `challenge` | a fresh nonce |
-| agent → Zentrale | `hello` | public key, on first contact the one-time code; host name, OS, agent and Syncthing version, Syncthing device ID; a signature over the nonce and all these fields (`hello_payload`) |
-| Zentrale → agent | `welcome` | the device's ID at the Zentrale |
-| Zentrale → agent | `desiredState` | revision, peers (device IDs and addresses), folders with ID, label, mode, path, versioning, ignore patterns, peers |
-| agent → Zentrale | `applied` | revision, errors per folder |
-| agent → Zentrale | `status` | per folder: state, files and bytes in total and still needed, errors; on change, at most about once per second |
-| Zentrale → agent | `waiting` | LAN pairing: the agent is unknown and came without a code; its key's fingerprint. The socket stays open until the UI decides |
-| Zentrale → agent | `browse` | the folder picker: a request ID and a path (empty for the home directory) |
-| agent → Zentrale | `listing` | the answer under the same ID: the directory, its parent, its subdirectories by name and path, the home directory and the file system roots; or why it could not be read |
-| Zentrale → agent | `search` | a request ID, a path to start at (empty for the home directory) and a name to look for |
-| agent → Zentrale | `matches` | the answer under the same ID: the start directory, the directories whose name holds every word of the query (shallower first, nothing listed below a match), and whether the search stopped early; or why it could not start |
-| Zentrale → agent | `rejected` | why; the socket closes |
+| Zentrale → Agent | `challenge` | eine neue Nonce |
+| Agent → Zentrale | `hello` | öffentlicher Schlüssel, beim ersten Kontakt der Einmal-Code; Hostname, Betriebssystem, Version von Agent und Syncthing, Syncthing-Geräte-ID; eine Signatur über die Nonce und all diese Felder (`hello_payload`) |
+| Zentrale → Agent | `welcome` | die ID des Geräts in der Zentrale |
+| Zentrale → Agent | `desiredState` | Revision, Gegenstellen (Geräte-IDs und Adressen), Ordner mit ID, Bezeichnung, Modus, Pfad, Versionierung, Ignoriermustern, Gegenstellen |
+| Agent → Zentrale | `applied` | Revision, Fehler je Ordner |
+| Agent → Zentrale | `status` | je Ordner: Zustand, Dateien und Bytes insgesamt und noch benötigt, Fehler; bei Änderung, höchstens etwa einmal pro Sekunde |
+| Zentrale → Agent | `waiting` | Koppeln im LAN: Der Agent ist unbekannt und kam ohne Code; der Fingerabdruck seines Schlüssels. Der Socket bleibt offen, bis die Oberfläche entscheidet |
+| Zentrale → Agent | `browse` | die Ordnerauswahl: eine Anfrage-ID und ein Pfad (leer für das Home-Verzeichnis) |
+| Agent → Zentrale | `listing` | die Antwort unter derselben ID: das Verzeichnis, sein übergeordnetes Verzeichnis, seine Unterverzeichnisse mit Name und Pfad, das Home-Verzeichnis und die Wurzeln der Dateisysteme; oder warum es sich nicht lesen ließ |
+| Zentrale → Agent | `search` | eine Anfrage-ID, ein Startpfad (leer für das Home-Verzeichnis) und ein gesuchter Name |
+| Agent → Zentrale | `matches` | die Antwort unter derselben ID: das Startverzeichnis, die Verzeichnisse, deren Name jedes Wort der Suche enthält (flachere zuerst, nichts unterhalb eines Treffers), und ob die Suche früher aufgehört hat; oder warum sie nicht starten konnte |
+| Zentrale → Agent | `rejected` | warum; der Socket schließt |
 
-The desired state is always complete, never a diff: an agent that was offline for three days just
-gets the current state when it connects.
+Der Soll-Zustand ist immer vollständig, nie ein Diff: Ein Agent, der drei Tage offline war,
+bekommt beim Verbinden einfach den aktuellen Stand.
 
-The Zentrale sends a WebSocket ping to every connected agent every 30 seconds, also while it waits
-for approval, and ends the session when nothing (not even a pong) arrived for 90 seconds, so a
-silently dropped link (suspend, NAT timeout) does not keep a device "online". The agent's
-WebSocket library answers pings by itself.
+Die Zentrale schickt jedem verbundenen Agenten alle 30 Sekunden einen WebSocket-Ping, auch während
+er auf Freigabe wartet, und beendet die Sitzung, wenn 90 Sekunden lang nichts (nicht einmal ein
+Pong) angekommen ist, so hält eine still abgerissene Verbindung (Standby, NAT-Timeout) ein Gerät
+nicht „online“. Die WebSocket-Bibliothek des Agenten beantwortet Pings von selbst.
 
-## Pairing
+## Koppeln
 
-1. "Pair device" in the UI: the Zentrale creates a one-time code (valid for 15 minutes) and
-   stores only its hash.
-2. On the device: the command from the dialog fetches the install script of the Zentrale's
-   version from the GitHub release (`installer/install.sh`, `install.ps1`), which downloads
-   that release's agent and runs `stellwerk-agent join --server https://… <code>`. That creates
-   an Ed25519 key and stores server, key and code; `stellwerk-agent service install` starts the
-   agent in the background. Behind a private CA the command also carries the CA's fingerprint
-   (`--ca-sha256`): `join` fetches the CA from the Zentrale's `/ca.crt`, keeps it only if the
-   fingerprint matches and trusts it for the connection from then on, as a k3s join token pins
-   its server's CA.
-3. The agent answers the Zentrale's challenge with a hello signed by its key and carrying the
-   code. The Zentrale uses the code up and creates the device; the agent drops the code.
-4. From then on the agent signs in with its key only. A blocked device is turned away.
-   `join` again with a new code keeps the key: the Zentrale recognises the device, lets it in
-   as itself and marks the code used, so the pairing dialog moves on.
+1. „Gerät koppeln“ in der Oberfläche: Die Zentrale erzeugt einen Einmal-Code (15 Minuten gültig)
+   und speichert nur seinen Hash.
+2. Auf dem Gerät: Der Befehl aus dem Dialog holt das Installationsskript der Version der Zentrale
+   aus dem GitHub-Release (`installer/install.sh`, `install.ps1`), das den Agenten dieses Releases
+   herunterlädt und `stellwerk-agent join --server https://… <code>` ausführt. Das erzeugt einen
+   Ed25519-Schlüssel und speichert Server, Schlüssel und Code; `stellwerk-agent service install`
+   startet den Agenten im Hintergrund. Hinter einer eigenen CA enthält der Befehl auch den
+   Fingerabdruck der CA (`--ca-sha256`): `join` holt die CA von `/ca.crt` der Zentrale, behält sie
+   nur, wenn der Fingerabdruck stimmt, und vertraut ihr von da an für die Verbindung, so wie ein
+   Join-Token von k3s die CA seines Servers festlegt.
+3. Der Agent beantwortet die Challenge der Zentrale mit einem Hello, das mit seinem Schlüssel
+   signiert ist und den Code enthält. Die Zentrale verbraucht den Code und legt das Gerät an; der
+   Agent verwirft den Code.
+4. Von da an meldet sich der Agent nur mit seinem Schlüssel an. Ein gesperrtes Gerät wird
+   abgewiesen. Ein erneutes `join` mit einem neuen Code behält den Schlüssel: Die Zentrale erkennt
+   das Gerät, lässt es als sich selbst herein und markiert den Code als benutzt, so geht der
+   Dialog zum Koppeln weiter.
 
-**LAN pairing, without a code.** The Zentrale announces itself over mDNS as `_stellwerk._tcp`
-(`crates/zentrale/src/discovery.rs`), with the TXT entry `url` when `--public-url` is set.
-`stellwerk-agent join` without `--server` listens for four seconds and takes the one Zentrale
-it finds (`crates/agent/src/discover.rs`); without a code it prints its key's fingerprint, the
-first 8 bytes of the SHA-256 of the public key (`3F2A-91BC-04DE-77A1`). Its hello carries no
-code, so the Zentrale answers `waiting` and lists it under **Devices → Waiting devices**
-(`crates/zentrale/src/waiting.rs`). Approving creates the device and the connection goes on as
-after a code; rejecting turns the key away until the Zentrale restarts. The list lives in
-memory, holds at most 20 agents and forgets an agent that disconnects. `--lan-pairing false`
-turns announcing and waiting off; agents without a code are then rejected.
+**Koppeln im LAN, ohne Code.** Die Zentrale kündigt sich über mDNS als `_stellwerk._tcp` an
+(`crates/zentrale/src/discovery.rs`), mit dem TXT-Eintrag `url`, wenn `--public-url` gesetzt ist.
+`stellwerk-agent join` ohne `--server` lauscht vier Sekunden und nimmt die eine Zentrale, die es
+findet (`crates/agent/src/discover.rs`); ohne Code zeigt es den Fingerabdruck seines Schlüssels,
+die ersten 8 Bytes des SHA-256 des öffentlichen Schlüssels (`3F2A-91BC-04DE-77A1`). Sein Hello
+enthält keinen Code, also antwortet die Zentrale mit `waiting` und listet es unter **Geräte →
+Wartende Geräte** (`crates/zentrale/src/waiting.rs`). Freigeben legt das Gerät an, und die
+Verbindung geht weiter wie nach einem Code; Ablehnen weist den Schlüssel ab, bis die Zentrale neu
+startet. Die Liste lebt im Speicher, hält höchstens 20 Agenten und vergisst einen Agenten, der die
+Verbindung trennt. `--lan-pairing false` schaltet Ankündigen und Warten aus; Agenten ohne Code
+werden dann abgewiesen.
 
-The hub Syncthing listens on its own port (22001 by default, `--hub-listen`), so a Syncthing
-already running on the server keeps 22000. Devices dial the hub at `--hub-address`; the hub
-never needs to reach the devices.
+Das Hub-Syncthing lauscht auf einem eigenen Port (standardmäßig 22001, `--hub-listen`), so behält
+ein Syncthing, das schon auf dem Server läuft, die 22000. Die Geräte wählen den Hub unter
+`--hub-address` an; der Hub muss die Geräte nie erreichen.
 
 ## Zentrale
 
-### Data model
+### Datenmodell
 
-SQLite with migrations embedded in the binary (`crates/zentrale/migrations`).
+SQLite mit Migrationen, die in die Programmdatei eingebettet sind (`crates/zentrale/migrations`).
 
-| Table | Columns |
+| Tabelle | Spalten |
 |---|---|
 | `devices` | id, name, kind, os, public_key, syncthing_id, agent_version, syncthing_version, approved, created_at, last_seen, applied_rev |
 | `folders` | id, label, syncthing_folder_id, ignore_patterns, versioning, encrypted_on_hub, created_at |
-| `shares` | folder_id, device_id, mode, path (no row = "off") |
+| `shares` | folder_id, device_id, mode, path (keine Zeile = „aus“) |
 | `enrollments` | code_hash, expires_at, used_at, device_id |
-| `config_rev` | one revision number, raised in the same transaction as every change |
-| `events` | at, device, folder, kind, text (activity feed) |
-| `admin`, `sessions` | login |
+| `config_rev` | eine Revisionsnummer, erhöht in derselben Transaktion wie jede Änderung |
+| `events` | at, device, folder, kind, text (Aktivitätsverlauf) |
+| `admin`, `sessions` | Anmeldung |
 | `api_tokens` | id, name, scope, token_hash, created_at, last_used_at |
 
-### Login and API
+### Anmeldung und API { #login-and-api }
 
-One admin with a password (argon2id), set with `stellwerk set-password` on the server. A login
-sets an HttpOnly, SameSite=Strict session cookie (Secure behind HTTPS) and returns a CSRF token
-the UI sends back in `X-CSRF-Token` on every change. Only hashes of session tokens and pairing
-codes are stored.
+Ein Admin mit einem Passwort (argon2id), gesetzt mit `stellwerk set-password` auf dem Server. Eine
+Anmeldung setzt ein Sitzungs-Cookie mit HttpOnly und SameSite=Strict (Secure hinter HTTPS) und
+gibt ein CSRF-Token zurück, das die Oberfläche bei jeder Änderung in `X-CSRF-Token` zurückschickt.
+Gespeichert werden nur Hashes der Sitzungstokens und der Codes zum Koppeln.
 
-Scripts and AI assistants use an API token instead (`Authorization: Bearer stw_…`, no CSRF
-token; `crates/zentrale/src/api/access.rs`). Its scope decides what it may call: **read** the
-endpoints marked R below, **manage** also those marked M. Everything else needs the browser
-login, and a request with a token gets `403` there. A new password revokes every token.
+Skripte und KI-Assistenten benutzen stattdessen ein API-Token (`Authorization: Bearer stw_…`,
+kein CSRF-Token; `crates/zentrale/src/api/access.rs`). Sein Umfang entscheidet, was es aufrufen
+darf: **Lesen** die unten mit R markierten Endpunkte, **Verwalten** auch die mit M markierten.
+Alles andere braucht die Anmeldung im Browser, und eine Anfrage mit einem Token bekommt dort
+`403`. Ein neues Passwort widerruft jedes Token.
 
-| Endpoint | Does | Token |
+| Endpunkt | Tut | Token |
 |---|---|---|
-| `GET /api/session`, `POST /api/login`, `POST /api/logout` | login state, log in, log out | |
-| `GET /api/overview` | revision, hub, devices (with online state), folders, shares | R |
-| `POST /api/folders`, `PATCH /api/folders/{id}` | create; rename or set ignore patterns | M |
-| `DELETE /api/folders/{id}` | remove a folder | |
-| `POST /api/shares` | apply a draft of modes and paths as one revision | M |
-| `PATCH`/`DELETE /api/devices/{id}` | rename, block, unblock, remove a device | |
-| `GET /api/devices/{id}/browse?path=` | the folder picker: a directory on an online device, asked of its agent (409 offline, 504 no answer) | R |
-| `GET /api/devices/{id}/search?q=&path=` | directories on an online device whose name matches `q`, below `path` (the home directory when empty); asked of its agent like `browse` | R |
-| `POST /api/enrollments`, `POST /api/enrollments/status` | new pairing code, has a device used it yet | |
-| `POST /api/waiting/{fingerprint}/approve`, `…/reject` | decide about a device waiting in the LAN | |
-| `GET /api/folders/{id}/conflicts/content`, `POST …/conflicts/resolve` | both sides of a conflict, resolve it | |
-| `GET /api/folders/{id}/versions`, `POST …/versions/restore` | versions on the hub, restore one | |
-| `GET /api/events` | activity feed | R |
-| `GET /api/status` | live status of devices and hub | R |
-| `GET /api/ws` | WebSocket with an `update` per change: revision, online devices, live status | |
-| `GET`/`POST /api/tokens`, `DELETE /api/tokens/{id}` | list, create (the token is in the answer this once), revoke API tokens | |
-| `POST /mcp` | the MCP server (see below) | R/M |
+| `GET /api/session`, `POST /api/login`, `POST /api/logout` | Anmeldestatus, anmelden, abmelden | |
+| `GET /api/overview` | Revision, Hub, Geräte (mit Online-Zustand), Ordner, Freigaben | R |
+| `POST /api/folders`, `PATCH /api/folders/{id}` | anlegen; umbenennen oder Ignoriermuster setzen | M |
+| `DELETE /api/folders/{id}` | einen Ordner entfernen | |
+| `POST /api/shares` | einen Entwurf aus Modi und Pfaden als eine Revision anwenden | M |
+| `PATCH`/`DELETE /api/devices/{id}` | ein Gerät umbenennen, sperren, entsperren, entfernen | |
+| `GET /api/devices/{id}/browse?path=` | die Ordnerauswahl: ein Verzeichnis auf einem Gerät, das online ist, erfragt bei seinem Agenten (409 offline, 504 keine Antwort) | R |
+| `GET /api/devices/{id}/search?q=&path=` | Verzeichnisse auf einem Gerät, das online ist, deren Name zu `q` passt, unterhalb von `path` (leer: das Home-Verzeichnis); erfragt bei seinem Agenten wie `browse` | R |
+| `POST /api/enrollments`, `POST /api/enrollments/status` | neuer Code zum Koppeln, hat ein Gerät ihn schon benutzt | |
+| `POST /api/waiting/{fingerprint}/approve`, `…/reject` | über ein Gerät entscheiden, das im LAN wartet | |
+| `GET /api/folders/{id}/conflicts/content`, `POST …/conflicts/resolve` | beide Seiten eines Konflikts, ihn lösen | |
+| `GET /api/folders/{id}/versions`, `POST …/versions/restore` | Versionen auf dem Hub, eine wiederherstellen | |
+| `GET /api/events` | Aktivitätsverlauf | R |
+| `GET /api/status` | Live-Status von Geräten und Hub | R |
+| `GET /api/ws` | WebSocket mit einem `update` je Änderung: Revision, Geräte online, Live-Status | |
+| `GET`/`POST /api/tokens`, `DELETE /api/tokens/{id}` | API-Tokens auflisten, erstellen (das Token steht dieses eine Mal in der Antwort), widerrufen | |
+| `POST /mcp` | der MCP-Server (siehe unten) | R/M |
 
-Every change raises the revision and sends connected agents and the hub their new desired state.
-A failed hub reconcile (hub API briefly unreachable, a refused call) is retried after 1 second,
-doubling up to a minute, until it succeeds or a new revision arrives.
+Jede Änderung erhöht die Revision und schickt den verbundenen Agenten und dem Hub ihren neuen
+Soll-Zustand. Ein fehlgeschlagener Abgleich des Hubs (Hub-API kurz nicht erreichbar, ein
+abgelehnter Aufruf) wird nach 1 Sekunde erneut versucht, verdoppelt bis zu einer Minute, bis er
+klappt oder eine neue Revision kommt.
 
-### Desired states
+### Soll-Zustände
 
-`crates/zentrale/src/desired.rs` turns the stored configuration into one desired state per
-device and one for the hub, as pure functions. The topology is a star:
+`crates/zentrale/src/desired.rs` macht aus der gespeicherten Konfiguration einen Soll-Zustand pro
+Gerät und einen für den Hub, als reine Funktionen. Die Topologie ist ein Stern:
 
-- a device has the hub as its only peer and shares each of its folders with the hub;
-- the hub has every approved device as a peer and holds every folder under
-  `<data>/folders/<syncthing folder id>`, in mode "both", with staggered versioning (one year by
-  default), shared with every device that has the folder;
-- a blocked device gets no desired state and disappears from the hub's peers and folders;
-- a Syncthing device ID is one peer, even if two devices report it; the store turns away a
-  device whose Syncthing ID already belongs to another one.
+- Ein Gerät hat den Hub als einzige Gegenstelle und teilt jeden seiner Ordner mit dem Hub;
+- der Hub hat jedes freigegebene Gerät als Gegenstelle und hält jeden Ordner unter
+  `<data>/folders/<Syncthing-Ordner-ID>`, im Modus „Beides“, mit gestaffelter Versionierung
+  (standardmäßig ein Jahr), geteilt mit jedem Gerät, das den Ordner hat;
+- ein gesperrtes Gerät bekommt keinen Soll-Zustand und verschwindet aus den Gegenstellen und
+  Ordnern des Hubs;
+- eine Syncthing-Geräte-ID ist eine Gegenstelle, auch wenn zwei Geräte sie melden; der Speicher
+  weist ein Gerät ab, dessen Syncthing-ID schon einem anderen gehört.
 
-## MCP server
+## MCP-Server
 
-`crates/zentrale/src/mcp`: the Zentrale answers the [Model Context
-Protocol](https://modelcontextprotocol.io/specification) at `POST /mcp`, so assistants such as
-Claude Code can steer it. Streamable HTTP in its simplest form: each POST carries one JSON-RPC
-message and gets one JSON answer (`202` for a notification); there are no sessions and no
-server-sent events, so `GET` and `DELETE` are `405`. It speaks the protocol versions 2025-11-25
-back to 2024-11-05 and answers `initialize`, `ping`, `tools/list` and `tools/call`.
+`crates/zentrale/src/mcp`: Die Zentrale beantwortet das [Model Context
+Protocol](https://modelcontextprotocol.io/specification) unter `POST /mcp`, so können Assistenten
+wie Claude Code sie steuern. Streamable HTTP in seiner einfachsten Form: Jeder POST trägt eine
+JSON-RPC-Nachricht und bekommt eine JSON-Antwort (`202` für eine Notification); es gibt keine
+Sitzungen und keine Server-Sent Events, also sind `GET` und `DELETE` `405`. Er spricht die
+Protokollversionen 2025-11-25 bis zurück zu 2024-11-05 und beantwortet `initialize`, `ping`,
+`tools/list` und `tools/call`.
 
-Only API tokens get in (`401` with `WWW-Authenticate: Bearer` otherwise); `tools/list` shows a
-token the tools of its scope. A request with an `Origin` of another host is refused.
+Herein kommen nur API-Tokens (sonst `401` mit `WWW-Authenticate: Bearer`); `tools/list` zeigt
+einem Token die Werkzeuge seines Umfangs. Eine Anfrage mit einem `Origin` eines anderen Hosts wird
+abgelehnt.
 
-| Module | Does |
+| Modul | Tut |
 |---|---|
-| `rpc` | JSON-RPC messages, errors, version negotiation, the `initialize` answer |
-| `tools` | the seven tools with their annotations (`readOnlyHint`, `destructiveHint`), and what each calls in the Zentrale |
-| `schemas` | the JSON Schemas of the tools' arguments |
-| `views` | pure functions: devices and folders by ID or name, and a draft checked against the configuration, with the paths it gets (the store's default for a new share) and a description with the folder's size |
+| `rpc` | JSON-RPC-Nachrichten, Fehler, Aushandeln der Version, die Antwort auf `initialize` |
+| `tools` | die sieben Werkzeuge mit ihren Annotationen (`readOnlyHint`, `destructiveHint`) und was jedes in der Zentrale aufruft |
+| `schemas` | die JSON-Schemas der Argumente der Werkzeuge |
+| `views` | reine Funktionen: Geräte und Ordner nach ID oder Name, und ein Entwurf, geprüft gegen die Konfiguration, mit den Pfaden, die er bekommt (der Standard des Speichers für eine neue Freigabe), und einer Beschreibung mit der Größe des Ordners |
 
-`preview_shares` and `apply_shares` take the same draft: cells of folder, device, mode
-(`sendReceive`, `sendOnly`, `receiveOnly`, `off`) and an optional path. The preview runs the
-same check and changes nothing; applying writes the cells that change in one revision through
-the same store function as `POST /api/shares`. The instructions sent on `initialize` tell the
-assistant the order: find, create, preview, ask, apply.
+`preview_shares` und `apply_shares` nehmen denselben Entwurf: Zellen aus Ordner, Gerät, Modus
+(`sendReceive`, `sendOnly`, `receiveOnly`, `off`) und einem optionalen Pfad. Die Vorschau führt
+dieselbe Prüfung aus und ändert nichts; Anwenden schreibt die Zellen, die sich ändern, in einer
+Revision über dieselbe Funktion des Speichers wie `POST /api/shares`. Die Anweisungen, die bei
+`initialize` mitgehen, sagen dem Assistenten die Reihenfolge: finden, anlegen, Vorschau, fragen,
+anwenden.
 
-## Web UI
+## Weboberfläche
 
-`web/`: React with TanStack Router (file-based routes), Query and Table, Tailwind 4 with design
-tokens for light and dark, components in shadcn style on Radix, lucide icons. The build swaps the
-React runtime for [TanStack Redact](https://github.com/TanStack/redact) (a Vite plugin; the code
-keeps importing from `react`), which renders synchronously and makes the initial JavaScript about
-a third smaller; Vitest stays on React, the E2E tests run the build with Redact. The release build
-of the Zentrale embeds `web/dist`; paths outside `/api` fall back to `index.html`.
+`web/`: React mit TanStack Router (dateibasierte Routen), Query und Table, Tailwind 4 mit Design
+Tokens für hell und dunkel, Komponenten im shadcn-Stil auf Radix, Icons von lucide. Der Build
+tauscht die React-Runtime gegen [TanStack Redact](https://github.com/TanStack/redact) (ein
+Vite-Plugin; der Code importiert weiter aus `react`), das synchron rendert und das anfängliche
+JavaScript um etwa ein Drittel kleiner macht; Vitest bleibt bei React, die E2E-Tests laufen gegen
+den Build mit Redact. Der Release-Build der Zentrale bettet `web/dist` ein; Pfade außerhalb von
+`/api` fallen auf `index.html` zurück.
 
-- **Overview**: devices online, folders, revision; the folder × device matrix. Clicks collect in
-  a draft ("3 unsaved changes") and **Apply** sends it as one revision. The server column is
-  fixed: the hub holds every folder. Cells of an offline device that has not applied the current
-  revision show **waiting**.
-- **Devices**: list with search and filter, rename, block, remove; waiting devices from the LAN;
-  **Pair device** creates a code, shows the command per OS and waits until the device shows up,
-  then asks for its folders.
-- **Folders**: mode and local path per device; versions per file with restore; conflicts side by
-  side; rename, ignore patterns (one per line, on every device and the hub), remove.
-- **Conflicts**: every conflict of every folder in one list.
-- **API tokens**: create a token for a script or assistant (shown once, with the command that adds
-  the MCP server to Claude Code), see when each was last used, revoke it.
+- **Übersicht**: Geräte online, Ordner, Revision; die Matrix aus Ordnern × Geräten. Klicks sammeln
+  sich in einem Entwurf („3 ungespeicherte Änderungen.“), und **Anwenden** schickt ihn als eine
+  Revision. Die Spalte des Servers ist fest: Der Hub hält jeden Ordner. Zellen eines Geräts, das
+  offline ist und die aktuelle Revision noch nicht angewendet hat, zeigen **wartet**.
+- **Geräte**: Liste mit Suche und Filter, umbenennen, sperren, entfernen; wartende Geräte aus dem
+  LAN; **Gerät koppeln** erzeugt einen Code, zeigt den Befehl je Betriebssystem und wartet, bis das
+  Gerät auftaucht, dann fragt es nach seinen Ordnern.
+- **Ordner**: Modus und lokaler Pfad je Gerät; Versionen je Datei mit Wiederherstellen; Konflikte
+  nebeneinander; umbenennen, Ignoriermuster (eines pro Zeile, auf jedem Gerät und dem Hub),
+  entfernen.
+- **Konflikte**: jeder Konflikt jedes Ordners in einer Liste.
+- **API-Tokens**: ein Token für ein Skript oder einen Assistenten erstellen (einmal gezeigt, mit
+  dem Befehl, der den MCP-Server zu Claude Code hinzufügt), sehen, wann jedes zuletzt benutzt
+  wurde, es widerrufen.
 
-The [user guide](user-guide.md) describes each page in detail.
+Die [Bedienung](user-guide.md) beschreibt jede Seite im Detail.
 
-German and English with Paraglide: messages in `web/messages/{de,en}.json`, compiled to typed
-functions; the language follows the browser and can be switched in the sidebar (kept in local
-storage).
+Deutsch und Englisch mit Paraglide: Texte in `web/messages/{de,en}.json`, kompiliert zu typisierten
+Funktionen; die Sprache folgt dem Browser und lässt sich in der Seitenleiste umschalten (gemerkt im
+Local Storage).
 
-Light and dark: the color tokens in `src/styles.css` are `light-dark()` pairs, so the browser's
-`color-scheme` picks them. The theme switch in the sidebar (`src/lib/theme.ts`) fixes it with
-`data-theme="light"` or `"dark"` on `<html>` and keeps the choice in local storage; without it the
-system decides. Tailwind's `dark:` variant follows the same choice. `/api/overview` carries the
-Zentrale's `version` for the sidebar.
+Hell und dunkel: Die Farb-Tokens in `src/styles.css` sind `light-dark()`-Paare, so wählt sie das
+`color-scheme` des Browsers. Der Schalter für die Darstellung in der Seitenleiste
+(`src/lib/theme.ts`) legt sie mit `data-theme="light"` oder `"dark"` auf `<html>` fest und merkt
+sich die Wahl im Local Storage; ohne ihn entscheidet das System. Die Variante `dark:` von Tailwind
+folgt derselben Wahl. `/api/overview` liefert die `version` der Zentrale für die Seitenleiste.
 
-Live updates come through `/api/ws` (see above); polling every 30 seconds is only the fallback.
-`src/api/types.ts` checks every answer with Zod.
-`bun run dev:demo` runs the UI on fixtures (`src/demo/`) without a Zentrale. The Playwright tests in
-`e2e/` and the screenshots (`bun run screenshots`, or **Actions → Update screenshots**) use the same
-demo mode, so they need neither Rust nor Syncthing.
+Die Live-Aktualisierung kommt über `/api/ws` (siehe oben); Abfragen alle 30 Sekunden sind nur der
+Rückfall. `src/api/types.ts` prüft jede Antwort mit Zod. `bun run dev:demo` startet die Oberfläche
+mit Fixtures (`src/demo/`) ohne Zentrale. Die Playwright-Tests in `e2e/` und die Screenshots
+(`bun run screenshots` oder **Actions → Update screenshots**) nutzen denselben Demomodus, sie
+brauchen also weder Rust noch Syncthing.
 
-## Live status and activity
+## Live-Status und Aktivität
 
-The engine's monitor (`crates/engine/src/monitor.rs`) long-polls Syncthing's `/rest/events` and
-reads `/rest/db/status` for every folder whenever something happened, at most once per second.
+Der Monitor der Engine (`crates/engine/src/monitor.rs`) fragt `/rest/events` von Syncthing per Long
+Polling ab und liest `/rest/db/status` für jeden Ordner, sobald etwas passiert ist, höchstens
+einmal pro Sekunde.
 
-- Each agent sends the result as `status` over its WebSocket.
-- The Zentrale watches the hub the same way and also reads `/rest/db/completion` for every
-  folder and device: how much of a folder a device has, known from its index even while it is
-  offline ("214 changes wait on the server"). Items changed locally in a receive-only folder
-  count as missing there too, because Syncthing announces them as invalid with an empty version.
-  Only the device itself can tell them apart, so its `status` also carries `need_items` and
-  `local_changes`, and the UI shows "In sync, 1,903 local changes" instead of "Loading". Older
-  agents leave both out; the UI then keeps the hub's numbers.
-- Changes that arrive at the hub (`RemoteChangeDetected`, with the short ID of the device that
-  made them) are counted per device and folder over 30 seconds and written to the activity feed
-  ("laptop changed 18 files in Projekte"), as are pairings, connects and disconnects.
-- The UI gets everything through `/api/ws`: one `update` with revision, online devices and the
-  live state per change (throttled to 300 ms). The status goes straight into the query cache; a
-  new revision or online state reloads the overview.
+- Jeder Agent schickt das Ergebnis als `status` über seinen WebSocket.
+- Die Zentrale beobachtet den Hub genauso und liest außerdem `/rest/db/completion` für jeden
+  Ordner und jedes Gerät: wie viel von einem Ordner ein Gerät hat, bekannt aus seinem Index, auch
+  während es offline ist („214 Änderungen warten auf dem Server“). Elemente, die in einem Ordner
+  mit Nur empfangen lokal geändert wurden, zählen dort auch als fehlend, weil Syncthing sie als
+  ungültig mit leerer Version ankündigt. Nur das Gerät selbst kann sie unterscheiden, deshalb
+  enthält sein `status` auch `need_items` und `local_changes`, und die Oberfläche zeigt „Synchron,
+  1.903 lokale Änderungen“ statt „Lädt“. Ältere Agenten lassen beides weg; die Oberfläche behält
+  dann die Zahlen des Hubs.
+- Änderungen, die am Hub ankommen (`RemoteChangeDetected`, mit der kurzen ID des Geräts, das sie
+  gemacht hat), werden je Gerät und Ordner über 30 Sekunden gezählt und in den Aktivitätsverlauf
+  geschrieben („Laptop hat 18 Dateien in Projekte geändert“), ebenso Kopplungen, Verbindungen und
+  Trennungen.
+- Die Oberfläche bekommt alles über `/api/ws`: ein `update` mit Revision, Geräten online und dem
+  Live-Zustand je Änderung (gedrosselt auf 300 ms). Der Status geht direkt in den Query-Cache;
+  eine neue Revision oder ein neuer Online-Zustand lädt die Übersicht neu.
 
-Syncthing keeps events for a mask only from its first request on (lib/api/api.go,
-`getEventSub`), so the monitor starts together with Syncthing.
+Syncthing hält Events für eine Maske erst ab ihrer ersten Anfrage (lib/api/api.go,
+`getEventSub`), deshalb startet der Monitor zusammen mit Syncthing.
 
-## Conflicts and versions
+## Konflikte und Versionen
 
-The hub holds every folder in full, so both are handled there and Syncthing carries the result
-to every device (`crates/engine/src/files.rs`, `crates/zentrale/src/files.rs`).
+Der Hub hält jeden Ordner vollständig, also werden beide dort behandelt, und Syncthing trägt das
+Ergebnis zu jedem Gerät (`crates/engine/src/files.rs`, `crates/zentrale/src/files.rs`).
 
-- **Conflicts.** Syncthing names a conflict copy
-  `name.sync-conflict-YYYYMMDD-HHMMSS-<short ID>.ext` (lib/model/folder_sendrecv.go). The
-  Zentrale searches the hub's folders every 30 seconds, notes new conflicts in the activity feed
-  and shows both sides, with a line diff for text up to 256 KB. Syncthing's temporary files
-  are not conflicts, and symbolic links are neither listed nor read, since a device could sync
-  one that points anywhere on the server. Resolving happens on the hub's
-  disk, followed by a rescan:
-  - keep the current file: the copy goes to the versions;
-  - keep the copy: the current file goes to the versions, the copy takes its name;
-  - keep both: the copy becomes `name.<device>.ext` next to the original.
+- **Konflikte.** Syncthing benennt eine Konfliktkopie
+  `name.sync-conflict-YYYYMMDD-HHMMSS-<short ID>.ext` (lib/model/folder_sendrecv.go). Die
+  Zentrale durchsucht die Ordner des Hubs alle 30 Sekunden, vermerkt neue Konflikte im
+  Aktivitätsverlauf und zeigt beide Seiten, mit einem zeilenweisen Diff für Text bis 256 KB. Die
+  temporären Dateien von Syncthing sind keine Konflikte, und symbolische Links werden weder
+  gelistet noch gelesen, da ein Gerät einen abgleichen könnte, der irgendwohin auf dem Server
+  zeigt. Gelöst wird auf der Platte des Hubs, gefolgt von einem Rescan:
+  - die aktuelle Datei behalten: Die Kopie kommt in die Versionen;
+  - die Kopie behalten: Die aktuelle Datei kommt in die Versionen, die Kopie bekommt ihren Namen;
+  - beide behalten: Die Kopie wird zu `name.<gerät>.ext` neben dem Original.
 
-  The discarded side is moved into `.stversions` under Syncthing's own naming
-  (`name~YYYYMMDD-HHMMSS.ext`, lib/versioner/util.go), so it shows up among the versions.
+  Die verworfene Seite wird mit der eigenen Benennung von Syncthing nach `.stversions`
+  verschoben (`name~YYYYMMDD-HHMMSS.ext`, lib/versioner/util.go), so erscheint sie unter den
+  Versionen.
 
-  Both names carry a time without a zone. Syncthing writes and reads it as local time
-  (`conflictName`; `ParseInLocation(…, time.Local)` in lib/versioner/util.go), Stellwerk as
-  UTC. In the Docker image both are UTC; on a server in another time zone the conflict time
-  shown and the time of a version archived by resolving are off by the zone's offset, and the
-  staggered cleanup ages such a version by that much.
-- **Versions.** The hub keeps staggered versions (a year by default). The UI lists them through
-  `GET /rest/folder/versions` and restores one with `POST /rest/folder/versions`, which archives
-  the current file first.
+  Beide Namen tragen eine Zeit ohne Zone. Syncthing schreibt und liest sie als Ortszeit
+  (`conflictName`; `ParseInLocation(…, time.Local)` in lib/versioner/util.go), Stellwerk als UTC.
+  Im Docker-Image ist beides UTC; auf einem Server in einer anderen Zeitzone weichen die
+  angezeigte Zeit des Konflikts und die Zeit einer beim Lösen archivierten Version um den Versatz
+  der Zone ab, und das gestaffelte Aufräumen altert eine solche Version um genau so viel.
+- **Versionen.** Der Hub hält gestaffelte Versionen (standardmäßig ein Jahr). Die Oberfläche listet
+  sie über `GET /rest/folder/versions` und stellt eine mit `POST /rest/folder/versions` wieder
+  her, das die aktuelle Datei vorher archiviert.
 
 ## Agent
 
-`stellwerk-agent run` loads `agent.json`, starts its Syncthing (downloading the pinned release on
-first start), starts the monitor and connects to the Zentrale. It pings the Zentrale every 30
-seconds and counts the connection as lost when nothing at all came back for 90 seconds, so a
-link that died silently (suspend, NAT timeout) is noticed. A lost connection is retried after
-1 second, doubling up to 30 seconds; after `rejected` it waits a minute. Syncthing keeps running
-while the Zentrale is unreachable, so syncing with the hub goes on with the last applied state.
-Syncthing runs with `--no-restart`: if it exits (a crash, or a restart asked for over its API),
-the agent exits with an error and the service manager starts both again. The Zentrale does the
-same with the hub Syncthing and leaves the restart to Docker or systemd.
+`stellwerk-agent run` lädt `agent.json`, startet sein Syncthing (beim ersten Start lädt es das
+festgelegte Release herunter), startet den Monitor und verbindet sich mit der Zentrale. Er pingt
+die Zentrale alle 30 Sekunden und betrachtet die Verbindung als verloren, wenn 90 Sekunden lang gar
+nichts zurückkam, so fällt eine still abgerissene Verbindung (Standby, NAT-Timeout) auf. Eine
+verlorene Verbindung wird nach 1 Sekunde erneut versucht, verdoppelt bis 30 Sekunden; nach
+`rejected` wartet er eine Minute. Syncthing läuft weiter, während die Zentrale nicht erreichbar
+ist, so geht der Abgleich mit dem Hub mit dem zuletzt angewendeten Stand weiter. Syncthing läuft
+mit `--no-restart`: Beendet es sich (ein Absturz oder ein Neustart, der über seine API angefordert
+wurde), beendet sich der Agent mit einem Fehler, und der Dienstmanager startet beide neu. Die
+Zentrale macht es mit dem Hub-Syncthing genauso und überlässt den Neustart Docker oder systemd.
 
-Before applying a desired state, the agent adds the exclusions other programs on the device
-listed in `ignore.d/` (`crates/agent/src/local_ignores.rs`, a merge with unit tests that is
-handed the function resolving links): each listed path inside a folder becomes a rooted, escaped
-pattern for exactly that path, placed before any line that could keep the file
-(`engine::ignore::anchored_pattern`, checked against the pinned Syncthing in
-`crates/engine/tests/anchored_ignores.rs`). The lists are read again every 10 seconds; a
-changed list is applied to the last desired state at once.
+Bevor er einen Soll-Zustand anwendet, fügt der Agent die Ausnahmen hinzu, die andere Programme auf
+dem Gerät in `ignore.d/` aufgelistet haben (`crates/agent/src/local_ignores.rs`, ein Merge mit
+Unit-Tests, dem die Funktion übergeben wird, die Links auflöst): Jeder gelistete Pfad in einem
+Ordner wird zu einem verankerten, maskierten Muster für genau diesen Pfad, platziert vor jeder
+Zeile, die die Datei behalten könnte (`engine::ignore::anchored_pattern`, geprüft gegen das
+festgelegte Syncthing in `crates/engine/tests/anchored_ignores.rs`). Die Listen werden alle
+10 Sekunden neu gelesen; eine geänderte Liste wird sofort auf den letzten Soll-Zustand angewendet.
 
-**Directories on request** (`crates/agent/src/browse.rs`, `search.rs`): `browse` lists the
-subdirectories of one directory for the folder picker; `search` walks breadth first from a start
-directory and returns the directories whose name holds every word of the query as word prefixes,
-in order ("game of thrones" finds `Game.of.Thrones.S01`), without looking below a match. It skips
-hidden directories, follows no symbolic links and stops after 8 levels, 50 matches or 10 seconds,
-saying so (`truncated`). Both run off the async runtime and next to each other, so a search
-holds up neither the folder picker nor a new desired state; an agent that does not know a request leaves it
-unanswered, and the Zentrale reports "update its agent" after its timeout.
+**Verzeichnisse auf Anfrage** (`crates/agent/src/browse.rs`, `search.rs`): `browse` listet die
+Unterverzeichnisse eines Verzeichnisses für die Ordnerauswahl auf; `search` geht von einem
+Startverzeichnis aus in die Breite und liefert die Verzeichnisse, deren Name jedes Wort der Suche
+als Wortanfang enthält, in dieser Reihenfolge („game of thrones“ findet `Game.of.Thrones.S01`),
+ohne unterhalb eines Treffers zu suchen. Sie überspringt versteckte Verzeichnisse, folgt keinen
+symbolischen Links und hört nach 8 Ebenen, 50 Treffern oder 10 Sekunden auf und sagt das
+(`truncated`). Beide laufen außerhalb der Async-Runtime und nebeneinander, so hält eine Suche weder
+die Ordnerauswahl noch einen neuen Soll-Zustand auf; ein Agent, der eine Anfrage nicht kennt, lässt
+sie unbeantwortet, und die Zentrale meldet nach ihrem Timeout, dass das Gerät nicht geantwortet hat
+und sein Agent aktualisiert werden sollte.
 
-Its Syncthing listens on a random port on all interfaces, with discovery, relays and NAT
-traversal off: the device dials the hub at the address from the desired state, and the hub,
-which has no address for devices (`dynamic`), only accepts their connections.
+Sein Syncthing lauscht auf einem zufälligen Port auf allen Schnittstellen, mit Discovery, Relays
+und NAT-Traversal aus: Das Gerät wählt den Hub unter der Adresse aus dem Soll-Zustand an, und der
+Hub, der keine Adresse für Geräte hat (`dynamic`), nimmt nur ihre Verbindungen an.
 
-**Service** (`crates/agent/src/service`): `service install` writes a definition for the binary
-it runs from and its data directory and starts it, or restarts an agent that already runs, so a
-replaced binary takes over. The definitions are pure functions with unit
-tests (`definitions.rs`); `linux.rs`, `macos.rs` and `windows.rs` install them:
+**Dienst** (`crates/agent/src/service`): `service install` schreibt eine Definition für die
+Programmdatei, aus der es läuft, und für ihr Datenverzeichnis und startet sie, oder startet einen
+Agenten neu, der schon läuft, so übernimmt eine ersetzte Programmdatei. Die Definitionen sind
+reine Funktionen mit Unit-Tests (`definitions.rs`); `linux.rs`, `macos.rs` und `windows.rs`
+installieren sie:
 
-| System | Definition | Started with |
+| System | Definition | Gestartet mit |
 |---|---|---|
-| Linux | systemd user unit, `Restart=on-failure` | `systemctl --user enable`, `restart` |
-| macOS | launchd agent with `RunAtLoad`, `KeepAlive` | `launchctl bootout`, `bootstrap gui/<uid>` |
-| Windows | Task Scheduler task at logon, restart on failure, running `stellwerk-agent-background.exe` | stop file (below), `schtasks /Create /XML`, `/Run` |
+| Linux | systemd-Benutzer-Unit, `Restart=on-failure` | `systemctl --user enable`, `restart` |
+| macOS | launchd-Agent mit `RunAtLoad`, `KeepAlive` | `launchctl bootout`, `bootstrap gui/<uid>` |
+| Windows | Aufgabe in der Aufgabenplanung bei der Anmeldung, Neustart bei Fehler, startet `stellwerk-agent-background.exe` | Stop-Datei (unten), `schtasks /Create /XML`, `/Run` |
 
-Systemd and launchd stop the agent with `SIGTERM`, on which it shuts its Syncthing down cleanly.
-A Windows task cannot be ended with a signal, so `service uninstall`, and `service install` when
-an agent runs, writes a `stop` file into the data directory, which the running agent looks for
-every second, and waits until the agent has exited before removing or replacing the task. A stop file older than the agent's start is ignored, so a
-leftover from an interrupted uninstall cannot stop a new agent.
+systemd und launchd stoppen den Agenten mit `SIGTERM`, worauf er sein Syncthing sauber
+herunterfährt. Eine Windows-Aufgabe lässt sich nicht mit einem Signal beenden, deshalb schreiben
+`service uninstall`, und `service install`, wenn ein Agent läuft, eine Datei `stop` in das
+Datenverzeichnis, nach der der laufende Agent jede Sekunde schaut, und warten, bis sich der Agent
+beendet hat, bevor sie die Aufgabe entfernen oder ersetzen. Eine Stop-Datei, die älter ist als der
+Start des Agenten, wird ignoriert, so kann ein Rest aus einer unterbrochenen Deinstallation keinen
+neuen Agenten stoppen.
 
 ## Engine
 
-| Module | Does |
+| Modul | Tut |
 |---|---|
-| `pin` | the pinned Syncthing version and the SHA-256 of each platform's release archive |
-| `download` | fetches the archive once into a cache directory, checks it, unpacks binary and license |
-| `process` | starts Syncthing with its own `--home`, GUI/API on 127.0.0.1 with a random port and a fresh API key; no auto-upgrade, no usage reporting |
-| `client` | Syncthing REST API: `/rest/config`, `/rest/config/{devices,folders}/{id}`, `/rest/db/scan`, … |
-| `reconcile` | pure function: actual config + desired state → list of API calls |
-| `apply` | runs those calls; the only side effects of reconciling |
-| `monitor` | event stream, folder status, completion of other devices, changes that arrived |
-| `files` | conflict copies and versions in a folder on disk: find, parse, resolve, archive |
+| `pin` | die festgelegte Syncthing-Version und der SHA-256 des Release-Archivs jeder Plattform |
+| `download` | holt das Archiv einmal in ein Cache-Verzeichnis, prüft es, entpackt Programmdatei und Lizenz |
+| `process` | startet Syncthing mit eigenem `--home`, GUI/API auf 127.0.0.1 mit zufälligem Port und neuem API-Schlüssel; kein Auto-Upgrade, keine Nutzungsstatistik |
+| `client` | REST-API von Syncthing: `/rest/config`, `/rest/config/{devices,folders}/{id}`, `/rest/db/scan`, … |
+| `reconcile` | reine Funktion: Ist-Konfiguration + Soll-Zustand → Liste von API-Aufrufen |
+| `apply` | führt diese Aufrufe aus; die einzigen Seiteneffekte des Abgleichs |
+| `monitor` | Event-Strom, Ordnerstatus, Vollständigkeit anderer Geräte, angekommene Änderungen |
+| `files` | Konfliktkopien und Versionen in einem Ordner auf der Platte: finden, parsen, lösen, archivieren |
 
 ### Reconciler
 
-1. Read `GET /rest/config` and the own device ID.
-2. Compare with the desired state: add missing devices and folders, change differing ones,
-   remove those no longer wanted. The own device is never removed.
-3. Write the changes with `PUT`/`DELETE` on `/rest/config/devices/{id}` and
-   `/rest/config/folders/{id}`, devices before the folders that name them; then the ignore
-   patterns with `POST /rest/db/ignores?folder={id}` where they differ from `GET` (empty lines
-   and surrounding spaces do not count, as Syncthing trims them too). A new folder always gets
-   its patterns written, even none, so a `.stignore` left in its directory does not stay in
-   force.
+1. `GET /rest/config` und die eigene Geräte-ID lesen.
+2. Mit dem Soll-Zustand vergleichen: fehlende Geräte und Ordner hinzufügen, abweichende ändern,
+   nicht mehr gewollte entfernen. Das eigene Gerät wird nie entfernt.
+3. Die Änderungen mit `PUT`/`DELETE` auf `/rest/config/devices/{id}` und
+   `/rest/config/folders/{id}` schreiben, Geräte vor den Ordnern, die sie nennen; dann die
+   Ignoriermuster mit `POST /rest/db/ignores?folder={id}`, wo sie von `GET` abweichen (leere Zeilen
+   und Leerzeichen drumherum zählen nicht, da Syncthing sie auch trimmt). Ein neuer Ordner bekommt
+   seine Muster immer geschrieben, auch keine, so bleibt eine `.stignore`, die in seinem
+   Verzeichnis liegt, nicht in Kraft.
 
-A folder with a new path is removed and added again, so Syncthing starts with a fresh index
-instead of treating the files at the old path as deleted. The reconciler only changes
-configuration; removing a folder leaves its files alone.
+Ein Ordner mit neuem Pfad wird entfernt und neu hinzugefügt, so beginnt Syncthing mit einem
+frischen Index, statt die Dateien am alten Pfad als gelöscht zu behandeln. Der Reconciler ändert
+nur Konfiguration; einen Ordner zu entfernen lässt seine Dateien in Ruhe.
 
-| Mode | Syncthing folder type |
+| Modus | Syncthing-Ordnertyp |
 |---|---|
-| Both | `sendreceive` |
-| Send only | `sendonly` |
-| Receive only | `receiveonly` |
-| Off | folder not present on the device |
+| Beides | `sendreceive` |
+| Nur senden | `sendonly` |
+| Nur empfangen | `receiveonly` |
+| Aus | Ordner nicht auf dem Gerät vorhanden |
 
-## Roadmap
+## Roadmap { #roadmap }
 
-| Phase | Content | Gate |
+| Phase | Inhalt | Meilenstein |
 |---|---|---|
-| 0 · Spike ✅ | engine starts Syncthing, reconciler applies a fixed desired state | integration test "file from A arrives on B" is green |
-| 1 · MVP ✅ | Zentrale with SQLite, agent over WebSocket, pairing with a one-time code, hub Syncthing, matrix and device list in the UI | 3-node test with an offline device green (`crates/zentrale/tests/phase1_gate.rs`), own devices one week in daily use (open) |
-| 2 · Comfort ✅ | live status, activity, conflicts on the hub, versions, ignore patterns, German and English | E2E green, conflict and restore in the integration test (`crates/zentrale/tests/phase2_gate.rs`) |
-| 3 · Distribution | Docker image and Quadlet ✅, LAN discovery ✅, agent as a service and Windows installer ✅, CI on Linux, Windows and macOS ✅; self-update of the agent on Linux and macOS ✅, on Windows (open) | v1.0 published through `release.yml` |
+| 0 · Spike ✅ | Engine startet Syncthing, Reconciler wendet einen festen Soll-Zustand an | Integrationstest „Datei von A kommt auf B an“ ist grün |
+| 1 · MVP ✅ | Zentrale mit SQLite, Agent über WebSocket, Koppeln mit Einmal-Code, Hub-Syncthing, Matrix und Geräteliste in der Oberfläche | Test mit 3 Knoten und einem Gerät, das offline ist, grün (`crates/zentrale/tests/phase1_gate.rs`), eigene Geräte eine Woche im Alltag (offen) |
+| 2 · Komfort ✅ | Live-Status, Aktivität, Konflikte auf dem Hub, Versionen, Ignoriermuster, Deutsch und Englisch | E2E grün, Konflikt und Wiederherstellen im Integrationstest (`crates/zentrale/tests/phase2_gate.rs`) |
+| 3 · Verteilung | Docker-Image und Quadlet ✅, Erkennung im LAN ✅, Agent als Dienst und Windows-Installer ✅, CI unter Linux, Windows und macOS ✅; Selbst-Update des Agenten unter Linux und macOS ✅, unter Windows (offen) | v1.0 veröffentlicht über `release.yml` |

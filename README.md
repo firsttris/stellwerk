@@ -1,106 +1,107 @@
 <div align="center">
 
-<h1>Stellwerk: central web UI to manage Syncthing on all your devices</h1>
+<h1>Stellwerk: Dateien auf allen Rechnern aktuell halten, gesteuert von einer Stelle</h1>
 
-**Self-hosted control center for Syncthing: pair devices, share folders and set paths for every PC from one web UI.**<br>
-A small agent on each device brings its own Syncthing and follows what the server says; a hub Syncthing on the server keeps a full copy of every folder.<br>
-Open source, no cloud, no clicking "accept" on every machine.
+**Dateien auf allen Rechnern im Betrieb aktuell halten, ohne Cloud und ohne Fileserver.**<br>
+Projektordner, Vorlagen und Pläne im Büro wie auf dem Laptop an der Baustelle; du legst einmal fest, wer welchen Ordner bekommt.<br>
+Eine zentrale Weboberfläche für Syncthing auf deinem Server: Open Source, ohne Cloud, ohne auf jedem Rechner „annehmen“ zu klicken.
 
 [![CI](https://github.com/Speicherstadt/stellwerk/actions/workflows/ci.yml/badge.svg)](https://github.com/Speicherstadt/stellwerk/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Speicherstadt/stellwerk?logo=github&label=release)](https://github.com/Speicherstadt/stellwerk/releases/latest)
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
-[![Docs](https://img.shields.io/badge/docs-speicherstadt.app%2Fstellwerk-4f46e5?logo=materialformkdocs&logoColor=white)](https://speicherstadt.app/stellwerk/)
+[![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
+[![Doku](https://img.shields.io/badge/Doku-speicherstadt.app%2Fstellwerk-4f46e5?logo=materialformkdocs&logoColor=white)](https://speicherstadt.app/stellwerk/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/tristanteu/stellwerk?logo=docker&logoColor=white)](https://hub.docker.com/r/tristanteu/stellwerk)
 
-[Why?](#why-stellwerk) •
-[Features](#features) •
-[Quick start](#quick-start) •
+[Warum?](#warum-stellwerk) •
+[Funktionen](#funktionen) •
+[Schnellstart](#schnellstart) •
 [FAQ](#faq) •
-[Documentation](https://speicherstadt.app/stellwerk/) •
-[Development](#development) •
-[Deutsch](README.de.md)
+[Dokumentation](https://speicherstadt.app/stellwerk/) •
+[Entwicklung](#entwicklung)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.png">
-  <img src="docs/screenshot.png" alt="Stellwerk overview: a folder by device matrix showing which device sends, receives or does not hold each Syncthing folder, with a draft of two changes waiting to be applied" width="900">
+  <img src="docs/screenshot.png" alt="Stellwerk-Übersicht: eine Matrix aus Ordnern und Geräten, die zeigt, welches Gerät jeden Syncthing-Ordner sendet, empfängt oder nicht hat, mit einem Entwurf aus zwei Änderungen, die noch angewendet werden" width="900">
 </picture>
 
 </div>
 
-## Why Stellwerk?
+## Warum Stellwerk?
 
-The office PC, the boss's laptop and the notebook at the site need the same plans, templates and
-project folders, without a cloud subscription or a file server behind a VPN. Syncthing syncs
-folders directly between the computers, but it has no central management: every device is set up in its own web UI, and every new
-share has to be accepted on the other side. Resilio Sync offers a management console, but only
-commercially and closed source.
+Der Büro-PC, der Laptop des Chefs und das Notebook auf der Baustelle brauchen dieselben Pläne,
+Vorlagen und Projektordner. Ein Cloud-Abo will man dafür nicht, einen Fileserver mit VPN auch
+nicht. [Syncthing](https://syncthing.net) gleicht Ordner direkt zwischen den Rechnern ab, hat aber
+keine zentrale Verwaltung: Jedes Gerät wird in seiner eigenen Weboberfläche eingerichtet, und jede
+neue Freigabe muss auf der Gegenseite angenommen werden. Resilio Sync bietet eine
+Verwaltungskonsole, aber nur kommerziell und als Closed Source.
 
-- **Configure once, on the server**: pair a device, pick folders, modes and paths; both sides
-  are set up automatically.
-- **No standstill when a PC is off**: the server is a member of every folder and holds a full
-  copy, so changes reach a device as soon as it is back.
-- **A clear overview**: folders × devices as one matrix, sync status at a glance.
-- **Syncthing does the syncing**: proven, encrypted transfer; Stellwerk only steers it.
+- **Einmal einrichten, auf dem Server**: Gerät koppeln, Ordner, Modus und Pfad wählen; beide
+  Seiten werden automatisch eingerichtet.
+- **Kein Stillstand, wenn ein PC aus ist**: Der Server ist Mitglied in jedem Ordner und hält eine
+  vollständige Kopie, so erreichen Änderungen ein Gerät, sobald es wieder an ist.
+- **Klare Übersicht**: Ordner × Geräte als eine Matrix, der Sync-Status auf einen Blick.
+- **Syncthing überträgt**: bewährt und verschlüsselt; Stellwerk steuert es nur.
 
-## Features
+## Funktionen
 
-Briefly per area; the details are on the linked page of the [documentation](https://speicherstadt.app/stellwerk/).
+Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation](https://speicherstadt.app/stellwerk/).
 
-| Area | What Stellwerk does |
+| Bereich | Was Stellwerk kann |
 |---|---|
-| 🗺️ [One matrix for everything](https://speicherstadt.app/stellwerk/user-guide.html#the-matrix) | Folders × devices, one click per cell for both directions, send only, receive only or off; pick the folder on a PC by clicking through its directories; changes collect as a draft and go out as one numbered revision; a device that is off catches up when it is back |
-| 🔗 [Pairing without clicking on every PC](https://speicherstadt.app/stellwerk/user-guide.html#pair-device) | One command per device with a code valid for 15 minutes, also behind your own CA; in the LAN without a code over mDNS; the agent starts at login without admin rights on Linux, macOS and Windows and signs in with its own Ed25519 key; API tokens for scripts, read-only or allowed to manage folders and shares |
-| 🤖 [Claude and other assistants (MCP)](https://speicherstadt.app/stellwerk/user-guide.html#claude-code-and-other-assistants-mcp) | MCP server built in at `/mcp`: the assistant searches the device by name, creates the folder and shows a preview with the size; only a "manage" token applies, and devices, pairing and deleting stay with the browser login |
-| 🗄️ [The server holds everything](https://speicherstadt.app/stellwerk/user-guide.html#overview) | Full copy of each folder with versions for a year; live status per folder and device and an activity feed; [conflicts](https://speicherstadt.app/stellwerk/user-guide.html#conflicts) side by side with a diff, any older version restorable; German and English, light and dark; the agent's own Syncthing never touches one you already run |
+| 🗺️ [Eine Matrix für alles](https://speicherstadt.app/stellwerk/user-guide.html#the-matrix) | Ordner × Geräte, ein Klick pro Zelle für beide Richtungen, nur senden, nur empfangen oder aus; den Ordner auf einem PC wählst du per Klick durch seine Verzeichnisse; Änderungen sammeln sich als Entwurf und gehen als eine nummerierte Revision hinaus; ein ausgeschaltetes Gerät holt auf, sobald es wieder an ist |
+| 🔗 [Koppeln, ohne auf jedem PC zu klicken](https://speicherstadt.app/stellwerk/user-guide.html#pair-device) | Ein Befehl pro Gerät mit einem Code, der 15 Minuten gilt, auch hinter eigener CA; im LAN ohne Code über mDNS; der Agent startet bei der Anmeldung ohne Administratorrechte unter Linux, macOS und Windows und meldet sich mit seinem eigenen Ed25519-Schlüssel an; API-Tokens für Skripte, nur lesend oder mit dem Recht, Ordner und Freigaben zu verwalten |
+| 🤖 [Claude und andere Assistenten (MCP)](https://speicherstadt.app/stellwerk/user-guide.html#claude-code-and-other-assistants-mcp) | MCP-Server unter `/mcp` eingebaut: Der Assistent sucht auf dem Gerät nach dem Namen, legt den Ordner an und zeigt eine Vorschau mit der Größe; nur ein Token mit Verwaltungsrecht wendet an, Geräte, Koppeln und Löschen bleiben der Anmeldung im Browser vorbehalten |
+| 🗄️ [Der Server hat alles](https://speicherstadt.app/stellwerk/user-guide.html#overview) | Vollständige Kopie jedes Ordners mit Versionen für ein Jahr; Live-Status je Ordner und Gerät und ein Aktivitätsverlauf; [Konflikte](https://speicherstadt.app/stellwerk/user-guide.html#conflicts) nebeneinander mit Diff, jede ältere Version wiederherstellbar; Deutsch und Englisch, hell und dunkel; das eigene Syncthing des Agenten fasst eines, das du schon betreibst, nie an |
 
 ## Screenshots
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshot-devices.png" alt="Device list with online and offline devices, the folders each holds and the agent version"><br><sub><b>Devices</b>: online or offline, their folders and the agent version</sub></td>
-    <td width="50%"><img src="docs/screenshot-pairing.png" alt="Pairing dialog with the agent command and a one-time code, waiting for the new device"><br><sub><b>Pair device</b>: one command with a one-time code</sub></td>
+    <td width="50%"><img src="docs/screenshot-devices.png" alt="Geräteliste mit Geräten online und offline, den Ordnern auf jedem Gerät und der Version des Agenten"><br><sub><b>Geräte</b>: online oder offline, ihre Ordner und die Version des Agenten</sub></td>
+    <td width="50%"><img src="docs/screenshot-pairing.png" alt="Dialog zum Koppeln mit dem Befehl für den Agenten und einem Einmal-Code, wartend auf das neue Gerät"><br><sub><b>Gerät koppeln</b>: ein Befehl mit einem Einmal-Code</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshot-folder.png" alt="Folder page with the mode and the local path of the folder on every device"><br><sub><b>Folder</b>: mode and local path on every device</sub></td>
-    <td width="50%"><img src="docs/screenshot-conflict.png" alt="A Syncthing conflict shown side by side with a line diff and the choice to keep one or both versions"><br><sub><b>Conflict</b>: both versions side by side, keep one or both</sub></td>
+    <td width="50%"><img src="docs/screenshot-folder.png" alt="Ordnerseite mit dem Modus und dem lokalen Pfad des Ordners auf jedem Gerät"><br><sub><b>Ordner</b>: Modus und lokaler Pfad auf jedem Gerät</sub></td>
+    <td width="50%"><img src="docs/screenshot-conflict.png" alt="Ein Syncthing-Konflikt nebeneinander mit einem zeilenweisen Diff und der Wahl, eine oder beide Fassungen zu behalten"><br><sub><b>Konflikt</b>: beide Fassungen nebeneinander, eine oder beide behalten</sub></td>
   </tr>
 </table>
 
-## Stellwerk and the alternatives
+## Stellwerk und die Alternativen
 
-Stellwerk is made for one admin who wants all the devices, in a business or their own, synced
-through their own server.
+Stellwerk ist für einen Admin gemacht, der alle Geräte, ob im Betrieb oder die eigenen, über den
+eigenen Server abgleichen will.
 
-| | What it is | Where Stellwerk differs |
+| | Was es ist | Worin Stellwerk sich unterscheidet |
 |---|---|---|
-| [Syncthing](https://syncthing.net) alone | peer-to-peer sync, configured on each device | one place to configure all devices, a server that is always in every folder |
-| [Resilio Sync](https://www.resilio.com) with Management Console | sync with central management | open source and free; no commercial license needed |
-| [Seafile](https://www.seafile.com) | self-hosted file sync and share server with its own clients | uses Syncthing; plain folders on every device, no own storage format |
-| [Nextcloud](https://nextcloud.com) | self-hosted cloud suite with file sync | does only sync; direct LAN transfer through Syncthing |
-| [SyncWings](https://forum.syncthing.net/t/syncwings-web-ui-for-syncthing-filestash-single-or-multi-user-easy-file-management-looking-for-testers/25202) | web file manager on top of Syncthing instances | manages the Syncthing on every device, not only on the server |
+| [Syncthing](https://syncthing.net) allein | Peer-to-Peer-Sync, auf jedem Gerät eingerichtet | eine Stelle, um alle Geräte einzurichten, ein Server, der immer in jedem Ordner ist |
+| [Resilio Sync](https://www.resilio.com) mit Management Console | Sync mit zentraler Verwaltung | Open Source und kostenlos; keine kommerzielle Lizenz nötig |
+| [Seafile](https://www.seafile.com) | selbst gehosteter Server für Sync und Freigaben mit eigenen Clients | nutzt Syncthing; normale Ordner auf jedem Gerät, kein eigenes Speicherformat |
+| [Nextcloud](https://nextcloud.com) | selbst gehostete Cloud-Suite mit Datei-Sync | macht nur Sync; direkte Übertragung im LAN über Syncthing |
+| [SyncWings](https://forum.syncthing.net/t/syncwings-web-ui-for-syncthing-filestash-single-or-multi-user-easy-file-management-looking-for-testers/25202) | Web-Dateimanager auf Syncthing-Instanzen | verwaltet das Syncthing auf jedem Gerät, nicht nur auf dem Server |
 
-## Quick start
+## Schnellstart
 
-Stellwerk runs as one container (`tristanteu/stellwerk`, amd64 and arm64) on a Linux server with Docker or Podman:
-a NAS, a mini PC, a Raspberry Pi 4/5, a VPS. Devices: Linux, Windows and macOS.
+Stellwerk läuft als ein Container (`tristanteu/stellwerk`, amd64 und arm64) auf einem Linux-Server mit Docker oder Podman:
+ein NAS, ein Mini-PC, ein Raspberry Pi 4/5, ein VPS. Geräte: Linux, Windows und macOS.
 
-### 1. Let an agent set it up
+### 1. Von einem Agenten aufsetzen lassen
 
-Give Claude Code or another coding agent this repository and SSH access to your server and say:
-"Set up Stellwerk on my server, following the [installation guide](https://speicherstadt.app/stellwerk/installation.html)."
-Once it runs, add the Zentrale's MCP server to Claude Code with the command shown when you create a
-token, then say "Sync Game of Thrones from the NAS to my laptop".
+Gib Claude Code oder einem anderen Coding-Agenten dieses Repository und SSH-Zugang zu deinem Server und sag:
+„Setz Stellwerk auf meinem Server auf, nach der [Installationsanleitung](https://speicherstadt.app/stellwerk/installation.html).“
+Läuft es, füge den MCP-Server der Zentrale mit dem Befehl, der beim Anlegen eines Tokens erscheint,
+zu Claude Code hinzu und sag dann „Synchronisiere Game of Thrones vom NAS auf meinen Laptop“.
 
-### 2. Manually
+### 2. Manuell
 
-On the server, a `compose.yaml` (the hub address is where your devices reach the server):
+Auf dem Server eine `compose.yaml` (die Hub-Adresse ist die, unter der deine Geräte den Server
+erreichen):
 
 ```yaml
 services:
   stellwerk:
     image: tristanteu/stellwerk:latest
     restart: unless-stopped
-    ports: ["8080:8080", "22001:22001"]   # web UI and agents; sync port of the hub
+    ports: ["8080:8080", "22001:22001"]   # Weboberfläche und Agenten; Sync-Port des Hubs
     environment:
       STELLWERK_HUB_ADDRESS: tcp://nas.local:22001
     volumes: ["stellwerk:/data"]
@@ -110,98 +111,99 @@ volumes:
 
 ```bash
 docker compose up -d
-docker compose exec -T stellwerk stellwerk set-password <<< 'a long password'
+docker compose exec -T stellwerk stellwerk set-password <<< 'ein langes Passwort'
 ```
 
-Open `http://nas.local:8080`, click **Pair device** and run the one command it shows in a terminal
-on each device, as the normal user. It downloads the agent, pairs it and starts it:
+Öffne `http://nas.local:8080`, klicke auf **Gerät koppeln** und führe den einen angezeigten Befehl
+auf jedem Gerät in einem Terminal aus, als normaler Benutzer. Er lädt den Agenten herunter, koppelt
+ihn und startet ihn:
 
 ```bash
 curl -fsSL https://github.com/Speicherstadt/stellwerk/releases/download/vX.Y.Z/install.sh | sh -s -- http://nas.local:8080 K7Q2-MX9P-41TZ
 ```
 
-On Windows the dialog shows the same as a PowerShell command; there is also an installer that
-asks for the address and the code. Podman Quadlet, a
-reverse proxy with HTTPS, backups and updates are in the
-[installation guide](https://speicherstadt.app/stellwerk/installation.html); a step-by-step
-first run is in [Getting started](https://speicherstadt.app/stellwerk/getting-started.html).
+Unter Windows zeigt der Dialog dasselbe als PowerShell-Befehl; außerdem gibt es einen Installer,
+der nach Adresse und Code fragt. Podman Quadlet, ein Reverse Proxy mit HTTPS, Backups und Updates
+stehen in der [Installationsanleitung](https://speicherstadt.app/stellwerk/installation.html); ein
+erster Durchlauf Schritt für Schritt steht unter
+[Erste Schritte](https://speicherstadt.app/stellwerk/getting-started.html).
 
-> **Before v1.0**: every [release](https://github.com/Speicherstadt/stellwerk/releases) publishes the
-> image `tristanteu/stellwerk` and carries the agents. Everything works and is tested on Linux,
-> Windows and macOS; the self-update of the agent on Windows is the last piece before v1.0
-> ([roadmap](https://speicherstadt.app/stellwerk/architecture.html#roadmap)).
+> **Vor v1.0**: Jedes [Release](https://github.com/Speicherstadt/stellwerk/releases) veröffentlicht
+> das Image `tristanteu/stellwerk` und enthält die Agenten. Alles funktioniert und ist unter Linux,
+> Windows und macOS getestet; das Selbst-Update des Agenten unter Windows ist das letzte Stück vor v1.0
+> ([Roadmap](https://speicherstadt.app/stellwerk/architecture.html#roadmap)).
 
-No server or IT of your own? Stellwerk is available hosted on request or through an IT service provider from the [partner programme](https://speicherstadt.app/en/partner/).
+Keinen eigenen Server oder keine eigene IT? Stellwerk gibt es auf Anfrage gehostet oder über einen IT-Dienstleister aus dem [Partnerprogramm](https://speicherstadt.app/partner/).
 
 ## FAQ
 
 <details>
-<summary><b>Is there a central management UI for Syncthing?</b></summary>
+<summary><b>Gibt es eine zentrale Verwaltungsoberfläche für Syncthing?</b></summary>
 
-Yes, that is what Stellwerk is for: one web UI on your server that configures Syncthing on all
-your devices. Releases before v1.0 are out, with the image `tristanteu/stellwerk` and the agents;
-see [Quick start](#quick-start).
+Ja, genau dafür ist Stellwerk da: eine Weboberfläche auf deinem Server, die Syncthing auf all deinen
+Geräten einrichtet. Releases vor v1.0 sind erschienen, mit dem Image `tristanteu/stellwerk` und den
+Agenten; siehe [Schnellstart](#schnellstart).
 </details>
 
 <details>
-<summary><b>Does it change my existing Syncthing?</b></summary>
+<summary><b>Ändert es mein bestehendes Syncthing?</b></summary>
 
-No. The agent brings its own Syncthing with its own configuration and ports and leaves a
-Syncthing you already run alone.
+Nein. Der Agent bringt sein eigenes Syncthing mit eigener Konfiguration und eigenen Ports mit und
+lässt ein Syncthing, das du schon betreibst, in Ruhe.
 </details>
 
 <details>
-<summary><b>Can I add devices that run plain Syncthing, like a phone?</b></summary>
+<summary><b>Kann ich Geräte mit normalem Syncthing einbinden, etwa ein Handy?</b></summary>
 
-Not yet. Every device needs the agent, which runs on Linux, Windows and macOS. Android and iOS
-are not supported.
+Noch nicht. Jedes Gerät braucht den Agenten, und der läuft unter Linux, Windows und macOS. Android
+und iOS werden nicht unterstützt.
 </details>
 
 <details>
-<summary><b>Does it run on a Synology, Unraid or Raspberry Pi?</b></summary>
+<summary><b>Läuft es auf einer Synology, unter Unraid oder auf einem Raspberry Pi?</b></summary>
 
-Anywhere Docker or Podman runs on Linux with amd64 or arm64: a Raspberry Pi 4 or 5 with a 64-bit
-OS, Unraid, a Synology with Container Manager. The server needs disk space for a full copy of
-every folder.
+Überall, wo Docker oder Podman unter Linux mit amd64 oder arm64 läuft: ein Raspberry Pi 4 oder 5 mit
+64-Bit-System, Unraid, eine Synology mit Container Manager. Der Server braucht Platz für eine
+vollständige Kopie jedes Ordners.
 </details>
 
 <details>
-<summary><b>Do the devices need admin rights or open ports?</b></summary>
+<summary><b>Brauchen die Geräte Administratorrechte oder offene Ports?</b></summary>
 
-No. The agent runs as the normal user and starts at login; devices only connect out to the
-server. Only the server needs two ports open: the web port (behind HTTPS) and the hub's sync
-port.
+Nein. Der Agent läuft als normaler Benutzer und startet bei der Anmeldung; die Geräte verbinden sich
+nur nach außen zum Server. Nur der Server braucht zwei offene Ports: den Webport (hinter HTTPS) und
+den Sync-Port des Hubs.
 </details>
 
 <details>
-<summary><b>Is my data encrypted?</b></summary>
+<summary><b>Sind meine Daten verschlüsselt?</b></summary>
 
-In transit, yes: Syncthing encrypts every transfer with TLS and accepts only known devices; the
-web UI and the agents' connection go through your HTTPS proxy. On the server, the hub keeps a
-normal copy of every folder, so protect the server like the devices. Details in
-[Security](https://speicherstadt.app/stellwerk/security.html).
+Bei der Übertragung ja: Syncthing verschlüsselt jede Übertragung mit TLS und nimmt nur bekannte
+Geräte an; die Weboberfläche und die Verbindung der Agenten laufen über deinen HTTPS-Proxy. Auf dem
+Server hält der Hub eine normale Kopie jedes Ordners, schütze den Server also wie die Geräte.
+Details unter [Sicherheit](https://speicherstadt.app/stellwerk/security.html).
 </details>
 
 <details>
-<summary><b>What happens if the server is down?</b></summary>
+<summary><b>Was passiert, wenn der Server ausfällt?</b></summary>
 
-The devices keep their files and their last configuration. Changes wait on each device and sync
-as soon as the server is back.
+Die Geräte behalten ihre Dateien und ihre letzte Konfiguration. Änderungen warten auf jedem Gerät
+und werden abgeglichen, sobald der Server wieder da ist.
 </details>
 
-## Documentation
+## Dokumentation
 
-Everything in detail, with search: **[speicherstadt.app/stellwerk](https://speicherstadt.app/stellwerk/)**. Every feature above links its page; in addition:
+Alles im Detail, mit Suche: **[speicherstadt.app/stellwerk](https://speicherstadt.app/stellwerk/)**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
 
-- **Getting started:** [Getting started](https://speicherstadt.app/stellwerk/getting-started.html) (from nothing to a first synced folder),
-  [Installation](https://speicherstadt.app/stellwerk/installation.html) (Docker Compose, Podman Quadlet, binary; reverse proxy and TLS; the agent on each OS; updates and backups)
-- **Reference:** [Reference](https://speicherstadt.app/stellwerk/reference.html) (every option, port, file and limit),
-  [Security](https://speicherstadt.app/stellwerk/security.html) (trust model, encryption, login, pairing),
-  [Troubleshooting](https://speicherstadt.app/stellwerk/troubleshooting.html) (logs and the common problems)
-- **Background:** [Architecture](https://speicherstadt.app/stellwerk/architecture.html) (Zentrale, hub, agent and engine; protocol; reconciler; roadmap),
-  [Development](https://speicherstadt.app/stellwerk/development.html) (building, tests, CI, releases)
+- **Einstieg:** [Erste Schritte](https://speicherstadt.app/stellwerk/getting-started.html) (von null bis zum ersten abgeglichenen Ordner),
+  [Installation](https://speicherstadt.app/stellwerk/installation.html) (Docker Compose, Podman Quadlet, Programmdatei; Reverse Proxy und TLS; der Agent auf jedem System; Updates und Backups)
+- **Nachschlagen:** [Referenz](https://speicherstadt.app/stellwerk/reference.html) (jede Option, jeder Port, jede Datei und jede Grenze),
+  [Sicherheit](https://speicherstadt.app/stellwerk/security.html) (Vertrauensmodell, Verschlüsselung, Anmeldung, Koppeln),
+  [Fehlersuche](https://speicherstadt.app/stellwerk/troubleshooting.html) (Logs und die häufigen Probleme)
+- **Hintergrund:** [Architektur](https://speicherstadt.app/stellwerk/architecture.html) (Zentrale, Hub, Agent und Engine; Protokoll; Reconciler; Roadmap),
+  [Entwicklung](https://speicherstadt.app/stellwerk/development.html) (Bauen, Tests, CI, Releases)
 
-## Development
+## Entwicklung
 
 [![Rust](https://img.shields.io/badge/Rust-axum-b7410e?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -211,37 +213,37 @@ Everything in detail, with search: **[speicherstadt.app/stellwerk](https://speic
 [![Vite](https://img.shields.io/badge/Vite-646cff?logo=vite&logoColor=white)](https://vite.dev)
 [![SQLite](https://img.shields.io/badge/SQLite-sqlx-003b57?logo=sqlite&logoColor=white)](https://github.com/launchbadge/sqlx)
 
-Requires Rust (stable) and Bun.
+Braucht Rust (stable) und Bun.
 
 ```bash
 git clone https://github.com/Speicherstadt/stellwerk && cd stellwerk
-bun install && bun run dev:demo   # the UI on demo data, no server needed
-cargo test                        # downloads the pinned Syncthing once and runs real instances
-bun run e2e                       # Playwright against the UI in demo mode
+bun install && bun run dev:demo   # die Oberfläche mit Demodaten, ohne Server
+cargo test                        # lädt einmal das festgelegte Syncthing und startet echte Instanzen
+bun run e2e                       # Playwright gegen die Oberfläche im Demomodus
 ```
 
-Rust workspace: `protocol` (messages, desired state), `engine` (Syncthing control and
-reconciler), `agent`, `zentrale` (axum, SQLite); React UI in `web/`, embedded into the Zentrale.
-Running a real Zentrale and agent locally, the tests and releases:
-[Development](https://speicherstadt.app/stellwerk/development.html).
+Rust-Workspace: `protocol` (Nachrichten, Soll-Zustand), `engine` (Steuerung von Syncthing und
+Reconciler), `agent`, `zentrale` (axum, SQLite); React-Oberfläche in `web/`, eingebettet in die
+Zentrale. Eine echte Zentrale und einen Agenten lokal betreiben, die Tests und Releases:
+[Entwicklung](https://speicherstadt.app/stellwerk/development.html).
 
-## More from us
+## Mehr von uns
 
-More open-source apps for your own server, covering accounting, email, office documents and more: **[speicherstadt.app](https://speicherstadt.app)**
+Weitere Open-Source-Apps für deinen eigenen Server, etwa für Buchhaltung, Mail, Office-Dokumente und mehr: **[speicherstadt.app](https://speicherstadt.app)**
 
-## Contributing
+## Mitwirken
 
-Issues and pull requests are welcome. A good bug report names the OS, the Stellwerk and Syncthing
-versions and what the Zentrale showed. Please run `cargo fmt --all --check`,
-`cargo clippy --all-targets -- -D warnings`, `cargo test` and `bun run check` before opening a pull
-request.
+Issues und Pull Requests sind willkommen. Ein guter Fehlerbericht nennt das Betriebssystem, die
+Versionen von Stellwerk und Syncthing und was die Zentrale angezeigt hat. Bitte führe
+`cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` und
+`bun run check` aus, bevor du einen Pull Request öffnest.
 
-## Star history
+## Sterne im Verlauf
 
 <a href="https://www.star-history.com/#Speicherstadt/stellwerk&Date">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Speicherstadt/stellwerk&type=Date&theme=dark">
-    <img alt="GitHub star history of Stellwerk" src="https://api.star-history.com/svg?repos=Speicherstadt/stellwerk&type=Date">
+    <img alt="Verlauf der GitHub-Sterne von Stellwerk" src="https://api.star-history.com/svg?repos=Speicherstadt/stellwerk&type=Date">
   </picture>
 </a>
 
@@ -249,13 +251,13 @@ request.
 
 <div align="center">
 
-⭐ **Like Stellwerk?** A [star on GitHub](https://github.com/Speicherstadt/stellwerk) helps others find it.
+⭐ **Gefällt dir Stellwerk?** Ein [Stern auf GitHub](https://github.com/Speicherstadt/stellwerk) hilft anderen, es zu finden.
 
-[Report a bug](https://github.com/Speicherstadt/stellwerk/issues/new) &nbsp;·&nbsp; [Request a feature](https://github.com/Speicherstadt/stellwerk/issues/new)
+[Fehler melden](https://github.com/Speicherstadt/stellwerk/issues/new) &nbsp;·&nbsp; [Funktion vorschlagen](https://github.com/Speicherstadt/stellwerk/issues/new)
 
-<sub>License: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel and contributors · <a href="README.de.md">Deutsch</a><br>
-Changed versions you pass on or run for others must offer their source code under the AGPL.<br>
-For IT service providers and hosters: <a href="https://speicherstadt.app/en/partner/">partner programme</a>.<br>
-Stellwerk is not affiliated with the Syncthing Foundation, Resilio, Seafile, Nextcloud or SyncWings; the names are trademarks of their owners.</sub>
+<sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Contributors<br>
+Geänderte Fassungen, die du weitergibst oder für andere betreibst, müssen ihren Quellcode unter der AGPL anbieten.<br>
+Für IT-Dienstleister und Hoster: <a href="https://speicherstadt.app/partner/">Partnerprogramm</a>.<br>
+Stellwerk steht in keiner Verbindung zur Syncthing Foundation, zu Resilio, Seafile, Nextcloud oder SyncWings; die Namen sind Marken ihrer Inhaber.</sub>
 
 </div>

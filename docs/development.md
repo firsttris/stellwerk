@@ -1,154 +1,159 @@
-# Development
+# Entwicklung
 
-How the repository is laid out, how to build and run Stellwerk from source, how it is tested and
-how a release is made. The rules for changes are in
-[CLAUDE.md](https://github.com/Speicherstadt/stellwerk/blob/main/CLAUDE.md); they apply to people too.
+Wie das Repository aufgebaut ist, wie du Stellwerk aus dem Quellcode baust und startest, wie es
+getestet wird und wie ein Release entsteht. Die Regeln für Änderungen stehen in
+[CLAUDE.md](https://github.com/Speicherstadt/stellwerk/blob/main/CLAUDE.md); sie gelten auch für
+Menschen.
 
 ## Repository
 
-| Path | What |
+| Pfad | Was |
 |---|---|
-| `crates/protocol` | the messages between agent and Zentrale and the desired state; knows devices, folders, modes and paths, not Syncthing |
-| `crates/engine` | everything about Syncthing: the pinned version, download, starting it, REST client, reconciler, monitor, conflict and version files |
-| `crates/agent` | `stellwerk-agent`: pairing, the connection to the Zentrale, the background service; `src/bin/background.rs` is the Windows program without a console |
-| `crates/zentrale` | `stellwerk`: axum server, SQLite store with migrations, desired-state derivation, hub, live status, pairing, mDNS, the embedded UI |
-| `web/` | the web UI: React (built with the TanStack Redact runtime), TanStack Router and Query, Tailwind, Paraglide; `src/demo/` holds the demo data |
-| `e2e/` | Playwright tests and the screenshots, against the UI in demo mode |
-| `docker/Dockerfile` | the Zentrale's image |
-| `installer/windows/` | the NSIS script of the Windows installer |
-| `scripts/` | the service and installer smoke tests CI runs on real systems |
-| `docs/` | this documentation (MkDocs Material) |
+| `crates/protocol` | die Nachrichten zwischen Agent und Zentrale und der Soll-Zustand; kennt Geräte, Ordner, Modi und Pfade, nicht Syncthing |
+| `crates/engine` | alles rund um Syncthing: die festgelegte Version, Download, Start, REST-Client, Reconciler, Monitor, Konflikt- und Versionsdateien |
+| `crates/agent` | `stellwerk-agent`: Koppeln, die Verbindung zur Zentrale, der Hintergrunddienst; `src/bin/background.rs` ist das Windows-Programm ohne Konsole |
+| `crates/zentrale` | `stellwerk`: axum-Server, SQLite-Speicher mit Migrationen, Ableitung des Soll-Zustands, Hub, Live-Status, Koppeln, mDNS, die eingebettete Oberfläche |
+| `web/` | die Weboberfläche: React (gebaut mit der TanStack-Redact-Runtime), TanStack Router und Query, Tailwind, Paraglide; `src/demo/` enthält die Demodaten |
+| `e2e/` | Playwright-Tests und die Screenshots, gegen die Oberfläche im Demomodus |
+| `docker/Dockerfile` | das Image der Zentrale |
+| `installer/windows/` | das NSIS-Skript des Windows-Installers |
+| `scripts/` | die Smoke-Tests für Dienst und Installer, die die CI auf echten Systemen ausführt |
+| `docs/` | diese Dokumentation (MkDocs Material) |
 
-## Prerequisites
+## Voraussetzungen
 
-- Rust stable (the workspace needs at least 1.94, edition 2024)
-- [Bun](https://bun.com) (the version in `packageManager` of `package.json`): installs the
-  packages and runs the scripts, Vite and the Playwright runner
-- for the docs: Python and `pip install -r requirements-docs.txt`
+- Rust stable (der Workspace braucht mindestens 1.94, Edition 2024)
+- [Bun](https://bun.com) (die Version in `packageManager` der `package.json`): installiert die
+  Pakete und führt die Skripte, Vite und den Playwright-Runner aus
+- für die Doku: Python und `pip install -r requirements-docs.txt`
 
-## Building
+## Bauen { #building }
 
 ```bash
 bun install
-bun run --filter web build       # web/dist, embedded into the Zentrale's release build
-cargo build --release            # target/release/stellwerk and stellwerk-agent
-docker build -f docker/Dockerfile -t tristanteu/stellwerk .   # the image, UI included
+bun run --filter web build       # web/dist, eingebettet in den Release-Build der Zentrale
+cargo build --release            # target/release/stellwerk und stellwerk-agent
+docker build -f docker/Dockerfile -t tristanteu/stellwerk .   # das Image, mit Oberfläche
 ```
 
-A release build of the Zentrale built before `web/dist` exists answers every page with a hint to
-build the UI first. Debug builds read `web/dist` from disk at run time.
+Ein Release-Build der Zentrale, der gebaut wurde, bevor es `web/dist` gab, beantwortet jede Seite
+mit dem Hinweis, zuerst die Oberfläche zu bauen. Debug-Builds lesen `web/dist` zur Laufzeit von
+der Platte.
 
-## Running it locally
+## Lokal starten
 
-**The UI alone**, on demo data, without Rust or Syncthing:
+**Nur die Oberfläche**, mit Demodaten, ohne Rust oder Syncthing:
 
 ```bash
 bun run dev:demo                 # http://localhost:5173
 ```
 
-**A real Zentrale and agent** on one machine, with ports that do not collide with a Syncthing
-you run yourself:
+**Eine echte Zentrale und ein Agent** auf einem Rechner, mit Ports, die einem Syncthing, das du
+selbst betreibst, nicht in die Quere kommen:
 
 ```bash
-# once: the admin password
+# einmal: das Admin-Passwort
 cargo run -p stellwerk-zentrale -- --data-dir /tmp/stw/zentrale set-password <<< 'dev'
 
-# terminal 1: the Zentrale (:8080) and the UI with hot reload (:5173, /api proxied to :8080)
+# Terminal 1: die Zentrale (:8080) und die Oberfläche mit Hot Reload (:5173, /api an :8080 weitergeleitet)
 bun run dev
 
-# terminal 2: an agent, after "Pair device" in the UI
+# Terminal 2: ein Agent, nach „Gerät koppeln“ in der Oberfläche
 cargo run -p stellwerk-agent -- --data-dir /tmp/stw/agent join --server http://127.0.0.1:8080 <CODE>
 cargo run -p stellwerk-agent -- --data-dir /tmp/stw/agent run --name dev-agent
 ```
 
-`bun run dev` runs `bun run --parallel dev:server dev:web`: `dev:server` is
+`bun run dev` führt `bun run --parallel dev:server dev:web` aus: `dev:server` ist
 `cargo run -p stellwerk-zentrale -- --data-dir /tmp/stw/zentrale --listen 127.0.0.1:8080
---hub-listen tcp://127.0.0.1:22101 --lan-pairing false`, `dev:web` the Vite dev server
-(`bun run --cwd web dev`; under `bun run --filter` it would not stop with the other). Both run
-side by side, each line prefixed with its script's name, and when one exits with an error the
-other is stopped. Ctrl+C, Ctrl+Z and closing the terminal reach both, as the terminal signals the
-whole foreground process group; `fg` resumes them after Ctrl+Z. In a terminal both keep their
-colours (`FORCE_COLOR`, `CARGO_TERM_COLOR`).
+--hub-listen tcp://127.0.0.1:22101 --lan-pairing false`, `dev:web` der Vite-Dev-Server
+(`bun run --cwd web dev`; unter `bun run --filter` würde er nicht mit dem anderen stoppen). Beide
+laufen nebeneinander, jede Zeile mit dem Namen ihres Skripts davor, und beendet sich einer mit
+einem Fehler, wird der andere gestoppt. Strg+C, Strg+Z und das Schließen des Terminals erreichen
+beide, da das Terminal die ganze Vordergrund-Prozessgruppe benachrichtigt; `fg` setzt sie nach
+Strg+Z fort. In einem Terminal behalten beide ihre Farben (`FORCE_COLOR`, `CARGO_TERM_COLOR`).
 
-Two agents on one machine need two data directories. Never start a test Syncthing on 8384 or
-22000, and never touch a Syncthing you did not start.
+Zwei Agenten auf einem Rechner brauchen zwei Datenverzeichnisse. Starte nie ein Test-Syncthing auf
+8384 oder 22000, und fass nie ein Syncthing an, das du nicht selbst gestartet hast.
 
 ## Tests
 
-| Command | What runs |
+| Befehl | Was läuft |
 |---|---|
-| `cargo test` | unit tests of every crate, and the integration tests in `crates/*/tests` against real Syncthing instances (the pinned version is downloaded once into `.syncthing-cache/`) |
+| `cargo test` | die Unit-Tests jedes Crates und die Integrationstests in `crates/*/tests` gegen echte Syncthing-Instanzen (die festgelegte Version wird einmal nach `.syncthing-cache/` heruntergeladen) |
 | `bun run --filter web check` | Biome, `tsc --noEmit`, Vitest, `vite build` |
-| `bun checks` | files past 400 lines, the interface texts and rings of imports between modules (the folders of `web/src`), by [firsttris/workflows' checks](https://github.com/firsttris/workflows#checks) with `checks.json`; older large files and texts are listed in `.checks/` and may only get fewer. `bun checks pr` gives hints on the branch, such as a function new or grown past 80 lines |
-| `bun run e2e` | Playwright against the demo build, its runner and Vite on Bun (`bun --bun playwright test`); `PW_CHROMIUM=/path/to/chrome` outside the Playwright image, `PW_PORT` when 4173 is taken |
-| `mkdocs build --strict` | the docs, with broken links as errors |
+| `bun checks` | Dateien über 400 Zeilen, die Oberflächentexte und Import-Ringe zwischen Modulen (den Ordnern von `web/src`), mit den [Checks aus firsttris/workflows](https://github.com/firsttris/workflows#checks) und `checks.json`; ältere große Dateien und Texte stehen in `.checks/` und dürfen nur weniger werden. `bun checks pr` gibt Hinweise auf dem Branch, etwa zu einer Funktion, die neu oder über 80 Zeilen gewachsen ist |
+| `bun run e2e` | Playwright gegen den Demo-Build, Runner und Vite auf Bun (`bun --bun playwright test`); `PW_CHROMIUM=/pfad/zu/chrome` außerhalb des Playwright-Images, `PW_PORT`, wenn 4173 belegt ist |
+| `mkdocs build --strict` | die Doku, mit kaputten Links als Fehler |
 
-The integration tests are the gates of the roadmap:
+Die Integrationstests sind die Meilensteine der Roadmap:
 
-| Test | Shows |
+| Test | Zeigt |
 |---|---|
-| `engine/tests/phase0_gate.rs` | the reconciler sets up two Syncthings and a file arrives |
-| `zentrale/tests/pairing.rs` | a device pairs with a code and syncs with the hub |
-| `zentrale/tests/lan_pairing.rs` | a device without a code waits, is approved and syncs |
-| `zentrale/tests/phase1_gate.rs` | three nodes; a device that was offline catches up on files and configuration |
-| `zentrale/tests/phase2_gate.rs` | a conflict is resolved on the hub and a version restored |
-| `zentrale/tests/api.rs` | login, CSRF, folders, drafts and pairing codes over HTTP |
+| `engine/tests/phase0_gate.rs` | der Reconciler richtet zwei Syncthings ein und eine Datei kommt an |
+| `zentrale/tests/pairing.rs` | ein Gerät koppelt sich mit einem Code und gleicht mit dem Hub ab |
+| `zentrale/tests/lan_pairing.rs` | ein Gerät ohne Code wartet, wird freigegeben und gleicht ab |
+| `zentrale/tests/phase1_gate.rs` | drei Knoten; ein Gerät, das offline war, holt Dateien und Konfiguration nach |
+| `zentrale/tests/phase2_gate.rs` | ein Konflikt wird auf dem Hub gelöst und eine Version wiederhergestellt |
+| `zentrale/tests/api.rs` | Anmeldung, CSRF, Ordner, Entwürfe und Codes zum Koppeln über HTTP |
 
-Every Syncthing in a test runs with `SpawnOptions::isolated`: random ports on 127.0.0.1, no
-discovery, no relays.
+Jedes Syncthing in einem Test läuft mit `SpawnOptions::isolated`: zufällige Ports auf 127.0.0.1,
+keine Discovery, keine Relays.
 
-## Continuous integration
+## Continuous Integration
 
-| Workflow | When | Does |
+| Workflow | Wann | Tut |
 |---|---|---|
-| `ci.yml` | every push to `main` and pull request (not for docs only) | Rust: fmt, clippy and tests (`cargo nextest`, every test in its own process at once) on Linux, Windows and macOS, then the service smoke test with the agent the tests built; web checks; `bun checks` (with `bun checks pr` on a pull request); E2E in the Playwright image; the Docker image builds and starts. A pull request runs only what it can break (`scripts/ci-changes.sh`): a change in `web/` alone skips Rust, one in `crates/` alone the UI checks, and the image builds only when `docker/`, a lockfile or a `package.json` changed |
-| `agents.yml` | pushes to `main`, from `release.yml`, or by hand | the agent for every platform; on Windows also the installer and its silent install/uninstall test; `SHA256SUMS` and the install scripts. On `main` it keeps the release builds' cache warm, and a broken release build shows up there |
-| `docs.yml` | pushes to `main` and pull requests that touch `docs/`, `mkdocs.yml` or `requirements-docs.txt` | builds the docs with `mkdocs build --strict` (the `privacy` plugin downloads fonts and the Mermaid script at build time, so the site loads nothing from third parties); on `main` also publishes them to GitHub Pages |
-| `screenshots.yml` | by hand: **Actions → Update screenshots** | renders the pictures in `docs/` from the demo data and commits them |
-| `bump.yml` | by hand: **Actions → Bump version** | raises the version and tags it, which starts `release.yml` |
-| `release.yml` | a tag `vX.Y.Z`, or by hand | CI, agents, the multi-arch image on Docker Hub and GHCR, the GitHub release with the agents |
+| `ci.yml` | jeder Push auf `main` und jeder Pull Request (nicht bei reinen Doku-Änderungen) | Rust: fmt, clippy und Tests (`cargo nextest`, jeder Test in einem eigenen Prozess, alle gleichzeitig) unter Linux, Windows und macOS, danach der Smoke-Test des Dienstes mit dem Agenten, den die Tests gebaut haben; Web-Checks; `bun checks` (bei einem Pull Request mit `bun checks pr`); E2E im Playwright-Image; das Docker-Image wird gebaut und gestartet. Ein Pull Request führt nur aus, was er kaputt machen kann (`scripts/ci-changes.sh`): Eine Änderung nur in `web/` überspringt Rust, eine nur in `crates/` die Checks der Oberfläche, und das Image wird nur gebaut, wenn sich `docker/`, eine Lockfile oder eine `package.json` geändert hat |
+| `agents.yml` | Pushes auf `main`, aus `release.yml` oder von Hand | der Agent für jede Plattform; unter Windows auch der Installer und sein Test für stilles Installieren und Deinstallieren; `SHA256SUMS` und die Installationsskripte. Auf `main` hält er den Cache der Release-Builds warm, und ein kaputter Release-Build fällt dort auf |
+| `docs.yml` | Pushes auf `main` und Pull Requests, die `docs/`, `mkdocs.yml` oder `requirements-docs.txt` ändern | baut die Doku mit `mkdocs build --strict` (das Plugin `privacy` lädt Schriften und das Mermaid-Skript beim Bauen herunter, so lädt die Seite nichts von Dritten); auf `main` veröffentlicht er sie auch auf GitHub Pages |
+| `screenshots.yml` | von Hand: **Actions → Update screenshots** | erzeugt die Bilder in `docs/` aus den Demodaten und committet sie |
+| `bump.yml` | von Hand: **Actions → Bump version** | erhöht die Version und taggt sie, das startet `release.yml` |
+| `release.yml` | ein Tag `vX.Y.Z`, oder von Hand | CI, Agenten, das Multi-Arch-Image auf Docker Hub und GHCR, das GitHub-Release mit den Agenten |
 
-The reusable parts (bump, tested on main, Docker release, screenshots) come from
+Die wiederverwendbaren Teile (Bump, „tested on main“, Docker-Release, Screenshots) kommen aus
 [firsttris/workflows](https://github.com/firsttris/workflows).
 
-## Releasing
+## Ein Release machen
 
-1. **Actions → Bump version → patch/minor/major.** It sets the version in `Cargo.toml`,
-   `web/package.json` and `e2e/package.json`, commits, and tags `vX.Y.Z`.
-2. The tag starts `release.yml`, which runs nothing twice. `tested-on-main.yml` from
-   firsttris/workflows checks that the CI was green on `main` for the commit before the release
-   commit, which only raises the version; only when it was not does the release run the CI
-   first. The agents build from the start, beside the image `tristanteu/stellwerk` and `ghcr.io/speicherstadt/stellwerk` for
-   `linux/amd64` and `linux/arm64` (tags `x.y.z`, `x.y`, `latest`, the Docker Hub description
-   from the README). The image's build cache is the one the CI's Docker job fills, and
-   `cargo-chef` keeps the compiled dependencies in it, so only Stellwerk's own crates compile.
-   Last, the GitHub release gets the agents, the Windows installer, the install scripts and
-   `SHA256SUMS`.
+1. **Actions → Bump version → patch/minor/major.** Das setzt die Version in `Cargo.toml`,
+   `web/package.json` und `e2e/package.json`, committet und taggt `vX.Y.Z`.
+2. Der Tag startet `release.yml`, das nichts doppelt ausführt. `tested-on-main.yml` aus
+   firsttris/workflows prüft, ob die CI auf `main` für den Commit vor dem Release-Commit grün war,
+   der nur die Version erhöht; nur wenn nicht, führt das Release die CI zuerst aus. Die Agenten
+   werden von Anfang an gebaut, neben dem Image `tristanteu/stellwerk` und
+   `ghcr.io/speicherstadt/stellwerk` für `linux/amd64` und `linux/arm64` (Tags `x.y.z`, `x.y`,
+   `latest`, die Beschreibung auf Docker Hub aus der README). Der Build-Cache des Images ist der,
+   den der Docker-Job der CI füllt, und `cargo-chef` hält darin die kompilierten Abhängigkeiten,
+   so werden nur die eigenen Crates von Stellwerk kompiliert. Zuletzt bekommt das GitHub-Release
+   die Agenten, den Windows-Installer, die Installationsskripte und `SHA256SUMS`.
 
-Run by hand on `main`, `release.yml` publishes the image as `edge` only, without a release: a
-dry run of the publishing part.
+Von Hand auf `main` gestartet, veröffentlicht `release.yml` das Image nur als `edge`, ohne
+Release: ein Probelauf des Veröffentlichens.
 
-Secrets: `DOCKER_PAT` (Docker Hub access token for `tristanteu`). GHCR uses the workflow's own
-token.
+Secrets: `DOCKER_PAT` (Access Token für Docker Hub für `tristanteu`). GHCR nutzt das eigene Token
+des Workflows.
 
-## Changing Syncthing's version
+## Die Syncthing-Version ändern
 
-The version and the SHA-256 of every platform's archive are in `crates/engine/src/pin.rs`.
-Renovate (`.github/renovate.json5`) opens a pull request for each new Syncthing release; on its
-branch `syncthing-pin.yml` puts in the checksums from the release's `sha256sum.txt.asc` and starts
-CI, whose integration tests must be green with the new version. By hand: put in the version and
-the checksums, and run `cargo test`. The Syncthing sources (`lib/config`, `lib/api`) are the
-reference for anything the engine relies on.
+Die Version und der SHA-256 des Archivs jeder Plattform stehen in `crates/engine/src/pin.rs`.
+Renovate (`.github/renovate.json5`) öffnet für jedes neue Syncthing-Release einen Pull Request; auf
+dessen Branch trägt `syncthing-pin.yml` die Prüfsummen aus der `sha256sum.txt.asc` des Releases ein
+und startet die CI, deren Integrationstests mit der neuen Version grün sein müssen. Von Hand: Trag
+die Version und die Prüfsummen ein und führe `cargo test` aus. Die Quellen von Syncthing
+(`lib/config`, `lib/api`) sind die Referenz für alles, worauf sich die Engine verlässt.
 
-## Documentation
+## Dokumentation
 
 ```bash
 pip install -r requirements-docs.txt
-mkdocs serve                     # http://127.0.0.1:8000, reloads on change
+mkdocs serve                     # http://127.0.0.1:8000, lädt bei Änderungen neu
 ```
 
-Pictures come from `bun run screenshots` or **Actions → Update screenshots**; never edit them by
-hand. The same command renders `docs/social-preview.png` (1280 × 640) from
-`scripts/social-preview/social-preview.html` and the dark screenshot; upload it under
-**Settings → General → Social preview** when it changed. Links between pages are relative (`installation.md#…`); links from the README go to the
-published site.
+Die README und diese Dokumentation gibt es nur auf Deutsch; Code, Kommentare, Commits und Pull
+Requests sind auf Englisch, die Oberfläche der App auf Deutsch und Englisch.
+
+Die Bilder kommen aus `bun run screenshots` oder **Actions → Update screenshots**; bearbeite sie
+nie von Hand. Derselbe Befehl erzeugt `docs/social-preview.png` (1280 × 640) aus
+`scripts/social-preview/social-preview.html` und dem dunklen Screenshot; lade es unter
+**Settings → General → Social preview** hoch, wenn es sich geändert hat. Links zwischen den Seiten
+sind relativ (`installation.md#…`); Links aus der README gehen auf die veröffentlichte Seite.
