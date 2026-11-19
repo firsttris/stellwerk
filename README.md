@@ -131,6 +131,8 @@ first run is in [Getting started](https://speicherstadt.app/stellwerk/getting-st
 > Windows and macOS; the self-update of the agent on Windows is the last piece before v1.0
 > ([roadmap](https://speicherstadt.app/stellwerk/architecture.html#roadmap)).
 
+No server or IT of your own? Stellwerk is available hosted or through an IT service provider from the [partner programme](https://speicherstadt.app/en/partner/).
+
 ## FAQ
 
 <details>
@@ -201,7 +203,13 @@ Everything in detail, with search: **[speicherstadt.app/stellwerk](https://speic
 
 ## Development
 
-![Rust](https://img.shields.io/badge/built_with-Rust-b7410e?logo=rust)
+[![Rust](https://img.shields.io/badge/Rust-axum-b7410e?logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![React](https://img.shields.io/badge/React-149eca?logo=react&logoColor=white)](https://react.dev)
+[![TanStack](https://img.shields.io/badge/TanStack-Router%20%7C%20Query-ff4154?logo=reactquery&logoColor=white)](https://tanstack.com)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-06b6d4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Vite](https://img.shields.io/badge/Vite-646cff?logo=vite&logoColor=white)](https://vite.dev)
+[![SQLite](https://img.shields.io/badge/SQLite-sqlx-003b57?logo=sqlite&logoColor=white)](https://github.com/launchbadge/sqlx)
 
 Requires Rust (stable) and Bun.
 
@@ -246,7 +254,8 @@ request.
 [Report a bug](https://github.com/Speicherstadt/stellwerk/issues/new) &nbsp;·&nbsp; [Request a feature](https://github.com/Speicherstadt/stellwerk/issues/new)
 
 <sub>License: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel and contributors · <a href="README.de.md">Deutsch</a><br>
-Changed versions you pass on or run for others must offer their source code under the AGPL. For IT service providers: partnership with a direct line to the developers, plus setup and support via <a href="https://teufel-it.de">teufel-it.de</a>.<br>
+Changed versions you pass on or run for others must offer their source code under the AGPL.<br>
+For IT service providers and hosters: <a href="https://speicherstadt.app/en/partner/">partner programme</a>.<br>
 Stellwerk is not affiliated with the Syncthing Foundation, Resilio, Seafile, Nextcloud or SyncWings; the names are trademarks of their owners.</sub>
 
 </div>

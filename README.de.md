@@ -134,6 +134,8 @@ erster Durchlauf Schritt für Schritt steht unter
 > Windows und macOS getestet; das Selbst-Update des Agenten unter Windows ist das letzte Stück vor v1.0
 > ([Roadmap](https://speicherstadt.app/stellwerk/architecture.html#roadmap)).
 
+Keinen eigenen Server oder keine eigene IT? Stellwerk gibt es gehostet oder über einen IT-Dienstleister aus dem [Partnerprogramm](https://speicherstadt.app/partner/).
+
 ## FAQ
 
 <details>
@@ -204,7 +206,13 @@ Alles im Detail (auf Englisch), mit Suche: **[speicherstadt.app/stellwerk](https
 
 ## Entwicklung
 
-![Rust](https://img.shields.io/badge/built_with-Rust-b7410e?logo=rust)
+[![Rust](https://img.shields.io/badge/Rust-axum-b7410e?logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![React](https://img.shields.io/badge/React-149eca?logo=react&logoColor=white)](https://react.dev)
+[![TanStack](https://img.shields.io/badge/TanStack-Router%20%7C%20Query-ff4154?logo=reactquery&logoColor=white)](https://tanstack.com)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-06b6d4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Vite](https://img.shields.io/badge/Vite-646cff?logo=vite&logoColor=white)](https://vite.dev)
+[![SQLite](https://img.shields.io/badge/SQLite-sqlx-003b57?logo=sqlite&logoColor=white)](https://github.com/launchbadge/sqlx)
 
 Braucht Rust (stable) und Bun.
 
@@ -249,7 +257,8 @@ Versionen von Stellwerk und Syncthing und was die Zentrale angezeigt hat. Bitte 
 [Fehler melden](https://github.com/Speicherstadt/stellwerk/issues/new) &nbsp;·&nbsp; [Funktion vorschlagen](https://github.com/Speicherstadt/stellwerk/issues/new)
 
 <sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Contributors · <a href="README.md">English</a><br>
-Geänderte Fassungen, die du weitergibst oder für andere betreibst, müssen ihren Quellcode unter der AGPL anbieten. Für IT-Dienstleister: Partnerschaft mit direktem Draht zur Entwicklung, dazu Einrichtung und Support über <a href="https://teufel-it.de">teufel-it.de</a>.<br>
+Geänderte Fassungen, die du weitergibst oder für andere betreibst, müssen ihren Quellcode unter der AGPL anbieten.<br>
+Für IT-Dienstleister und Hoster: <a href="https://speicherstadt.app/partner/">Partnerprogramm</a>.<br>
 Stellwerk steht in keiner Verbindung zur Syncthing Foundation, zu Resilio, Seafile, Nextcloud oder SyncWings; die Namen sind Marken ihrer Inhaber.</sub>
 
 </div>
