@@ -4,6 +4,9 @@ Stellwerk has two parts to install: the **Zentrale** once on a server, and the *
 device. This page covers both for real use: TLS, firewall, backups, updates. For a quick first
 try, [Getting started](getting-started.md) is shorter.
 
+No time for setup and operation? The developers set up Stellwerk or run it for you, see
+[Support and partnership](support.md).
+
 Every [release](https://github.com/Speicherstadt/stellwerk/releases) publishes the image
 `tristanteu/stellwerk` on Docker Hub and `ghcr.io/speicherstadt/stellwerk` and carries the agents.
 Releases from before the move to the Speicherstadt organization stay at

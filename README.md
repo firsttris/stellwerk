@@ -17,6 +17,7 @@ Open source, no cloud, no clicking "accept" on every machine.
 [Quick start](#quick-start) •
 [FAQ](#faq) •
 [Documentation](https://speicherstadt.app/stellwerk/) •
+[Support](#support-and-partnership) •
 [Development](#development) •
 [Deutsch](README.de.md)
 
@@ -221,6 +222,17 @@ Running a real Zentrale and agent locally, the tests and releases:
 
 More open-source apps for your own server, covering accounting, email, office documents and more: **[speicherstadt.app](https://speicherstadt.app)**
 
+## Support and partnership
+
+Stellwerk is free (AGPL). If you'd rather not set it up or run it yourself, the developers help:
+
+- **Setup** on your server
+- **Support** with updates, backups and questions while it runs
+- **Hosted operation** of Stellwerk, without a server of your own
+- **Partnership for IT service providers** who set up Stellwerk for their customers: a direct line to the developers
+
+More on [speicherstadt.app](https://speicherstadt.app/en/#support), enquiries to [info@teufel-it.de](mailto:info@teufel-it.de).
+
 ## Contributing
 
 Issues and pull requests are welcome. A good bug report names the OS, the Stellwerk and Syncthing
@@ -246,7 +258,7 @@ request.
 [Report a bug](https://github.com/Speicherstadt/stellwerk/issues/new) &nbsp;·&nbsp; [Request a feature](https://github.com/Speicherstadt/stellwerk/issues/new)
 
 <sub>License: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel and contributors · <a href="README.de.md">Deutsch</a><br>
-Changed versions you pass on or run for others must offer their source code under the AGPL. For IT service providers: partnership with a direct line to the developers, plus setup and support via <a href="https://teufel-it.de">teufel-it.de</a>.<br>
+Changed versions you pass on or run for others must offer their source code under the AGPL.<br>
 Stellwerk is not affiliated with the Syncthing Foundation, Resilio, Seafile, Nextcloud or SyncWings; the names are trademarks of their owners.</sub>
 
 </div>
