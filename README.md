@@ -9,7 +9,7 @@ Eine zentrale Weboberfläche für Syncthing auf deinem Server: Open Source, ohne
 [![CI](https://github.com/Speicherstadt/stellwerk/actions/workflows/ci.yml/badge.svg)](https://github.com/Speicherstadt/stellwerk/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Speicherstadt/stellwerk?logo=github&label=release)](https://github.com/Speicherstadt/stellwerk/releases/latest)
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
-[![Doku](https://img.shields.io/badge/Doku-speicherstadt.app%2Fstellwerk-4f46e5?logo=materialformkdocs&logoColor=white)](https://speicherstadt.app/stellwerk/)
+[![Doku](https://img.shields.io/badge/Doku-speicherstadt.app%2Fstellwerk-4f46e5?logo=zensical&logoColor=white)](https://speicherstadt.app/stellwerk/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/tristanteu/stellwerk?logo=docker&logoColor=white)](https://hub.docker.com/r/tristanteu/stellwerk)
 
 [Warum?](#warum-stellwerk) •

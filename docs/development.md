@@ -83,7 +83,7 @@ Zwei Agenten auf einem Rechner brauchen zwei Datenverzeichnisse. Starte nie ein 
 | `bun run --filter web check` | Biome, `tsc --noEmit`, Vitest, `vite build` |
 | `bun checks` | Dateien über 400 Zeilen, die Oberflächentexte und Import-Ringe zwischen Modulen (den Ordnern von `web/src`), mit den [Checks aus firsttris/workflows](https://github.com/firsttris/workflows#checks) und `checks.json`; ältere große Dateien und Texte stehen in `.checks/` und dürfen nur weniger werden. `bun checks pr` gibt Hinweise auf dem Branch, etwa zu einer Funktion, die neu oder über 80 Zeilen gewachsen ist |
 | `bun run e2e` | Playwright gegen den Demo-Build, Runner und Vite auf Bun (`bun --bun playwright test`); `PW_CHROMIUM=/pfad/zu/chrome` außerhalb des Playwright-Images, `PW_PORT`, wenn 4173 belegt ist |
-| `mkdocs build --strict` | die Doku, mit kaputten Links als Fehler |
+| `zensical build --strict` | die Doku, mit kaputten Links als Fehler |
 
 Die Integrationstests sind die Meilensteine der Roadmap:
 
@@ -105,7 +105,7 @@ keine Discovery, keine Relays.
 |---|---|---|
 | `ci.yml` | jeder Push auf `main` und jeder Pull Request (nicht bei reinen Doku-Änderungen) | Rust: fmt, clippy und Tests (`cargo nextest`, jeder Test in einem eigenen Prozess, alle gleichzeitig) unter Linux, Windows und macOS, danach der Smoke-Test des Dienstes mit dem Agenten, den die Tests gebaut haben; Web-Checks; `bun checks` (bei einem Pull Request mit `bun checks pr`); E2E im Playwright-Image; das Docker-Image wird gebaut und gestartet. Ein Pull Request führt nur aus, was er kaputt machen kann (`scripts/ci-changes.sh`): Eine Änderung nur in `web/` überspringt Rust, eine nur in `crates/` die Checks der Oberfläche, und das Image wird nur gebaut, wenn sich `docker/`, eine Lockfile oder eine `package.json` geändert hat |
 | `agents.yml` | Pushes auf `main`, aus `release.yml` oder von Hand | der Agent für jede Plattform; unter Windows auch der Installer und sein Test für stilles Installieren und Deinstallieren; `SHA256SUMS` und die Installationsskripte. Auf `main` hält er den Cache der Release-Builds warm, und ein kaputter Release-Build fällt dort auf |
-| `docs.yml` | Pushes auf `main` und Pull Requests, die `docs/`, `mkdocs.yml` oder `requirements-docs.txt` ändern | baut die Doku mit `mkdocs build --strict` (das Plugin `privacy` lädt Schriften und das Mermaid-Skript beim Bauen herunter, so lädt die Seite nichts von Dritten); auf `main` veröffentlicht er sie auch auf GitHub Pages |
+| `docs.yml` | Pushes auf `main` und Pull Requests, die `docs/`, `mkdocs.yml` oder `requirements-docs.txt` ändern | baut die Doku mit [Zensical](https://zensical.org/), dem Nachfolger von MkDocs Material (`zensical build --strict`; das Datum unter jeder Seite schreibt `scripts/docs-revision-date` aus dem letzten Commit ihrer Datei, bis Zensical es selbst kann; das Plugin `privacy` lädt Schriften und das Mermaid-Skript beim Bauen herunter, so lädt die Seite nichts von Dritten); auf `main` veröffentlicht er sie auch auf GitHub Pages |
 | `screenshots.yml` | von Hand: **Actions → Update screenshots** | erzeugt die Bilder in `docs/` aus den Demodaten und committet sie |
 | `bump.yml` | von Hand: **Actions → Bump version** | erhöht die Version und taggt sie, das startet `release.yml` |
 | `release.yml` | ein Tag `vX.Y.Z`, oder von Hand | CI, Agenten, das Multi-Arch-Image auf Docker Hub und GHCR, das GitHub-Release mit den Agenten |
@@ -146,7 +146,7 @@ die Version und die Prüfsummen ein und führe `cargo test` aus. Die Quellen von
 
 ```bash
 pip install -r requirements-docs.txt
-mkdocs serve                     # http://127.0.0.1:8000, lädt bei Änderungen neu
+zensical serve                   # http://127.0.0.1:8000, lädt bei Änderungen neu
 ```
 
 Die README und diese Dokumentation gibt es nur auf Deutsch; Code, Kommentare, Commits und Pull

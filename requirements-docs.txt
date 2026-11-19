@@ -1,3 +1,4 @@
-# Documentation (mkdocs.yml, .github/workflows/docs.yml)
-mkdocs-material==9.8.0
-mkdocs-git-revision-date-localized-plugin==1.6.2
+# Documentation (mkdocs.yml, .github/workflows/docs.yml), built with Zensical
+zensical==0.1.2
+# The date under every page, until Zensical does it itself (mkdocs.yml, markdown_extensions)
+./scripts/docs-revision-date

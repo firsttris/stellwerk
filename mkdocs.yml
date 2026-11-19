@@ -1,6 +1,7 @@
 # Documentation as a website: https://speicherstadt.app/stellwerk/
-# Source is docs/ (German only), built with MkDocs Material (.github/workflows/docs.yml).
-# Locally: pip install -r requirements-docs.txt && mkdocs serve
+# Source is docs/ (German only), built with Zensical, the successor of MkDocs Material, which
+# reads this file as it is (https://zensical.org/docs/setup/basics/; .github/workflows/docs.yml).
+# Locally: pip install -r requirements-docs.txt && zensical serve
 site_name: Stellwerk
 site_description: >-
   Dateien auf allen Rechnern im Betrieb aktuell halten, ohne Cloud und ohne Fileserver: eine
@@ -75,13 +76,16 @@ extra_css:
 plugins:
   - search
   # Downloads fonts and scripts from third parties (Google Fonts, the Mermaid script) at build
-  # time and serves them from the site, so a visit sends no data to anyone but GitHub Pages
-  - privacy
-  - git-revision-date-localized:
-      type: date
-      fallback_to_build_date: true
+  # time and serves them from the site, so a visit sends no data to anyone but GitHub Pages.
+  # The video player of the image gallery brings an ad SDK; the docs have no videos.
+  - privacy:
+      assets_exclude:
+        - cdn.plyr.io/*
 
 markdown_extensions:
+  # "Letztes Update" under every page, from the last commit of its file
+  # (scripts/docs-revision-date, installed through requirements-docs.txt)
+  - stellwerk_docs_revision_date
   - admonition
   - attr_list
   - md_in_html
@@ -103,8 +107,8 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.emoji:
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      emoji_index: !!python/name:zensical.extensions.emoji.twemoji
+      emoji_generator: !!python/name:zensical.extensions.emoji.to_svg
 
 extra:
   social:

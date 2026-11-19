@@ -40,7 +40,7 @@ cargo test                   # downloads the pinned Syncthing once into .syncthi
 bun run --filter web check   # Biome, tsc --noEmit, Vitest, vite build
 bun checks                   # file size, interface texts, no rings between modules (checks.json, firsttris/workflows)
 bun run e2e                  # Playwright (bun --bun playwright test) on the demo build; PW_CHROMIUM=/path/to/chrome outside the image
-mkdocs build --strict        # when docs/ or mkdocs.yml changed
+zensical build --strict      # when docs/ or mkdocs.yml changed
 ```
 
 ## Pull requests
