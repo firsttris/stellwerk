@@ -42,7 +42,11 @@ jobs:
       description: Central web UI to manage Syncthing on all your devices
       version-file: Cargo.toml
       ghcr: true
-    secrets: inherit
+    # Passed by name: "secrets: inherit" only reaches reusable workflows of the same owner, and since
+    # the move to Speicherstadt firsttris/workflows is another owner (DOCKER_PAT would arrive empty and
+    # "prepare" be refused before it gets a runner).
+    secrets:
+      DOCKER_PAT: ${{ secrets.DOCKER_PAT }}
     permissions:
       contents: write
       packages: write
