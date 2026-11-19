@@ -77,7 +77,7 @@ eigenen Server abgleichen will.
 | [Syncthing](https://syncthing.net) allein | Peer-to-Peer-Sync, auf jedem Gerät eingerichtet | eine Stelle, um alle Geräte einzurichten, ein Server, der immer in jedem Ordner ist |
 | [Resilio Sync](https://www.resilio.com) mit Management Console | Sync mit zentraler Verwaltung | Open Source und kostenlos; keine kommerzielle Lizenz nötig |
 | [Seafile](https://www.seafile.com) | selbst gehosteter Server für Sync und Freigaben mit eigenen Clients | nutzt Syncthing; normale Ordner auf jedem Gerät, kein eigenes Speicherformat |
-| [Nextcloud](https://nextcloud.com) | selbst gehostete Cloud-Suite mit Datei-Sync | macht nur Sync, braucht wenig auf dem Server, direkte Übertragung im LAN über Syncthing |
+| [Nextcloud](https://nextcloud.com) | selbst gehostete Cloud-Suite mit Datei-Sync | macht nur Sync; direkte Übertragung im LAN über Syncthing |
 | [SyncWings](https://forum.syncthing.net/t/syncwings-web-ui-for-syncthing-filestash-single-or-multi-user-easy-file-management-looking-for-testers/25202) | Web-Dateimanager auf Syncthing-Instanzen | verwaltet das Syncthing auf jedem Gerät, nicht nur auf dem Server |
 
 ## Schnellstart
@@ -250,6 +250,6 @@ Versionen von Stellwerk und Syncthing und was die Zentrale angezeigt hat. Bitte 
 
 <sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Contributors · <a href="README.md">English</a><br>
 Geänderte Fassungen, die du weitergibst oder für andere betreibst, müssen ihren Quellcode unter der AGPL anbieten. Für IT-Dienstleister: Partnerschaft mit direktem Draht zur Entwicklung, dazu Einrichtung und Support über <a href="https://teufel-it.de">teufel-it.de</a>.<br>
-Stellwerk steht in keiner Verbindung zur Syncthing Foundation oder zu Resilio.</sub>
+Stellwerk steht in keiner Verbindung zur Syncthing Foundation, zu Resilio, Seafile, Nextcloud oder SyncWings; die Namen sind Marken ihrer Inhaber.</sub>
 
 </div>

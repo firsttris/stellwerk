@@ -76,7 +76,7 @@ through their own server.
 | [Syncthing](https://syncthing.net) alone | peer-to-peer sync, configured on each device | one place to configure all devices, a server that is always in every folder |
 | [Resilio Sync](https://www.resilio.com) with Management Console | sync with central management | open source and free; no commercial license needed |
 | [Seafile](https://www.seafile.com) | self-hosted file sync and share server with its own clients | uses Syncthing; plain folders on every device, no own storage format |
-| [Nextcloud](https://nextcloud.com) | self-hosted cloud suite with file sync | does only sync, light on the server, direct LAN transfer through Syncthing |
+| [Nextcloud](https://nextcloud.com) | self-hosted cloud suite with file sync | does only sync; direct LAN transfer through Syncthing |
 | [SyncWings](https://forum.syncthing.net/t/syncwings-web-ui-for-syncthing-filestash-single-or-multi-user-easy-file-management-looking-for-testers/25202) | web file manager on top of Syncthing instances | manages the Syncthing on every device, not only on the server |
 
 ## Quick start
@@ -247,6 +247,6 @@ request.
 
 <sub>License: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel and contributors · <a href="README.de.md">Deutsch</a><br>
 Changed versions you pass on or run for others must offer their source code under the AGPL. For IT service providers: partnership with a direct line to the developers, plus setup and support via <a href="https://teufel-it.de">teufel-it.de</a>.<br>
-Stellwerk is not affiliated with the Syncthing Foundation or Resilio.</sub>
+Stellwerk is not affiliated with the Syncthing Foundation, Resilio, Seafile, Nextcloud or SyncWings; the names are trademarks of their owners.</sub>
 
 </div>
