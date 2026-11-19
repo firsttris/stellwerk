@@ -91,7 +91,7 @@ erster Durchlauf Schritt für Schritt steht unter
 
 > **Vor v1.0**: Jedes [Release](https://github.com/Speicherstadt/stellwerk/releases) veröffentlicht
 > das Image `tristanteu/stellwerk` und enthält die Agenten. Alles funktioniert und ist unter Linux,
-> Windows und macOS getestet; das Selbst-Update der Agenten ist das letzte Stück vor v1.0
+> Windows und macOS getestet; das Selbst-Update des Agenten unter Windows ist das letzte Stück vor v1.0
 > ([Roadmap](https://speicherstadt.app/stellwerk/architecture.html#roadmap)).
 
 ## ✨ Funktionen
@@ -185,8 +185,8 @@ eigenen Server abgleichen will.
 
 ### Gibt es eine zentrale Verwaltungsoberfläche für Syncthing?
 Ja, genau dafür ist Stellwerk da: eine Weboberfläche auf deinem Server, die Syncthing auf all deinen
-Geräten einrichtet. Es gibt noch kein Release, aber es lässt sich aus dem Quellcode bauen; siehe
-[Installation](#-installation).
+Geräten einrichtet. Releases vor v1.0 sind erschienen, mit dem Image `tristanteu/stellwerk` und den
+Agenten; siehe [Installation](#-installation).
 
 ### Ändert es mein bestehendes Syncthing?
 Nein. Der Agent bringt sein eigenes Syncthing mit eigener Konfiguration und eigenen Ports mit und
